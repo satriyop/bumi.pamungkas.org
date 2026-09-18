@@ -39,7 +39,8 @@ import {
   BookOpen,
   CheckCircle2,
   Camera,
-  Heart
+  Heart,
+  Compass
 } from 'lucide-react';
 
 export default function App() {
@@ -993,8 +994,12 @@ export default function App() {
             </div>
           </a>
 
-          <nav className="hidden lg:flex items-center gap-5 text-xs font-bold uppercase tracking-wider font-mono-tech">
+          <nav className="hidden lg:flex items-center gap-4 text-xs font-bold uppercase tracking-wider font-mono-tech">
             <a href="#tentang" className="hover:text-cyan-400 transition-colors">Profil ID</a>
+            <a href="#hobi" className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-cyan-400">
+              <Waves className="w-3.5 h-3.5" />
+              <span>Hobi & Renang</span>
+            </a>
             <a href="#telemetri" className="hover:text-cyan-400 transition-colors">Telemetri</a>
             <a href="#sekolah" className="hover:text-indigo-400 transition-colors flex items-center gap-1 text-indigo-400">
               <BookOpen className="w-3.5 h-3.5" />
@@ -1194,9 +1199,15 @@ export default function App() {
 
                 {/* Athlete Visual Display */}
                 <div className="py-6 flex items-center gap-5">
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-500 p-1 shadow-xl shadow-cyan-500/30 flex-shrink-0 animate-float">
-                    <div className="w-full h-full rounded-[14px] bg-slate-950 flex flex-col items-center justify-center text-5xl">
-                      🏊‍♂️
+                  <div className="relative flex-shrink-0 animate-float">
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-500 p-1 shadow-xl shadow-cyan-500/30">
+                      <div className="w-full h-full rounded-[14px] bg-slate-950 flex flex-col items-center justify-center text-5xl">
+                        🏊‍♂️
+                      </div>
+                    </div>
+                    <div className="absolute -bottom-2 -right-2 bg-amber-400 text-amber-950 text-[10px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-1 border-2 border-slate-900">
+                      <Sparkles className="w-3 h-3 fill-amber-950" />
+                      <span>12 Tahun</span>
                     </div>
                   </div>
 
@@ -1234,6 +1245,95 @@ export default function App() {
               </div>
             </div>
 
+          </div>
+        </section>
+
+        {/* ============================================================== */}
+        {/* SECTION: HOBI & AKTIVITAS OLAHRAGA MAS BUMI                    */}
+        {/* ============================================================== */}
+        <section id="hobi" className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs font-mono-tech font-bold text-cyan-400 uppercase tracking-wider mb-1">
+                <Waves className="w-4 h-4" />
+                <span>AKTIVITAS & OLAHRAGA FAVORIT</span>
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
+                🏊‍♂️ Renang & Olahraga Mas Bumi
+              </h2>
+            </div>
+            <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              Air dan olahraga bikin tubuh sehat, kuat, dan pikiran selalu segar setiap hari!
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Card 1: Renang */}
+            <div className={`rounded-3xl p-6 sm:p-7 border transition-all hover:-translate-y-1 relative overflow-hidden group flex flex-col justify-between ${
+              isDarkMode 
+                ? 'bg-slate-900/85 border-cyan-800/40 shadow-xl shadow-cyan-950/30' 
+                : 'bg-white/90 border-sky-100 shadow-md'
+            }`}>
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Waves className="w-6 h-6" />
+                </div>
+                <h3 className="font-bold text-xl font-fun">Berenang (Swimming)</h3>
+                <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Renang adalah hobi utamaku! Rasanya sangat seru bisa meluncur di air, melatih pernapasan, dan menguasai berbagai gaya renang dengan cepat.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-4 font-mono-tech">
+                <span className="text-xs font-bold bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg border border-cyan-400/30">Gaya Bebas</span>
+                <span className="text-xs font-bold bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg border border-cyan-400/30">Gaya Dada</span>
+                <span className="text-xs font-bold bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg border border-cyan-400/30">Gaya Punggung</span>
+                <span className="text-xs font-bold bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg border border-cyan-400/30">Gaya Kupu-kupu 🦋</span>
+              </div>
+            </div>
+
+            {/* Card 2: Olahraga Lainnya */}
+            <div className={`rounded-3xl p-6 sm:p-7 border transition-all hover:-translate-y-1 relative overflow-hidden group flex flex-col justify-between ${
+              isDarkMode 
+                ? 'bg-slate-900/85 border-amber-800/40 shadow-xl shadow-amber-950/30' 
+                : 'bg-white/90 border-amber-100 shadow-md'
+            }`}>
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Activity className="w-6 h-6" />
+                </div>
+                <h3 className="font-bold text-xl font-fun">Olahraga & Gerak Aktif</h3>
+                <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Selain renang, Mas Bumi juga suka lari santai, main sepak bola kecil bersama teman di sekolah, senam ceria, dan bersepeda mengelilingi Klaten.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-4 font-mono-tech">
+                <span className="text-xs font-bold bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-lg border border-amber-400/30">Lari Cepat</span>
+                <span className="text-xs font-bold bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-lg border border-amber-400/30">Gowes Sepeda</span>
+                <span className="text-xs font-bold bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-lg border border-amber-400/30">Sehat & Bugar</span>
+              </div>
+            </div>
+
+            {/* Card 3: Sportivitas & Disiplin */}
+            <div className={`rounded-3xl p-6 sm:p-7 border transition-all hover:-translate-y-1 relative overflow-hidden group flex flex-col justify-between ${
+              isDarkMode 
+                ? 'bg-slate-900/85 border-emerald-800/40 shadow-xl shadow-emerald-950/30' 
+                : 'bg-white/90 border-emerald-100 shadow-md'
+            }`}>
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Trophy className="w-6 h-6" />
+                </div>
+                <h3 className="font-bold text-xl font-fun">Sportivitas & Disiplin</h3>
+                <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Olahraga mengajarkan Mas Bumi untuk selalu disiplin waktu, sportif, saling menghargai teman, dan pantang menyerah saat menghadapi tantangan.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-4 font-mono-tech">
+                <span className="text-xs font-bold bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-400/30">Disiplin</span>
+                <span className="text-xs font-bold bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-400/30">Sportif</span>
+                <span className="text-xs font-bold bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-400/30">Pantang Menyerah</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -2388,6 +2488,35 @@ export default function App() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* 4 Original Target & Adventure Cards with Icons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/10">
+            {[
+              { title: 'Latihan Renang Rutin', desc: 'Meningkatkan stamina & kecepatan semua gaya renang', icon: Waves, color: 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30' },
+              { title: 'Naik Level Kumon', desc: 'Menyelesaikan lembar kerja harian tepat waktu', icon: Sparkles, color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30' },
+              { title: 'Bikin Web Sendiri', desc: 'Punya web pribadi aktif di bumi.pamungkas.org', icon: Compass, color: 'text-blue-400 bg-blue-500/20 border-blue-500/30' },
+              { title: 'Membanggakan Orang Tua', desc: 'Rajin beribadah, belajar, dan selalu berbuat baik', icon: Heart, color: 'text-rose-400 bg-rose-500/20 border-rose-500/30' },
+            ].map((target, idx) => {
+              const Icon = target.icon;
+              return (
+                <div key={idx} className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
+                  isDarkMode ? 'bg-slate-950/50 border-slate-800/80 hover:border-slate-700' : 'bg-slate-50 border-sky-100 shadow-xs'
+                }`}>
+                  <div className="space-y-3">
+                    <div className={`w-10 h-10 rounded-xl ${target.color} border flex items-center justify-center font-bold`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <h4 className="font-bold text-base font-fun">{target.title}</h4>
+                    <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{target.desc}</p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-1.5 text-cyan-400 text-xs font-bold font-mono-tech">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Sedang Berjalan!</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
 
