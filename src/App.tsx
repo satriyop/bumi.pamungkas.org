@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Waves, 
   Award, 
@@ -19,24 +19,389 @@ import {
   Check, 
   Star, 
   Flame, 
-  ShieldCheck,
-  Gamepad2,
-  Zap,
-  Calculator,
-  Flag,
-  Layers,
-  HelpCircle
+  ShieldCheck, 
+  Gamepad2, 
+  Zap, 
+  Calculator, 
+  Flag, 
+  Layers, 
+  Volume2, 
+  VolumeX, 
+  ArrowUp
 } from 'lucide-react';
 
 export default function App() {
-  // Theme state: 'ocean' (day) or 'deepsea' (night neon)
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Active game tab: 'swim' | 'math' | 'quiz' | 'memory'
-  const [activeGameTab, setActiveGameTab] = useState<'swim' | 'math' | 'quiz' | 'memory'>('quiz');
+  // Active game tab: 'arcade' | 'swim' | 'math' | 'memory' | 'quiz'
+  const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz'>('arcade');
 
   // ==========================================
-  // GAME 1: BALAPAN RENANG 50 METER (VIRTUAL RACE)
+  // NATIVE SOUND SYNTHESIZER (Web Audio API)
+  // ==========================================
+  const [isSoundMuted, setIsSoundMuted] = useState(false);
+
+  const playSound = useCallback((type: 'swim' | 'coin' | 'hit') => {
+    if (isSoundMuted) return;
+    try {
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      if (type === 'swim') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.18, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+      } else if (type === 'coin') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(587, ctx.currentTime);
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.2);
+      } else if (type === 'hit') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(60, ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.25);
+      }
+    } catch {
+      // Ignore audio block
+    }
+  }, [isSoundMuted]);
+
+  // ==========================================
+  // SUPER GAME: PETUALANGAN MENYELAM MAS BUMI (ARCADE RUNNER)
+  // ==========================================
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [arcadeState, setArcadeState] = useState<'idle' | 'playing' | 'gameover'>('idle');
+  const [arcadeScore, setArcadeScore] = useState(0);
+  const [arcadeHighScore, setArcadeHighScore] = useState(() => {
+    try {
+      return parseInt(localStorage.getItem('bumi_arcade_highscore') || '0', 10);
+    } catch {
+      return 0;
+    }
+  });
+
+  // Game internal state ref
+  const gameStateRef = useRef({
+    playerY: 150,
+    playerVy: 0,
+    obstacles: [] as { x: number; y: number; size: number; speed: number; emoji: string }[],
+    coins: [] as { x: number; y: number; size: number; emoji: string; points: number }[],
+    bubbles: [] as { x: number; y: number; r: number; speed: number; opacity: number }[],
+    score: 0,
+    distance: 0,
+    gameSpeed: 3.5,
+    lastObstacleSpawn: 0,
+    lastCoinSpawn: 0,
+    animationId: 0
+  });
+
+  const swimUp = useCallback(() => {
+    if (arcadeState === 'playing') {
+      gameStateRef.current.playerVy = -5.8;
+      playSound('swim');
+      // Add burst of bubbles
+      for (let i = 0; i < 3; i++) {
+        gameStateRef.current.bubbles.push({
+          x: 80 - Math.random() * 15,
+          y: gameStateRef.current.playerY + 15 + (Math.random() * 10 - 5),
+          r: Math.random() * 4 + 2,
+          speed: Math.random() * 2 + 1,
+          opacity: 0.8
+        });
+      }
+    }
+  }, [arcadeState, playSound]);
+
+  const startArcadeGame = () => {
+    gameStateRef.current = {
+      playerY: 140,
+      playerVy: 0,
+      obstacles: [],
+      coins: [],
+      bubbles: [],
+      score: 0,
+      distance: 0,
+      gameSpeed: 3.6,
+      lastObstacleSpawn: Date.now(),
+      lastCoinSpawn: Date.now(),
+      animationId: 0
+    };
+    setArcadeScore(0);
+    setArcadeState('playing');
+  };
+
+  // Main Canvas Game Loop
+  useEffect(() => {
+    if (arcadeState !== 'playing') return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let isRunning = true;
+
+    const obstacleEmojis = ['🪼', '🐡', '🪸', '🐙'];
+    const coinItems = [
+      { emoji: '🏅', points: 50 },
+      { emoji: '⭐', points: 25 },
+      { emoji: '📚', points: 100 }
+    ];
+
+    const loop = () => {
+      if (!isRunning) return;
+
+      const state = gameStateRef.current;
+      const width = canvas.width;
+      const height = canvas.height;
+
+      // 1. Update Player Physics
+      state.playerVy += 0.26; // Gravity
+      state.playerY += state.playerVy;
+
+      // Clamp player inside canvas
+      if (state.playerY < 20) {
+        state.playerY = 20;
+        state.playerVy = 0;
+      }
+      if (state.playerY > height - 35) {
+        state.playerY = height - 35;
+        state.playerVy = 0;
+      }
+
+      // Distance & Score increment
+      state.distance += 1;
+      if (state.distance % 8 === 0) {
+        state.score += 1;
+        setArcadeScore(state.score);
+      }
+
+      // Difficulty scaling
+      state.gameSpeed = 3.6 + Math.min(4, state.score * 0.005);
+
+      // 2. Spawn Obstacles
+      const now = Date.now();
+      if (now - state.lastObstacleSpawn > Math.max(1200, 2200 - state.score * 3)) {
+        state.lastObstacleSpawn = now;
+        const randomEmoji = obstacleEmojis[Math.floor(Math.random() * obstacleEmojis.length)];
+        state.obstacles.push({
+          x: width + 30,
+          y: Math.random() * (height - 80) + 40,
+          size: 32,
+          speed: state.gameSpeed + (Math.random() * 1.5 - 0.5),
+          emoji: randomEmoji
+        });
+      }
+
+      // 3. Spawn Coins & Items
+      if (now - state.lastCoinSpawn > 1600) {
+        state.lastCoinSpawn = now;
+        const randomItem = coinItems[Math.floor(Math.random() * coinItems.length)];
+        state.coins.push({
+          x: width + 20,
+          y: Math.random() * (height - 90) + 45,
+          size: 28,
+          emoji: randomItem.emoji,
+          points: randomItem.points
+        });
+      }
+
+      // 4. Update & Filter Obstacles
+      for (let i = state.obstacles.length - 1; i >= 0; i--) {
+        const obs = state.obstacles[i];
+        obs.x -= obs.speed;
+
+        // Collision detection with Mas Bumi (player at x = 80, y = playerY, radius ~ 18)
+        const dx = 80 - obs.x;
+        const dy = (state.playerY + 12) - obs.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 26) {
+          // HIT OBSTACLE! GAME OVER!
+          playSound('hit');
+          isRunning = false;
+          setArcadeState('gameover');
+          setArcadeHighScore((prevHigh) => {
+            const finalHigh = Math.max(prevHigh, state.score);
+            try {
+              localStorage.setItem('bumi_arcade_highscore', finalHigh.toString());
+            } catch {
+              // ignore
+            }
+            return finalHigh;
+          });
+          return;
+        }
+
+        if (obs.x < -40) {
+          state.obstacles.splice(i, 1);
+        }
+      }
+
+      // 5. Update & Filter Coins
+      for (let i = state.coins.length - 1; i >= 0; i--) {
+        const coin = state.coins[i];
+        coin.x -= state.gameSpeed;
+
+        const dx = 80 - coin.x;
+        const dy = (state.playerY + 12) - coin.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 28) {
+          // Collected Coin!
+          playSound('coin');
+          state.score += coin.points;
+          setArcadeScore(state.score);
+          state.coins.splice(i, 1);
+          continue;
+        }
+
+        if (coin.x < -40) {
+          state.coins.splice(i, 1);
+        }
+      }
+
+      // 6. Ambient Bubbles
+      if (Math.random() > 0.4) {
+        state.bubbles.push({
+          x: Math.random() * width,
+          y: height + 10,
+          r: Math.random() * 4 + 1.5,
+          speed: Math.random() * 1.5 + 0.8,
+          opacity: Math.random() * 0.5 + 0.2
+        });
+      }
+
+      for (let i = state.bubbles.length - 1; i >= 0; i--) {
+        const b = state.bubbles[i];
+        b.y -= b.speed;
+        b.x -= state.gameSpeed * 0.3;
+        if (b.y < -10) {
+          state.bubbles.splice(i, 1);
+        }
+      }
+
+      // ==========================
+      // RENDER CANVAS
+      // ==========================
+      // Deep ocean water background
+      const grad = ctx.createLinearGradient(0, 0, 0, height);
+      grad.addColorStop(0, '#0284c7'); // sky-600
+      grad.addColorStop(0.5, '#0369a1'); // sky-700
+      grad.addColorStop(1, '#0c4a6e'); // sky-900
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
+
+      // Light rays
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.beginPath();
+      ctx.moveTo(width * 0.3, 0);
+      ctx.lineTo(width * 0.55, height);
+      ctx.lineTo(width * 0.65, height);
+      ctx.lineTo(width * 0.45, 0);
+      ctx.fill();
+
+      // Render Bubbles
+      for (const b of state.bubbles) {
+        ctx.fillStyle = `rgba(224, 242, 254, ${b.opacity})`;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Render Coins
+      ctx.font = '24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const c of state.coins) {
+        ctx.shadowColor = '#facc15';
+        ctx.shadowBlur = 10;
+        ctx.fillText(c.emoji, c.x, c.y);
+        ctx.shadowBlur = 0;
+      }
+
+      // Render Obstacles
+      for (const obs of state.obstacles) {
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 8;
+        ctx.fillText(obs.emoji, obs.x, obs.y);
+        ctx.shadowBlur = 0;
+      }
+
+      // Render Player (Mas Bumi Swimmer)
+      ctx.save();
+      ctx.translate(80, state.playerY + 12);
+      // Tilt swimmer according to velocity
+      const tilt = Math.max(-0.4, Math.min(0.4, state.playerVy * 0.06));
+      ctx.rotate(tilt);
+
+      // Draw Swimmer emoji
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 12;
+      ctx.font = '36px sans-serif';
+      ctx.fillText('🏊‍♂️', 0, 0);
+      ctx.shadowBlur = 0;
+
+      // Small name tag
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillStyle = '#fef08a';
+      ctx.fillText('BUMI', 0, -22);
+      ctx.restore();
+
+      state.animationId = requestAnimationFrame(loop);
+    };
+
+    gameStateRef.current.animationId = requestAnimationFrame(loop);
+
+    return () => {
+      isRunning = false;
+      cancelAnimationFrame(gameStateRef.current.animationId);
+    };
+  }, [arcadeState, playSound]);
+
+  // Keyboard controls for Arcade
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        if (arcadeState === 'playing') {
+          swimUp();
+        } else if (arcadeState === 'idle' || arcadeState === 'gameover') {
+          startArcadeGame();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [arcadeState, swimUp]);
+
+  // ==========================================
+  // GAME 2: BALAPAN RENANG 50 METER
   // ==========================================
   const [raceState, setRaceState] = useState<'idle' | 'racing' | 'finished'>('idle');
   const [bumiProgress, setBumiProgress] = useState(0);
@@ -88,6 +453,7 @@ export default function App() {
 
   const paddleBumi = () => {
     if (raceState === 'racing') {
+      playSound('swim');
       setBumiProgress((prev) => Math.min(100, prev + 5.5));
     }
   };
@@ -101,7 +467,7 @@ export default function App() {
   };
 
   // ==========================================
-  // GAME 2: TANTANGAN HITUNG KILAT KUMON (SPEED MATH)
+  // GAME 3: TANTANGAN HITUNG KILAT KUMON
   // ==========================================
   const [mathState, setMathState] = useState<'idle' | 'playing' | 'finished'>('idle');
   const [mathTimeLeft, setMathTimeLeft] = useState(20);
@@ -166,16 +532,18 @@ export default function App() {
   const handleMathAnswer = (chosen: number) => {
     if (mathState !== 'playing') return;
     if (chosen === currentProblem.ans) {
+      playSound('coin');
       setMathScore((s) => s + 10 + mathStreak * 2);
       setMathStreak((st) => st + 1);
     } else {
+      playSound('hit');
       setMathStreak(0);
     }
     setCurrentProblem(generateProblem());
   };
 
   // ==========================================
-  // GAME 3: KUIS MULTI-RONDE DENGAN SOAL BARU TERUS!
+  // GAME 4: KUIS MULTI-RONDE MAS BUMI
   // ==========================================
   const quizRounds = [
     {
@@ -289,6 +657,9 @@ export default function App() {
       if (answers[idx] === q.correct) score += 1;
     });
     setQuizScore(score);
+    if (score >= 3) {
+      playSound('coin');
+    }
   };
 
   const nextQuizRound = () => {
@@ -298,7 +669,7 @@ export default function App() {
   };
 
   // ==========================================
-  // GAME 4: TEBAK & COCOKKAN KARTU MEMORI (MEMORY MATCH GAME)
+  // GAME 5: TEBAK KARTU MEMORI
   // ==========================================
   const initialCards = [
     { id: 1, symbol: '🏊‍♂️', name: 'Renang', matched: false },
@@ -323,6 +694,7 @@ export default function App() {
       return;
     }
 
+    playSound('swim');
     const newFlipped = [...flippedCards, index];
     setFlippedCards(newFlipped);
 
@@ -332,7 +704,7 @@ export default function App() {
       const secondCard = memoryCards[newFlipped[1]];
 
       if (firstCard.symbol === secondCard.symbol) {
-        // Match found!
+        playSound('coin');
         setTimeout(() => {
           setMemoryCards((prev) => {
             const updated = prev.map((card, i) => 
@@ -344,12 +716,11 @@ export default function App() {
             return updated;
           });
           setFlippedCards([]);
-        }, 400);
+        }, 350);
       } else {
-        // Not a match, flip back
         setTimeout(() => {
           setFlippedCards([]);
-        }, 900);
+        }, 850);
       }
     }
   };
@@ -391,6 +762,7 @@ export default function App() {
 
   const handleLap = () => {
     if (seconds > 0) {
+      playSound('coin');
       setSavedLaps((prev) => [{ stroke: selectedStroke, time: seconds }, ...prev.slice(0, 4)]);
     }
   };
@@ -413,6 +785,7 @@ export default function App() {
   ]);
 
   const toggleMission = (id: number) => {
+    playSound('coin');
     setMissions(missions.map(m => m.id === id ? { ...m, completed: !m.completed } : m));
   };
 
@@ -467,44 +840,46 @@ export default function App() {
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-semibold">
             <a href="#tentang" className="hover:text-cyan-500 transition-colors">Tentang Mas Bumi</a>
-            <a href="#games" className="hover:text-cyan-500 transition-colors flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
-              <Gamepad2 className="w-4 h-4" />
-              <span>Arena 4 Game & Kuis 🔥</span>
+            <a href="#games" className="hover:text-cyan-500 transition-colors flex items-center gap-1.5 text-amber-500 font-extrabold">
+              <Gamepad2 className="w-4 h-4 animate-bounce" />
+              <span>5 Game & Kuis Seru!</span>
             </a>
             <a href="#hobi" className="hover:text-cyan-500 transition-colors">Renang & Olahraga</a>
             <a href="#stopwatch" className="hover:text-cyan-500 transition-colors">Stopwatch ⏱️</a>
             <a href="#sekolah" className="hover:text-cyan-500 transition-colors">MIM Basin & Kumon</a>
-            <a href="#misi" className="hover:text-cyan-500 transition-colors">Misi Keren</a>
           </nav>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
+            {/* Audio sound toggle */}
+            <button
+              onClick={() => setIsSoundMuted(!isSoundMuted)}
+              className={`p-2 rounded-xl transition-all cursor-pointer ${
+                isSoundMuted 
+                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300' 
+                  : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+              }`}
+              title={isSoundMuted ? 'Nyalakan Suara Game' : 'Matikan Suara Game'}
+            >
+              {isSoundMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+
+            {/* Dark Mode Toggle */}
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
+              className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-1 text-xs font-bold ${
                 isDarkMode
                   ? 'bg-slate-800 text-amber-300 border border-slate-700 hover:bg-slate-700'
                   : 'bg-white text-slate-700 border border-sky-200 hover:bg-sky-50 shadow-xs'
               }`}
-              title="Ganti Mode Tampilan"
             >
-              {isDarkMode ? (
-                <>
-                  <Sun className="w-4 h-4 text-amber-400" />
-                  <span className="hidden sm:inline">Siang</span>
-                </>
-              ) : (
-                <>
-                  <Moon className="w-4 h-4 text-indigo-500" />
-                  <span className="hidden sm:inline">Malam</span>
-                </>
-              )}
+              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
             </button>
 
             <a 
               href="https://pamungkas.org" 
               target="_blank" 
               rel="noopener noreferrer"
-              className={`text-xs px-3.5 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+              className={`text-xs px-3 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
                 isDarkMode
                   ? 'bg-cyan-950/80 text-cyan-300 border border-cyan-800/80 hover:bg-cyan-900'
                   : 'bg-sky-100 hover:bg-sky-200 text-sky-800 border border-sky-200 shadow-xs'
@@ -616,7 +991,7 @@ export default function App() {
                     className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 text-xs sm:text-sm font-black px-6 py-2.5 rounded-xl shadow-lg shadow-orange-500/30 transition-all hover:scale-105 cursor-pointer"
                   >
                     <Gamepad2 className="w-4 h-4" />
-                    <span>Mainkan 4 Game & Kuis 🎮</span>
+                    <span>Mainkan 5 Game Mas Bumi! 🎮</span>
                   </a>
 
                   <a
@@ -634,48 +1009,36 @@ export default function App() {
         </section>
 
         {/* ============================================================== */}
-        {/* SECTION: ARENA 4 GAME & KUIS LENGKAP                           */}
+        {/* SECTION: ARENA 5 GAME & KUIS SUPER SERU                        */}
         {/* ============================================================== */}
         <section id="games" className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
             <div>
               <div className="inline-flex items-center gap-1.5 text-xs font-extrabold tracking-wider text-amber-500 uppercase mb-1">
                 <Gamepad2 className="w-4 h-4" />
-                <span>ZONA HIBURAN & TANTANGAN INTERAKTIF</span>
+                <span>ZONA ARCADE & TANTANGAN KHUSUS</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
-                🎮 Arena 4 Game & Kuis Mas Bumi
+                🕹️ Arena 5 Game & Kuis Mas Bumi (Super Seru!)
               </h2>
             </div>
             <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Semua game bisa dimainkan berulang kali! Kuisnya punya banyak ronde dengan pertanyaan baru terus!
+              Sekarang ada game arcade aksi meluncur di laut, balapan renang, hitung kilat Kumon, tebak kartu, dan kuis multi-ronde!
             </p>
           </div>
 
           {/* Game Selection Tabs */}
-          <div className="flex flex-wrap gap-2.5 p-1.5 rounded-2xl bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/40 dark:border-slate-700/60 max-w-fit">
+          <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/40 dark:border-slate-700/60 max-w-fit">
             <button
-              onClick={() => setActiveGameTab('quiz')}
+              onClick={() => setActiveGameTab('arcade')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-                activeGameTab === 'quiz'
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
+                activeGameTab === 'arcade'
+                  ? 'bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500 text-white shadow-md scale-102'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <Sparkles className="w-4 h-4" />
-              <span>1. Kuis Mas Bumi (Banyak Ronde!) ❓</span>
-            </button>
-
-            <button
-              onClick={() => setActiveGameTab('memory')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-                activeGameTab === 'memory'
-                  ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Layers className="w-4 h-4" />
-              <span>2. Tebak Kartu Memori 🎴</span>
+              <Zap className="w-4 h-4" />
+              <span>🔥 1. Petualangan Menyelam (Arcade)</span>
             </button>
 
             <button
@@ -687,7 +1050,7 @@ export default function App() {
               }`}
             >
               <Waves className="w-4 h-4" />
-              <span>3. Balapan Renang 50M 🏊‍♂️</span>
+              <span>2. Balapan Renang 50M 🏊‍♂️</span>
             </button>
 
             <button
@@ -699,183 +1062,137 @@ export default function App() {
               }`}
             >
               <Calculator className="w-4 h-4" />
-              <span>4. Hitung Kilat Kumon ⚡</span>
+              <span>3. Hitung Kilat Kumon ⚡</span>
+            </button>
+
+            <button
+              onClick={() => setActiveGameTab('memory')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                activeGameTab === 'memory'
+                  ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              <span>4. Kartu Memori 🎴</span>
+            </button>
+
+            <button
+              onClick={() => setActiveGameTab('quiz')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                activeGameTab === 'quiz'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>5. Kuis Multi-Ronde ❓</span>
             </button>
           </div>
 
-          {/* TAB 1: KUIS MULTI-RONDE */}
-          {activeGameTab === 'quiz' && (
+          {/* TAB 1: SUPER GAME ARCADE PETUALANGAN MENYELAM MAS BUMI */}
+          {activeGameTab === 'arcade' && (
             <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
               isDarkMode 
-                ? 'bg-gradient-to-br from-slate-900 to-indigo-950/60 border-slate-800' 
-                : 'bg-gradient-to-br from-white via-amber-50/50 to-orange-50/50 border-amber-200 shadow-lg shadow-amber-100'
+                ? 'bg-[#06172d] border-cyan-800/80 shadow-2xl' 
+                : 'bg-gradient-to-br from-white via-sky-50/80 to-blue-100/80 border-sky-300 shadow-xl'
             }`}>
-              <div className="max-w-2xl mx-auto space-y-6">
-                <div className="text-center space-y-2">
-                  <div className="flex flex-wrap items-center justify-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-xs font-black">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>{quizRounds[currentRoundIdx].roundName}</span>
+              <div className="max-w-2xl mx-auto space-y-4 text-center">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-left">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-rose-500 bg-rose-100 dark:bg-rose-950/80 px-2.5 py-0.5 rounded-md">
+                      ARCADE ACTION RUNNER
                     </span>
-                    <span className="text-xs font-bold text-slate-500">
-                      (Ronde {currentRoundIdx + 1} dari {quizRounds.length})
-                    </span>
+                    <h3 className="text-2xl font-black font-fun mt-1">
+                      🌊 Petualangan Menyelam Samudra Mas Bumi
+                    </h3>
                   </div>
-                  <h3 className="text-2xl sm:text-3xl font-black font-fun">
-                    🧠 Kuis Tantangan Pengetahuan Mas Bumi
-                  </h3>
-                  <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {quizRounds[currentRoundIdx].desc}
-                  </p>
-                </div>
 
-                <div className="space-y-4">
-                  {currentQuestions.map((item, qIdx) => (
-                    <div key={qIdx} className={`p-4 sm:p-5 rounded-2xl border ${
-                      isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-sky-100 shadow-xs'
-                    }`}>
-                      <p className="font-extrabold text-sm sm:text-base mb-3 font-fun">
-                        {qIdx + 1}. {item.q}
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        {item.options.map((opt, optIdx) => {
-                          const isSelected = answers[qIdx] === optIdx;
-                          return (
-                            <button
-                              key={optIdx}
-                              onClick={() => handleSelectAnswer(qIdx, optIdx)}
-                              className={`text-xs font-bold p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black border-transparent shadow-md scale-102'
-                                  : isDarkMode
-                                    ? 'bg-slate-700/60 text-slate-300 border-slate-600 hover:bg-slate-700'
-                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <div className="bg-black/20 px-3 py-1 rounded-xl border border-white/10 text-right">
+                      <span className="text-[9px] uppercase block font-bold text-slate-400">Skor Tertinggi</span>
+                      <span className="text-amber-400 font-mono font-black text-sm">🏆 {arcadeHighScore}</span>
                     </div>
-                  ))}
+                    <div className="bg-black/20 px-3 py-1 rounded-xl border border-white/10 text-right">
+                      <span className="text-[9px] uppercase block font-bold text-slate-400">Skor Saat Ini</span>
+                      <span className="text-cyan-300 font-mono font-black text-sm">{arcadeScore}</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="text-center pt-2 space-y-3">
-                  <div className="flex flex-wrap items-center justify-center gap-3">
-                    <button
-                      onClick={handleCheckQuiz}
-                      disabled={Object.keys(answers).length < currentQuestions.length}
-                      className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 px-7 py-3 rounded-2xl font-black text-sm shadow-lg shadow-amber-400/30 transition-all hover:scale-105 cursor-pointer"
-                    >
-                      Cek Jawaban Ronde Ini! 🎉
-                    </button>
+                <p className={`text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Kumpulkan <strong>Medali 🏅</strong>, <strong>Bintang ⭐</strong>, dan <strong>Buku Kumon 📚</strong>! Hindari <strong>Ubur-ubur 🪼</strong>, <strong>Ikan Buntal 🐡</strong>, dan <strong>Karang 🪸</strong>!
+                </p>
 
-                    <button
-                      onClick={nextQuizRound}
-                      className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 cursor-pointer inline-flex items-center gap-2"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                      <span>Ganti ke Ronde Soal Baru! ➡️</span>
-                    </button>
-                  </div>
+                {/* Canvas Game Screen */}
+                <div className="relative rounded-2xl overflow-hidden border-4 border-sky-400 shadow-2xl bg-sky-950 select-none">
+                  <canvas
+                    ref={canvasRef}
+                    width={640}
+                    height={320}
+                    onClick={swimUp}
+                    className="w-full h-auto aspect-[2/1] block cursor-pointer"
+                  />
 
-                  {quizScore !== null && (
-                    <div className="mt-4 p-5 rounded-2xl bg-amber-500/15 border border-amber-400/40 animate-float text-center max-w-sm mx-auto">
-                      <span className="text-3xl">🏆🌟</span>
-                      <h4 className="font-black text-lg mt-1 font-fun">
-                        Skor: {quizScore} dari {currentQuestions.length} Benar!
-                      </h4>
-                      <p className="text-xs text-amber-600 dark:text-amber-300 mt-1">
-                        {quizScore === 5 
-                          ? 'SEMPURNA! Kamu jagoan sejati! Lanjut ke ronde berikutnya yuk! 💯🎉' 
-                          : quizScore >= 3
-                            ? 'Hebat! Skor yang sangat memuaskan! 👏'
-                            : 'Bagus! Coba klik tombol Ganti Ronde Baru untuk tantangan lain! 😊'}
-                      </p>
+                  {/* Overlay: Idle Start */}
+                  {arcadeState === 'idle' && (
+                    <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4">
+                      <span className="text-6xl animate-bounce">🏊‍♂️🌊</span>
+                      <div className="space-y-1">
+                        <h4 className="text-2xl sm:text-3xl font-black font-fun text-cyan-300">
+                          Siap Menyelam, Mas Bumi?
+                        </h4>
+                        <p className="text-xs text-slate-300 max-w-sm">
+                          Tekan tombol <strong>SPASI</strong> di keyboard atau <strong>KLIK LAYAR</strong> untuk mendayung berenang ke atas!
+                        </p>
+                      </div>
+                      <button
+                        onClick={startArcadeGame}
+                        className="bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-white font-black text-base px-8 py-3.5 rounded-2xl shadow-xl shadow-orange-500/40 transition-all hover:scale-105 cursor-pointer flex items-center gap-2"
+                      >
+                        <Play className="w-5 h-5 fill-white" />
+                        <span>MULAI MAIN SEKARANG!</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Overlay: Game Over */}
+                  {arcadeState === 'gameover' && (
+                    <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4 animate-float">
+                      <span className="text-5xl">💥🌊</span>
+                      <div className="space-y-1">
+                        <h4 className="text-2xl sm:text-3xl font-black font-fun text-rose-400">
+                          Ups, Tersenggol Karang!
+                        </h4>
+                        <p className="text-sm">
+                          Skor Akhirmu: <strong className="font-mono text-xl text-amber-300">{arcadeScore}</strong>
+                        </p>
+                        {arcadeScore >= arcadeHighScore && arcadeScore > 0 && (
+                          <p className="text-xs text-emerald-400 font-bold animate-pulse">
+                            🎉 REKOR SKOR BARU TERCAPAI! LUAR BIASA!
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={startArcadeGame}
+                        className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black text-sm px-7 py-3 rounded-2xl shadow-lg transition-all hover:scale-105 cursor-pointer flex items-center gap-2"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Coba Menyelam Lagi!</span>
+                      </button>
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* TAB 2: GAME TEBAK KARTU MEMORI (MEMORY MATCH) */}
-          {activeGameTab === 'memory' && (
-            <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
-              isDarkMode 
-                ? 'bg-[#18112e] border-indigo-800/60 shadow-2xl' 
-                : 'bg-gradient-to-br from-white via-indigo-50/70 to-purple-50/60 border-indigo-200 shadow-xl shadow-indigo-100'
-            }`}>
-              <div className="max-w-xl mx-auto space-y-6 text-center">
-                <div className="space-y-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-indigo-500 bg-indigo-100 dark:bg-indigo-950/80 px-3 py-1 rounded-full border border-indigo-300">
-                    GAME ASAH MEMORI & DAYA INGAT
-                  </span>
-                  <h3 className="text-2xl sm:text-3xl font-black font-fun">
-                    🎴 Tebak & Cocokkan Pasangan Kartu Mas Bumi!
-                  </h3>
-                  <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                    Klik 2 kartu untuk membukanya. Temukan semua pasangan gambar yang sama (Renang, Piala, Kumon, dan MIM Basin)!
-                  </p>
-                </div>
-
-                {/* Status bar */}
-                <div className="flex justify-between items-center bg-black/20 p-3.5 rounded-2xl border border-indigo-500/30 max-w-sm mx-auto">
-                  <span className="text-xs font-bold text-indigo-300">
-                    Langkah: <strong className="font-mono text-base text-white">{memoryMoves}</strong>
-                  </span>
-                  <button
-                    onClick={resetMemoryGame}
-                    className="text-xs font-bold bg-indigo-500 hover:bg-indigo-400 text-white px-3 py-1 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Acak Ulang</span>
-                  </button>
-                </div>
-
-                {/* Cards Grid (4x2) */}
-                <div className="grid grid-cols-4 gap-3 max-w-md mx-auto">
-                  {memoryCards.map((card, idx) => {
-                    const isFlipped = flippedCards.includes(idx) || card.matched;
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => handleFlipCard(idx)}
-                        className={`aspect-square rounded-2xl flex flex-col items-center justify-center text-3xl font-bold transition-all duration-300 transform cursor-pointer border-2 select-none ${
-                          isFlipped
-                            ? card.matched
-                              ? 'bg-emerald-500/30 border-emerald-400 text-white scale-95 shadow-md shadow-emerald-500/30'
-                              : 'bg-indigo-600 border-indigo-300 text-white scale-102 shadow-lg shadow-indigo-500/40'
-                            : 'bg-gradient-to-br from-slate-800 to-indigo-950 hover:from-slate-700 hover:to-indigo-900 border-indigo-500/40 text-indigo-300 hover:scale-105'
-                        }`}
-                      >
-                        {isFlipped ? (
-                          <div className="flex flex-col items-center">
-                            <span>{card.symbol}</span>
-                            <span className="text-[10px] font-black uppercase mt-1 opacity-90">{card.name}</span>
-                          </div>
-                        ) : (
-                          <HelpCircle className="w-7 h-7 text-indigo-400 opacity-60" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Win Modal */}
-                {isMemoryWon && (
-                  <div className="p-6 rounded-3xl bg-emerald-500/20 border border-emerald-400 space-y-3 animate-float max-w-sm mx-auto">
-                    <span className="text-4xl block">🏆🎉</span>
-                    <h4 className="text-xl font-black font-fun">Hebat Banget Mas Bumi!</h4>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-300">
-                      Kamu berhasil mencocokkan semua kartu dalam <strong>{memoryMoves} langkah</strong>!
-                    </p>
+                {/* Mobile / Screen Tap Controls */}
+                {arcadeState === 'playing' && (
+                  <div className="pt-2">
                     <button
-                      onClick={resetMemoryGame}
-                      className="bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-md transition-all cursor-pointer"
+                      onClick={swimUp}
+                      className="w-full bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 active:scale-95 text-white font-black text-lg py-4 rounded-2xl shadow-xl shadow-cyan-500/30 transition-transform cursor-pointer flex items-center justify-center gap-2 border-2 border-white/40"
                     >
-                      Mainkan Lagi! 🔄
+                      <ArrowUp className="w-6 h-6 stroke-[3]" />
+                      <span>DAYUNG KE ATAS! (KLIK ATAU TEKAN SPASI) 🏊‍♂️</span>
                     </button>
                   </div>
                 )}
@@ -883,16 +1200,16 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 3: GAME BALAPAN RENANG 50 METER */}
+          {/* TAB 2: BALAPAN RENANG 50 METER */}
           {activeGameTab === 'swim' && (
             <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
               isDarkMode 
-                ? 'bg-[#09182d] border-cyan-800/60 shadow-2xl shadow-cyan-950/50' 
-                : 'bg-gradient-to-br from-white via-cyan-50/70 to-blue-100/60 border-cyan-200 shadow-xl shadow-cyan-100'
+                ? 'bg-[#09182d] border-cyan-800/60 shadow-2xl' 
+                : 'bg-gradient-to-br from-white via-cyan-50/70 to-blue-100/60 border-cyan-200 shadow-xl'
             }`}>
               <div className="max-w-3xl mx-auto space-y-6">
                 <div className="text-center space-y-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-cyan-500 bg-cyan-100 dark:bg-cyan-950/80 px-3 py-1 rounded-full border border-cyan-300 dark:border-cyan-800">
+                  <span className="text-xs font-black uppercase tracking-wider text-cyan-500 bg-cyan-100 dark:bg-cyan-950/80 px-3 py-1 rounded-full border border-cyan-300">
                     VIRTUAL SWIMMING SPRINT
                   </span>
                   <h3 className="text-2xl sm:text-3xl font-black font-fun">
@@ -1034,12 +1351,12 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 4: GAME TANTANGAN HITUNG KILAT KUMON */}
+          {/* TAB 3: TANTANGAN HITUNG KILAT KUMON */}
           {activeGameTab === 'math' && (
             <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
               isDarkMode 
                 ? 'bg-[#09221b] border-emerald-800/60 shadow-2xl' 
-                : 'bg-gradient-to-br from-white via-emerald-50/70 to-teal-100/60 border-emerald-200 shadow-xl shadow-emerald-100'
+                : 'bg-gradient-to-br from-white via-emerald-50/70 to-teal-100/60 border-emerald-200 shadow-xl'
             }`}>
               <div className="max-w-xl mx-auto space-y-6 text-center">
                 <div className="space-y-2">
@@ -1137,6 +1454,183 @@ export default function App() {
                     </button>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: TEBAK KARTU MEMORI */}
+          {activeGameTab === 'memory' && (
+            <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
+              isDarkMode 
+                ? 'bg-[#18112e] border-indigo-800/60 shadow-2xl' 
+                : 'bg-gradient-to-br from-white via-indigo-50/70 to-purple-50/60 border-indigo-200 shadow-xl'
+            }`}>
+              <div className="max-w-xl mx-auto space-y-6 text-center">
+                <div className="space-y-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-indigo-500 bg-indigo-100 dark:bg-indigo-950/80 px-3 py-1 rounded-full border border-indigo-300">
+                    GAME ASAH MEMORI & DAYA INGAT
+                  </span>
+                  <h3 className="text-2xl sm:text-3xl font-black font-fun">
+                    🎴 Tebak & Cocokkan Pasangan Kartu Mas Bumi!
+                  </h3>
+                  <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                    Klik 2 kartu untuk membukanya. Temukan semua pasangan gambar yang sama (Renang, Piala, Kumon, dan MIM Basin)!
+                  </p>
+                </div>
+
+                <div className="flex justify-between items-center bg-black/20 p-3.5 rounded-2xl border border-indigo-500/30 max-w-sm mx-auto">
+                  <span className="text-xs font-bold text-indigo-300">
+                    Langkah: <strong className="font-mono text-base text-white">{memoryMoves}</strong>
+                  </span>
+                  <button
+                    onClick={resetMemoryGame}
+                    className="text-xs font-bold bg-indigo-500 hover:bg-indigo-400 text-white px-3 py-1 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Acak Ulang</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-4 gap-3 max-w-md mx-auto">
+                  {memoryCards.map((card, idx) => {
+                    const isFlipped = flippedCards.includes(idx) || card.matched;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => handleFlipCard(idx)}
+                        className={`aspect-square rounded-2xl flex flex-col items-center justify-center text-3xl font-bold transition-all duration-300 transform cursor-pointer border-2 select-none ${
+                          isFlipped
+                            ? card.matched
+                              ? 'bg-emerald-500/30 border-emerald-400 text-white scale-95 shadow-md shadow-emerald-500/30'
+                              : 'bg-indigo-600 border-indigo-300 text-white scale-102 shadow-lg shadow-indigo-500/40'
+                            : 'bg-gradient-to-br from-slate-800 to-indigo-950 hover:from-slate-700 hover:to-indigo-900 border-indigo-500/40 text-indigo-300 hover:scale-105'
+                        }`}
+                      >
+                        {isFlipped ? (
+                          <div className="flex flex-col items-center">
+                            <span>{card.symbol}</span>
+                            <span className="text-[10px] font-black uppercase mt-1 opacity-90">{card.name}</span>
+                          </div>
+                        ) : (
+                          <Sparkles className="w-7 h-7 text-indigo-400 opacity-60" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {isMemoryWon && (
+                  <div className="p-6 rounded-3xl bg-emerald-500/20 border border-emerald-400 space-y-3 animate-float max-w-sm mx-auto">
+                    <span className="text-4xl block">🏆🎉</span>
+                    <h4 className="text-xl font-black font-fun">Hebat Banget Mas Bumi!</h4>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-300">
+                      Kamu berhasil mencocokkan semua kartu dalam <strong>{memoryMoves} langkah</strong>!
+                    </p>
+                    <button
+                      onClick={resetMemoryGame}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-md transition-all cursor-pointer"
+                    >
+                      Mainkan Lagi! 🔄
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: KUIS MULTI-RONDE */}
+          {activeGameTab === 'quiz' && (
+            <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
+              isDarkMode 
+                ? 'bg-gradient-to-br from-slate-900 to-indigo-950/60 border-slate-800' 
+                : 'bg-gradient-to-br from-white via-amber-50/50 to-orange-50/50 border-amber-200 shadow-lg'
+            }`}>
+              <div className="max-w-2xl mx-auto space-y-6">
+                <div className="text-center space-y-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-xs font-black">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{quizRounds[currentRoundIdx].roundName}</span>
+                    </span>
+                    <span className="text-xs font-bold text-slate-500">
+                      (Ronde {currentRoundIdx + 1} dari {quizRounds.length})
+                    </span>
+                  </div>
+                  <h3 className="text-2xl sm:text-3xl font-black font-fun">
+                    🧠 Kuis Tantangan Pengetahuan Mas Bumi
+                  </h3>
+                  <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {quizRounds[currentRoundIdx].desc}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {currentQuestions.map((item, qIdx) => (
+                    <div key={qIdx} className={`p-4 sm:p-5 rounded-2xl border ${
+                      isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-sky-100 shadow-xs'
+                    }`}>
+                      <p className="font-extrabold text-sm sm:text-base mb-3 font-fun">
+                        {qIdx + 1}. {item.q}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {item.options.map((opt, optIdx) => {
+                          const isSelected = answers[qIdx] === optIdx;
+                          return (
+                            <button
+                              key={optIdx}
+                              onClick={() => handleSelectAnswer(qIdx, optIdx)}
+                              className={`text-xs font-bold p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black border-transparent shadow-md scale-102'
+                                  : isDarkMode
+                                    ? 'bg-slate-700/60 text-slate-300 border-slate-600 hover:bg-slate-700'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-center pt-2 space-y-3">
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      onClick={handleCheckQuiz}
+                      disabled={Object.keys(answers).length < currentQuestions.length}
+                      className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 px-7 py-3 rounded-2xl font-black text-sm shadow-lg shadow-amber-400/30 transition-all hover:scale-105 cursor-pointer"
+                    >
+                      Cek Jawaban Ronde Ini! 🎉
+                    </button>
+
+                    <button
+                      onClick={nextQuizRound}
+                      className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 cursor-pointer inline-flex items-center gap-2"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>Ganti ke Ronde Soal Baru! ➡️</span>
+                    </button>
+                  </div>
+
+                  {quizScore !== null && (
+                    <div className="mt-4 p-5 rounded-2xl bg-amber-500/15 border border-amber-400/40 animate-float text-center max-w-sm mx-auto">
+                      <span className="text-3xl">🏆🌟</span>
+                      <h4 className="font-black text-lg mt-1 font-fun">
+                        Skor: {quizScore} dari {currentQuestions.length} Benar!
+                      </h4>
+                      <p className="text-xs text-amber-600 dark:text-amber-300 mt-1">
+                        {quizScore === 5 
+                          ? 'SEMPURNA! Kamu jagoan sejati! Lanjut ke ronde berikutnya yuk! 💯🎉' 
+                          : quizScore >= 3
+                            ? 'Hebat! Skor yang sangat memuaskan! 👏'
+                            : 'Bagus! Coba klik tombol Ganti Ronde Baru untuk tantangan lain! 😊'}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
