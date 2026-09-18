@@ -23,15 +23,17 @@ import {
   Gamepad2,
   Zap,
   Calculator,
-  Flag
+  Flag,
+  Layers,
+  HelpCircle
 } from 'lucide-react';
 
 export default function App() {
   // Theme state: 'ocean' (day) or 'deepsea' (night neon)
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Active game tab: 'swim' | 'math' | 'quiz'
-  const [activeGameTab, setActiveGameTab] = useState<'swim' | 'math' | 'quiz'>('swim');
+  // Active game tab: 'swim' | 'math' | 'quiz' | 'memory'
+  const [activeGameTab, setActiveGameTab] = useState<'swim' | 'math' | 'quiz' | 'memory'>('quiz');
 
   // ==========================================
   // GAME 1: BALAPAN RENANG 50 METER (VIRTUAL RACE)
@@ -43,7 +45,6 @@ export default function App() {
   const [raceTimeMs, setRaceTimeMs] = useState(0);
   const [selectedRaceStroke, setSelectedRaceStroke] = useState('Gaya Bebas 🏊‍♂️');
 
-  // Timer & Rival bot AI
   useEffect(() => {
     let raceInterval: NodeJS.Timeout | null = null;
     if (raceState === 'racing') {
@@ -51,13 +52,9 @@ export default function App() {
       raceInterval = setInterval(() => {
         setRaceTimeMs(Date.now() - startTime);
 
-        // Rival moves forward automatically
         setRivalProgress((prev) => {
           const nextVal = prev + Math.random() * 2.8 + 1.2;
-          if (nextVal >= 100) {
-            return 100;
-          }
-          return nextVal;
+          return nextVal >= 100 ? 100 : nextVal;
         });
       }, 150);
     }
@@ -66,7 +63,6 @@ export default function App() {
     };
   }, [raceState]);
 
-  // Check finish condition
   useEffect(() => {
     if (raceState === 'racing') {
       if (bumiProgress >= 100 && rivalProgress < 100) {
@@ -122,7 +118,7 @@ export default function App() {
     let n1: number, n2: number, ans: number, q: string;
     
     if (isMultiplication) {
-      n1 = Math.floor(Math.random() * 8) + 2; // 2 to 9
+      n1 = Math.floor(Math.random() * 8) + 2;
       n2 = Math.floor(Math.random() * 8) + 2;
       ans = n1 * n2;
       q = `${n1} × ${n2}`;
@@ -179,38 +175,109 @@ export default function App() {
   };
 
   // ==========================================
-  // GAME 3: KUIS MAS BUMI (EXPANDED TRIVIA)
+  // GAME 3: KUIS MULTI-RONDE DENGAN SOAL BARU TERUS!
   // ==========================================
+  const quizRounds = [
+    {
+      roundName: 'Ronde 1: Fakta Mas Bumi 🏊‍♂️',
+      desc: 'Pertanyaan seputar profil, sekolah, dan hobi Mas Bumi!',
+      questions: [
+        {
+          q: 'Kapan hari ulang tahun Mas Bumi?',
+          options: ['10 Januari 2013', '5 Juni 2014', '17 Agustus 2014'],
+          correct: 1
+        },
+        {
+          q: 'Di madrasah mana Mas Bumi menuntut ilmu?',
+          options: ['MIM Basin Klaten', 'SD Bintang Kejora', 'SMP 1 Klaten'],
+          correct: 0
+        },
+        {
+          q: 'Apa cabang olahraga favorit yang paling ditekuni Mas Bumi?',
+          options: ['Bermain Catur', 'Renang (Swimming)', 'Lompat Tali'],
+          correct: 1
+        },
+        {
+          q: 'Apa nama metode belajar mandiri matematika yang Mas Bumi ikuti?',
+          options: ['Kumon', 'Sempoa Tradisional', 'Les Tari'],
+          correct: 0
+        },
+        {
+          q: 'Kabupaten asal Mas Bumi yang terkenal indah dan asri adalah?',
+          options: ['Klaten, Jawa Tengah', 'Surabaya', 'Denpasar'],
+          correct: 0
+        }
+      ]
+    },
+    {
+      roundName: 'Ronde 2: Jelajah Klaten & Umbul Renang 🌊',
+      desc: 'Uji pengetahuan tentang kota Klaten dan mata air renang alaminya!',
+      questions: [
+        {
+          q: 'Apa nama umbul jernih terkenal di Klaten yang bisa dipakai renang bareng ikan-ikan?',
+          options: ['Umbul Ponggok', 'Pantai Parangtritis', 'Danau Toba'],
+          correct: 0
+        },
+        {
+          q: 'Candi kembar bersejarah yang sangat megah dan indah di Klaten adalah?',
+          options: ['Candi Plaosan', 'Candi Borobudur', 'Menara Eiffel'],
+          correct: 0
+        },
+        {
+          q: 'Umbul di Klaten yang airnya sangat segar di bawah pepohonan rindang adalah?',
+          options: ['Umbul Sigedang / Manten', 'Sungai Nil', 'Air Terjun Niagara'],
+          correct: 0
+        },
+        {
+          q: 'Waduk atau danau wisata yang terkenal di Klaten dengan pemandangan bukit adalah?',
+          options: ['Rowo Jombor', 'Danau Singkarak', 'Telaga Sarangan'],
+          correct: 0
+        },
+        {
+          q: 'Apa semboyan kebanggaan kabupaten Klaten?',
+          options: ['Klaten BERSINAR', 'Klaten Keren', 'Klaten Hebat'],
+          correct: 0
+        }
+      ]
+    },
+    {
+      roundName: 'Ronde 3: Dunia Renang & Olahraga Dunia 🏅',
+      desc: 'Tantangan seputar ilmu renang dan olahraga internasional!',
+      questions: [
+        {
+          q: 'Gaya renang apa yang tercepat di antara semua gaya renang?',
+          options: ['Gaya Bebas (Freestyle)', 'Gaya Dada', 'Gaya Anjing'],
+          correct: 0
+        },
+        {
+          q: 'Berapa meter panjang lintasan kolam renang standar Olimpiade?',
+          options: ['50 Meter', '25 Meter', '100 Meter'],
+          correct: 0
+        },
+        {
+          q: 'Gaya renang yang gerakannya mengepakkan kedua tangan seperti sayap disebut?',
+          options: ['Gaya Kupu-kupu (Butterfly)', 'Gaya Punggung', 'Gaya Batu'],
+          correct: 0
+        },
+        {
+          q: 'Gaya renang yang posisi tubuh telentang menghadap langit adalah?',
+          options: ['Gaya Punggung (Backstroke)', 'Gaya Dada', 'Gaya Menyelam'],
+          correct: 0
+        },
+        {
+          q: 'Apa yang wajib kita lakukan sebelum masuk dan melompat ke kolam renang?',
+          options: ['Pemanasan & Peregangan Otot', 'Tidur Siang', 'Makan Berat'],
+          correct: 0
+        }
+      ]
+    }
+  ];
+
+  const [currentRoundIdx, setCurrentRoundIdx] = useState(0);
   const [quizScore, setQuizScore] = useState<number | null>(null);
   const [answers, setAnswers] = useState<{ [key: number]: number }>({});
 
-  const quizQuestions = [
-    {
-      q: 'Kapan hari ulang tahun Mas Bumi?',
-      options: ['10 Januari 2013', '5 Juni 2014', '17 Agustus 2014'],
-      correct: 1
-    },
-    {
-      q: 'Di madrasah mana Mas Bumi menuntut ilmu?',
-      options: ['MIM Basin Klaten', 'SD Bintang Kejora', 'SMP 1 Klaten'],
-      correct: 0
-    },
-    {
-      q: 'Apa cabang olahraga favorit yang paling ditekuni Mas Bumi?',
-      options: ['Bermain Catur', 'Renang (Swimming)', 'Lompat Tali'],
-      correct: 1
-    },
-    {
-      q: 'Apa nama metode belajar mandiri matematika yang Mas Bumi ikuti?',
-      options: ['Kumon', 'Sempoa Tradisional', 'Les Tari'],
-      correct: 0
-    },
-    {
-      q: 'Kabupaten asal Mas Bumi yang terkenal indah dan asri adalah?',
-      options: ['Klaten, Jawa Tengah', 'Surabaya', 'Denpasar'],
-      correct: 0
-    }
-  ];
+  const currentQuestions = quizRounds[currentRoundIdx].questions;
 
   const handleSelectAnswer = (qIdx: number, optIdx: number) => {
     setAnswers(prev => ({ ...prev, [qIdx]: optIdx }));
@@ -218,10 +285,80 @@ export default function App() {
 
   const handleCheckQuiz = () => {
     let score = 0;
-    quizQuestions.forEach((q, idx) => {
+    currentQuestions.forEach((q, idx) => {
       if (answers[idx] === q.correct) score += 1;
     });
     setQuizScore(score);
+  };
+
+  const nextQuizRound = () => {
+    setCurrentRoundIdx((prev) => (prev + 1) % quizRounds.length);
+    setAnswers({});
+    setQuizScore(null);
+  };
+
+  // ==========================================
+  // GAME 4: TEBAK & COCOKKAN KARTU MEMORI (MEMORY MATCH GAME)
+  // ==========================================
+  const initialCards = [
+    { id: 1, symbol: '🏊‍♂️', name: 'Renang', matched: false },
+    { id: 2, symbol: '🏊‍♂️', name: 'Renang', matched: false },
+    { id: 3, symbol: '🏆', name: 'Piala', matched: false },
+    { id: 4, symbol: '🏆', name: 'Piala', matched: false },
+    { id: 5, symbol: '🧮', name: 'Kumon', matched: false },
+    { id: 6, symbol: '🧮', name: 'Kumon', matched: false },
+    { id: 7, symbol: '🏫', name: 'MIM Basin', matched: false },
+    { id: 8, symbol: '🏫', name: 'MIM Basin', matched: false },
+  ];
+
+  const [memoryCards, setMemoryCards] = useState(() => 
+    [...initialCards].sort(() => Math.random() - 0.5)
+  );
+  const [flippedCards, setFlippedCards] = useState<number[]>([]);
+  const [memoryMoves, setMemoryMoves] = useState(0);
+  const [isMemoryWon, setIsMemoryWon] = useState(false);
+
+  const handleFlipCard = (index: number) => {
+    if (flippedCards.length === 2 || memoryCards[index].matched || flippedCards.includes(index)) {
+      return;
+    }
+
+    const newFlipped = [...flippedCards, index];
+    setFlippedCards(newFlipped);
+
+    if (newFlipped.length === 2) {
+      setMemoryMoves((m) => m + 1);
+      const firstCard = memoryCards[newFlipped[0]];
+      const secondCard = memoryCards[newFlipped[1]];
+
+      if (firstCard.symbol === secondCard.symbol) {
+        // Match found!
+        setTimeout(() => {
+          setMemoryCards((prev) => {
+            const updated = prev.map((card, i) => 
+              i === newFlipped[0] || i === newFlipped[1] ? { ...card, matched: true } : card
+            );
+            if (updated.every((c) => c.matched)) {
+              setIsMemoryWon(true);
+            }
+            return updated;
+          });
+          setFlippedCards([]);
+        }, 400);
+      } else {
+        // Not a match, flip back
+        setTimeout(() => {
+          setFlippedCards([]);
+        }, 900);
+      }
+    }
+  };
+
+  const resetMemoryGame = () => {
+    setMemoryCards([...initialCards].sort(() => Math.random() - 0.5));
+    setFlippedCards([]);
+    setMemoryMoves(0);
+    setIsMemoryWon(false);
   };
 
   // ==========================================
@@ -332,7 +469,7 @@ export default function App() {
             <a href="#tentang" className="hover:text-cyan-500 transition-colors">Tentang Mas Bumi</a>
             <a href="#games" className="hover:text-cyan-500 transition-colors flex items-center gap-1 text-cyan-600 dark:text-cyan-400">
               <Gamepad2 className="w-4 h-4" />
-              <span>Arena Game & Kuis</span>
+              <span>Arena 4 Game & Kuis 🔥</span>
             </a>
             <a href="#hobi" className="hover:text-cyan-500 transition-colors">Renang & Olahraga</a>
             <a href="#stopwatch" className="hover:text-cyan-500 transition-colors">Stopwatch ⏱️</a>
@@ -341,7 +478,6 @@ export default function App() {
           </nav>
 
           <div className="flex items-center gap-2.5">
-            {/* Theme Toggle Button */}
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
               className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
@@ -480,7 +616,7 @@ export default function App() {
                     className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 text-xs sm:text-sm font-black px-6 py-2.5 rounded-xl shadow-lg shadow-orange-500/30 transition-all hover:scale-105 cursor-pointer"
                   >
                     <Gamepad2 className="w-4 h-4" />
-                    <span>Mainkan Game & Kuis 🎮</span>
+                    <span>Mainkan 4 Game & Kuis 🎮</span>
                   </a>
 
                   <a
@@ -498,64 +634,256 @@ export default function App() {
         </section>
 
         {/* ============================================================== */}
-        {/* NEW SECTION: ARENA GAME & KUIS MAS BUMI (SUPER SERU!)           */}
+        {/* SECTION: ARENA 4 GAME & KUIS LENGKAP                           */}
         {/* ============================================================== */}
         <section id="games" className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
             <div>
               <div className="inline-flex items-center gap-1.5 text-xs font-extrabold tracking-wider text-amber-500 uppercase mb-1">
                 <Gamepad2 className="w-4 h-4" />
-                <span>ZONA HIBURAN & TANTANGAN</span>
+                <span>ZONA HIBURAN & TANTANGAN INTERAKTIF</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
-                🎮 Arena Game & Kuis Mas Bumi
+                🎮 Arena 4 Game & Kuis Mas Bumi
               </h2>
             </div>
             <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Pilih permainan seru di bawah ini! Coba kalahkan rekor balapan renang atau tes kecepatan hitung Kumon-mu!
+              Semua game bisa dimainkan berulang kali! Kuisnya punya banyak ronde dengan pertanyaan baru terus!
             </p>
           </div>
 
           {/* Game Selection Tabs */}
           <div className="flex flex-wrap gap-2.5 p-1.5 rounded-2xl bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/40 dark:border-slate-700/60 max-w-fit">
             <button
-              onClick={() => setActiveGameTab('swim')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-                activeGameTab === 'swim'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Waves className="w-4 h-4" />
-              <span>1. Balapan Renang 50M 🏊‍♂️</span>
-            </button>
-
-            <button
-              onClick={() => setActiveGameTab('math')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
-                activeGameTab === 'math'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Calculator className="w-4 h-4" />
-              <span>2. Hitung Kilat Kumon ⚡</span>
-            </button>
-
-            <button
               onClick={() => setActiveGameTab('quiz')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
                 activeGameTab === 'quiz'
                   ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Sparkles className="w-4 h-4" />
-              <span>3. Kuis Trivia Mas Bumi ❓</span>
+              <span>1. Kuis Mas Bumi (Banyak Ronde!) ❓</span>
+            </button>
+
+            <button
+              onClick={() => setActiveGameTab('memory')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                activeGameTab === 'memory'
+                  ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              <span>2. Tebak Kartu Memori 🎴</span>
+            </button>
+
+            <button
+              onClick={() => setActiveGameTab('swim')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                activeGameTab === 'swim'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Waves className="w-4 h-4" />
+              <span>3. Balapan Renang 50M 🏊‍♂️</span>
+            </button>
+
+            <button
+              onClick={() => setActiveGameTab('math')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                activeGameTab === 'math'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Calculator className="w-4 h-4" />
+              <span>4. Hitung Kilat Kumon ⚡</span>
             </button>
           </div>
 
-          {/* TAB 1: GAME BALAPAN RENANG 50 METER */}
+          {/* TAB 1: KUIS MULTI-RONDE */}
+          {activeGameTab === 'quiz' && (
+            <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
+              isDarkMode 
+                ? 'bg-gradient-to-br from-slate-900 to-indigo-950/60 border-slate-800' 
+                : 'bg-gradient-to-br from-white via-amber-50/50 to-orange-50/50 border-amber-200 shadow-lg shadow-amber-100'
+            }`}>
+              <div className="max-w-2xl mx-auto space-y-6">
+                <div className="text-center space-y-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-xs font-black">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{quizRounds[currentRoundIdx].roundName}</span>
+                    </span>
+                    <span className="text-xs font-bold text-slate-500">
+                      (Ronde {currentRoundIdx + 1} dari {quizRounds.length})
+                    </span>
+                  </div>
+                  <h3 className="text-2xl sm:text-3xl font-black font-fun">
+                    🧠 Kuis Tantangan Pengetahuan Mas Bumi
+                  </h3>
+                  <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {quizRounds[currentRoundIdx].desc}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {currentQuestions.map((item, qIdx) => (
+                    <div key={qIdx} className={`p-4 sm:p-5 rounded-2xl border ${
+                      isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-sky-100 shadow-xs'
+                    }`}>
+                      <p className="font-extrabold text-sm sm:text-base mb-3 font-fun">
+                        {qIdx + 1}. {item.q}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {item.options.map((opt, optIdx) => {
+                          const isSelected = answers[qIdx] === optIdx;
+                          return (
+                            <button
+                              key={optIdx}
+                              onClick={() => handleSelectAnswer(qIdx, optIdx)}
+                              className={`text-xs font-bold p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black border-transparent shadow-md scale-102'
+                                  : isDarkMode
+                                    ? 'bg-slate-700/60 text-slate-300 border-slate-600 hover:bg-slate-700'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-center pt-2 space-y-3">
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      onClick={handleCheckQuiz}
+                      disabled={Object.keys(answers).length < currentQuestions.length}
+                      className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 px-7 py-3 rounded-2xl font-black text-sm shadow-lg shadow-amber-400/30 transition-all hover:scale-105 cursor-pointer"
+                    >
+                      Cek Jawaban Ronde Ini! 🎉
+                    </button>
+
+                    <button
+                      onClick={nextQuizRound}
+                      className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-6 py-3 rounded-2xl font-black text-sm shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 cursor-pointer inline-flex items-center gap-2"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>Ganti ke Ronde Soal Baru! ➡️</span>
+                    </button>
+                  </div>
+
+                  {quizScore !== null && (
+                    <div className="mt-4 p-5 rounded-2xl bg-amber-500/15 border border-amber-400/40 animate-float text-center max-w-sm mx-auto">
+                      <span className="text-3xl">🏆🌟</span>
+                      <h4 className="font-black text-lg mt-1 font-fun">
+                        Skor: {quizScore} dari {currentQuestions.length} Benar!
+                      </h4>
+                      <p className="text-xs text-amber-600 dark:text-amber-300 mt-1">
+                        {quizScore === 5 
+                          ? 'SEMPURNA! Kamu jagoan sejati! Lanjut ke ronde berikutnya yuk! 💯🎉' 
+                          : quizScore >= 3
+                            ? 'Hebat! Skor yang sangat memuaskan! 👏'
+                            : 'Bagus! Coba klik tombol Ganti Ronde Baru untuk tantangan lain! 😊'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: GAME TEBAK KARTU MEMORI (MEMORY MATCH) */}
+          {activeGameTab === 'memory' && (
+            <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
+              isDarkMode 
+                ? 'bg-[#18112e] border-indigo-800/60 shadow-2xl' 
+                : 'bg-gradient-to-br from-white via-indigo-50/70 to-purple-50/60 border-indigo-200 shadow-xl shadow-indigo-100'
+            }`}>
+              <div className="max-w-xl mx-auto space-y-6 text-center">
+                <div className="space-y-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-indigo-500 bg-indigo-100 dark:bg-indigo-950/80 px-3 py-1 rounded-full border border-indigo-300">
+                    GAME ASAH MEMORI & DAYA INGAT
+                  </span>
+                  <h3 className="text-2xl sm:text-3xl font-black font-fun">
+                    🎴 Tebak & Cocokkan Pasangan Kartu Mas Bumi!
+                  </h3>
+                  <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                    Klik 2 kartu untuk membukanya. Temukan semua pasangan gambar yang sama (Renang, Piala, Kumon, dan MIM Basin)!
+                  </p>
+                </div>
+
+                {/* Status bar */}
+                <div className="flex justify-between items-center bg-black/20 p-3.5 rounded-2xl border border-indigo-500/30 max-w-sm mx-auto">
+                  <span className="text-xs font-bold text-indigo-300">
+                    Langkah: <strong className="font-mono text-base text-white">{memoryMoves}</strong>
+                  </span>
+                  <button
+                    onClick={resetMemoryGame}
+                    className="text-xs font-bold bg-indigo-500 hover:bg-indigo-400 text-white px-3 py-1 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Acak Ulang</span>
+                  </button>
+                </div>
+
+                {/* Cards Grid (4x2) */}
+                <div className="grid grid-cols-4 gap-3 max-w-md mx-auto">
+                  {memoryCards.map((card, idx) => {
+                    const isFlipped = flippedCards.includes(idx) || card.matched;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => handleFlipCard(idx)}
+                        className={`aspect-square rounded-2xl flex flex-col items-center justify-center text-3xl font-bold transition-all duration-300 transform cursor-pointer border-2 select-none ${
+                          isFlipped
+                            ? card.matched
+                              ? 'bg-emerald-500/30 border-emerald-400 text-white scale-95 shadow-md shadow-emerald-500/30'
+                              : 'bg-indigo-600 border-indigo-300 text-white scale-102 shadow-lg shadow-indigo-500/40'
+                            : 'bg-gradient-to-br from-slate-800 to-indigo-950 hover:from-slate-700 hover:to-indigo-900 border-indigo-500/40 text-indigo-300 hover:scale-105'
+                        }`}
+                      >
+                        {isFlipped ? (
+                          <div className="flex flex-col items-center">
+                            <span>{card.symbol}</span>
+                            <span className="text-[10px] font-black uppercase mt-1 opacity-90">{card.name}</span>
+                          </div>
+                        ) : (
+                          <HelpCircle className="w-7 h-7 text-indigo-400 opacity-60" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Win Modal */}
+                {isMemoryWon && (
+                  <div className="p-6 rounded-3xl bg-emerald-500/20 border border-emerald-400 space-y-3 animate-float max-w-sm mx-auto">
+                    <span className="text-4xl block">🏆🎉</span>
+                    <h4 className="text-xl font-black font-fun">Hebat Banget Mas Bumi!</h4>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-300">
+                      Kamu berhasil mencocokkan semua kartu dalam <strong>{memoryMoves} langkah</strong>!
+                    </p>
+                    <button
+                      onClick={resetMemoryGame}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-md transition-all cursor-pointer"
+                    >
+                      Mainkan Lagi! 🔄
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: GAME BALAPAN RENANG 50 METER */}
           {activeGameTab === 'swim' && (
             <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
               isDarkMode 
@@ -571,11 +899,10 @@ export default function App() {
                     🏊‍♂️ Balapan Renang 50 Meter: Mas Bumi vs Si Lumba-Lumba!
                   </h3>
                   <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                    Tekan tombol <strong>"AYUN TANGAN! (PADDLE)"</strong> secepat mungkin untuk membuat Mas Bumi meluncur kencang sampai garis finish!
+                    Tekan tombol <strong>"AYUN TANGAN! (KLIK CEPAT!)"</strong> secepat mungkin untuk membuat Mas Bumi meluncur kencang sampai garis finish!
                   </p>
                 </div>
 
-                {/* Swimming Pool Tracks */}
                 <div className="p-4 sm:p-6 rounded-2xl bg-gradient-to-b from-sky-600 via-blue-700 to-blue-800 text-white shadow-inner relative overflow-hidden border-2 border-sky-400">
                   <div className="flex justify-between items-center text-xs font-bold text-sky-200 mb-4 pb-2 border-b border-sky-400/50">
                     <span>START 🚩</span>
@@ -588,7 +915,6 @@ export default function App() {
                     </span>
                   </div>
 
-                  {/* Lane 1: Mas Bumi */}
                   <div className="space-y-1 mb-4">
                     <div className="flex justify-between text-xs font-extrabold text-cyan-200">
                       <span>LINTASAN 1: Mas Bumi ({selectedRaceStroke})</span>
@@ -609,7 +935,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Lane 2: Si Lumba-Lumba (Rival Bot) */}
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs font-extrabold text-amber-200">
                       <span>LINTASAN 2: Si Lumba-Lumba Kawan Klaten 🐬</span>
@@ -631,7 +956,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Race Action Controls */}
                 <div className="flex flex-col items-center justify-center gap-4">
                   {raceState === 'idle' && (
                     <div className="flex flex-col items-center gap-3">
@@ -710,7 +1034,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: GAME TANTANGAN HITUNG KILAT KUMON */}
+          {/* TAB 4: GAME TANTANGAN HITUNG KILAT KUMON */}
           {activeGameTab === 'math' && (
             <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
               isDarkMode 
@@ -748,7 +1072,6 @@ export default function App() {
 
                 {mathState === 'playing' && (
                   <div className="space-y-6">
-                    {/* Game Stats Bar */}
                     <div className="flex justify-between items-center bg-black/20 p-3.5 rounded-2xl border border-emerald-500/30">
                       <div className="text-left">
                         <span className="text-[10px] uppercase font-black text-emerald-400 block">Waktu Sisa</span>
@@ -770,7 +1093,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Problem Display */}
                     <div className="p-6 rounded-3xl bg-white/10 border border-emerald-400/40 backdrop-blur-md">
                       <span className="text-xs text-emerald-300 uppercase tracking-wider font-bold block mb-1">
                         Berapa Hasilnya?
@@ -780,7 +1102,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Answer Options */}
                     <div className="grid grid-cols-2 gap-3">
                       {currentProblem.options.map((opt, idx) => (
                         <button
@@ -816,88 +1137,6 @@ export default function App() {
                     </button>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: KUIS MAS BUMI (5 PERTANYAAN LENGKAP) */}
-          {activeGameTab === 'quiz' && (
-            <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
-              isDarkMode 
-                ? 'bg-gradient-to-br from-slate-900 to-indigo-950/60 border-slate-800' 
-                : 'bg-gradient-to-br from-white via-sky-50 to-blue-50 border-sky-200 shadow-lg shadow-sky-100'
-            }`}>
-              <div className="max-w-2xl mx-auto space-y-6">
-                <div className="text-center space-y-2">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-400 text-xs font-black">
-                    <Sparkles className="w-4 h-4" />
-                    <span>5 TANTANGAN TEBAK MAS BUMI</span>
-                  </div>
-                  <h3 className="text-2xl sm:text-3xl font-black font-fun">
-                    🧠 Kuis: Uji Seberapa Kenal Kamu dengan Mas Bumi!
-                  </h3>
-                  <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Pilih jawaban yang paling tepat dari 5 pertanyaan di bawah ini!
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  {quizQuestions.map((item, qIdx) => (
-                    <div key={qIdx} className={`p-4 sm:p-5 rounded-2xl border ${
-                      isDarkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-white border-sky-100 shadow-xs'
-                    }`}>
-                      <p className="font-extrabold text-sm sm:text-base mb-3 font-fun">
-                        {qIdx + 1}. {item.q}
-                      </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        {item.options.map((opt, optIdx) => {
-                          const isSelected = answers[qIdx] === optIdx;
-                          return (
-                            <button
-                              key={optIdx}
-                              onClick={() => handleSelectAnswer(qIdx, optIdx)}
-                              className={`text-xs font-bold p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-transparent shadow-md scale-102'
-                                  : isDarkMode
-                                    ? 'bg-slate-700/60 text-slate-300 border-slate-600 hover:bg-slate-700'
-                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="text-center pt-2">
-                  <button
-                    onClick={handleCheckQuiz}
-                    disabled={Object.keys(answers).length < quizQuestions.length}
-                    className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 px-8 py-3.5 rounded-2xl font-black text-sm shadow-lg shadow-amber-400/30 transition-all hover:scale-105 cursor-pointer"
-                  >
-                    Cek Semua Jawabanmu! 🎉
-                  </button>
-
-                  {quizScore !== null && (
-                    <div className="mt-4 p-5 rounded-2xl bg-cyan-500/10 border border-cyan-400/30 animate-float text-center max-w-sm mx-auto">
-                      <span className="text-3xl">🏆🌟</span>
-                      <h4 className="font-black text-lg mt-1 font-fun">
-                        Skor: {quizScore} dari {quizQuestions.length} Benar!
-                      </h4>
-                      <p className="text-xs text-cyan-500 dark:text-cyan-300 mt-1">
-                        {quizScore === 5 
-                          ? 'SEMPURNA! Kamu benar-benar sahabat karib Mas Bumi! 💯🎉' 
-                          : quizScore >= 3
-                            ? 'Hebat! Kamu sudah sangat kenal dengan Mas Bumi! 👏'
-                            : 'Bagus! Coba baca lagi cerita Mas Bumi di atas ya! 😊'}
-                      </p>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           )}
