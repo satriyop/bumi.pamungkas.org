@@ -33,7 +33,8 @@ import {
   Sliders,
   Droplets,
   Wifi,
-  Scan
+  Scan,
+  Trash2
 } from 'lucide-react';
 
 export default function App() {
@@ -210,6 +211,17 @@ export default function App() {
         }
       ]);
     }, 450);
+  };
+
+  const clearChat = () => {
+    playSound('tech');
+    setChatMessages([
+      {
+        sender: 'bot',
+        text: 'Obrolan sudah dibersihkan! 🧹 Halo lagi! Mau tanya apa tentang Mas Bumi?',
+        time: 'Baru saja'
+      }
+    ]);
   };
 
   // ==========================================
@@ -1346,9 +1358,19 @@ export default function App() {
                   </span>
                 </div>
               </div>
-              <span className="text-[10px] font-mono-tech text-slate-400 hidden sm:inline">
-                POWERED BY BUMI KNOWLEDGE CORE
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-mono-tech text-slate-400 hidden md:inline">
+                  POWERED BY BUMI KNOWLEDGE CORE
+                </span>
+                <button
+                  onClick={clearChat}
+                  title="Hapus / Bersihkan Obrolan Chat"
+                  className="text-xs text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 px-3 py-1.5 rounded-xl border border-white/10 hover:border-rose-400/30 transition-all flex items-center gap-1.5 cursor-pointer font-sans"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus Obrolan</span>
+                </button>
+              </div>
             </div>
 
             {/* Chat Log Window */}
