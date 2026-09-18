@@ -2,13 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Waves, 
   Award, 
-  BookOpen, 
   Sparkles, 
   MapPin, 
-  Calendar, 
   Trophy, 
   Timer, 
-  CheckCircle2, 
   Play, 
   Pause, 
   RotateCcw, 
@@ -19,7 +16,6 @@ import {
   Check, 
   Star, 
   Flame, 
-  ShieldCheck, 
   Gamepad2, 
   Zap, 
   Calculator, 
@@ -27,21 +23,42 @@ import {
   Layers, 
   Volume2, 
   VolumeX, 
-  ArrowUp
+  ArrowUp,
+  Clock,
+  Thermometer,
+  CloudSun,
+  QrCode,
+  Bot,
+  Send,
+  Sliders,
+  Droplets,
+  Wifi,
+  Scan
 } from 'lucide-react';
 
 export default function App() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default high-tech dark mode!
 
-  // Active game tab: 'arcade' | 'swim' | 'math' | 'memory' | 'quiz'
-  const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz'>('arcade');
+  // ==========================================
+  // REAL-TIME HUD CLOCK & TELEMETRY
+  // ==========================================
+  const [currentTime, setCurrentTime] = useState('');
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString('id-ID', { hour12: false }) + ' WIB');
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // ==========================================
   // NATIVE SOUND SYNTHESIZER (Web Audio API)
   // ==========================================
   const [isSoundMuted, setIsSoundMuted] = useState(false);
 
-  const playSound = useCallback((type: 'swim' | 'coin' | 'hit') => {
+  const playSound = useCallback((type: 'swim' | 'coin' | 'hit' | 'tech') => {
     if (isSoundMuted) return;
     try {
       const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -85,6 +102,18 @@ export default function App() {
         gain.connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.25);
+      } else if (type === 'tech') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, ctx.currentTime);
+        osc.frequency.setValueAtTime(800, ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
       }
     } catch {
       // Ignore audio block
@@ -92,8 +121,99 @@ export default function App() {
   }, [isSoundMuted]);
 
   // ==========================================
-  // SUPER GAME: PETUALANGAN MENYELAM MAS BUMI (ARCADE RUNNER)
+  // FITUR CANGGIH 1: KALKULATOR TELEMETRI RENANG & ENERGI
   // ==========================================
+  const [workoutDuration, setWorkoutDuration] = useState(45); // minutes
+  const [workoutStroke, setWorkoutStroke] = useState<'bebas' | 'dada' | 'punggung' | 'kupu'>('bebas');
+
+  const strokeBurnRate = {
+    bebas: 9.5, // kcal per min
+    dada: 8.8,
+    punggung: 8.0,
+    kupu: 12.0
+  };
+
+  const caloriesBurned = Math.round(workoutDuration * strokeBurnRate[workoutStroke]);
+  const waterNeededMl = Math.round(workoutDuration * 14.5);
+  const estimatedLaps = Math.round((workoutDuration * 60) / 75); // approx 75 sec per 50m lap + rest
+
+  // ==========================================
+  // FITUR CANGGIH 2: "BUMIBOT" VIRTUAL AI ASISTEN INTERAKTIF
+  // ==========================================
+  interface ChatMsg {
+    sender: 'user' | 'bot';
+    text: string;
+    time: string;
+  }
+
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([
+    {
+      sender: 'bot',
+      text: 'Halo! Aku BumiBot 🤖, asisten digital pintar di bumi.pamungkas.org. Mau tanya apa tentang Mas Bumi?',
+      time: 'Baru saja'
+    }
+  ]);
+  const [inputChat, setInputChat] = useState('');
+
+  const botResponses: { [key: string]: string } = {
+    'siapa': 'Mas Bumi (Kun Bumi Pamungkas) adalah perenang muda berbakat asal Klaten, lahir 5 Juni 2014 (umur 12 tahun). Siswa MIM Basin Klaten & murid Kumon yang gemar berolahraga dan teknologi!',
+    'sekolah': 'Mas Bumi bersekolah di Madrasah Ibtidaiyah Muhammadiyah (MIM) Basin di Kebonarum, Klaten. Sekolah yang hebat dengan guru ramah dan teman-teman kompak!',
+    'renang': 'Hobi utama Mas Bumi adalah renang! Mas Bumi menguasai gaya bebas, gaya dada, dan gaya punggung. Kolam renang adalah tempat favoritnya meluncur kencang!',
+    'kumon': 'Di Kumon, Mas Bumi melatih kemandirian, kecepatan berhitung, serta daya fokus logika matematika setiap hari tanpa bolong!',
+    'klaten': 'Klaten adalah kota kelahiran Mas Bumi di Jawa Tengah yang terkenal dengan seribu mata air jernih (Umbul Ponggok, Umbul Sigedang), Candi Plaosan, dan semboyan Klaten BERSINAR!',
+    'game': 'Ada 5 game keren di website ini! Ada game arcade petualangan menyelam, balapan renang 50m, tes hitung cepat Kumon, tebak kartu memori, dan kuis multi-ronde!'
+  };
+
+  const handleSendMessage = (textToSend?: string) => {
+    const query = textToSend || inputChat;
+    if (!query.trim()) return;
+
+    playSound('tech');
+    const userMsg: ChatMsg = {
+      sender: 'user',
+      text: query,
+      time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatMessages((prev) => [...prev, userMsg]);
+    if (!textToSend) setInputChat('');
+
+    // Process Bot Response
+    setTimeout(() => {
+      playSound('coin');
+      const lower = query.toLowerCase();
+      let reply = 'Pertanyaan keren! Mas Bumi terus berlatih renang dan belajar tekun setiap hari untuk meraih cita-citanya!';
+
+      if (lower.includes('siapa') || lower.includes('nama') || lower.includes('profil') || lower.includes('umur')) {
+        reply = botResponses['siapa'];
+      } else if (lower.includes('sekolah') || lower.includes('mim') || lower.includes('basin')) {
+        reply = botResponses['sekolah'];
+      } else if (lower.includes('renang') || lower.includes('gaya') || lower.includes('hobi')) {
+        reply = botResponses['renang'];
+      } else if (lower.includes('kumon') || lower.includes('hitung') || lower.includes('matematika')) {
+        reply = botResponses['kumon'];
+      } else if (lower.includes('klaten') || lower.includes('umbul') || lower.includes('candi')) {
+        reply = botResponses['klaten'];
+      } else if (lower.includes('game') || lower.includes('main') || lower.includes('kuis')) {
+        reply = botResponses['game'];
+      }
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: 'bot',
+          text: reply,
+          time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    }, 450);
+  };
+
+  // ==========================================
+  // GAME TABS & ARCADE RUNNER
+  // ==========================================
+  const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz'>('arcade');
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [arcadeState, setArcadeState] = useState<'idle' | 'playing' | 'gameover'>('idle');
   const [arcadeScore, setArcadeScore] = useState(0);
@@ -105,7 +225,6 @@ export default function App() {
     }
   });
 
-  // Game internal state ref
   const gameStateRef = useRef({
     playerY: 150,
     playerVy: 0,
@@ -124,7 +243,6 @@ export default function App() {
     if (arcadeState === 'playing') {
       gameStateRef.current.playerVy = -5.8;
       playSound('swim');
-      // Add burst of bubbles
       for (let i = 0; i < 3; i++) {
         gameStateRef.current.bubbles.push({
           x: 80 - Math.random() * 15,
@@ -138,6 +256,7 @@ export default function App() {
   }, [arcadeState, playSound]);
 
   const startArcadeGame = () => {
+    playSound('tech');
     gameStateRef.current = {
       playerY: 140,
       playerVy: 0,
@@ -155,7 +274,6 @@ export default function App() {
     setArcadeState('playing');
   };
 
-  // Main Canvas Game Loop
   useEffect(() => {
     if (arcadeState !== 'playing') return;
 
@@ -165,7 +283,6 @@ export default function App() {
     if (!ctx) return;
 
     let isRunning = true;
-
     const obstacleEmojis = ['🪼', '🐡', '🪸', '🐙'];
     const coinItems = [
       { emoji: '🏅', points: 50 },
@@ -175,16 +292,13 @@ export default function App() {
 
     const loop = () => {
       if (!isRunning) return;
-
       const state = gameStateRef.current;
       const width = canvas.width;
       const height = canvas.height;
 
-      // 1. Update Player Physics
-      state.playerVy += 0.26; // Gravity
+      state.playerVy += 0.26;
       state.playerY += state.playerVy;
 
-      // Clamp player inside canvas
       if (state.playerY < 20) {
         state.playerY = 20;
         state.playerVy = 0;
@@ -194,17 +308,14 @@ export default function App() {
         state.playerVy = 0;
       }
 
-      // Distance & Score increment
       state.distance += 1;
       if (state.distance % 8 === 0) {
         state.score += 1;
         setArcadeScore(state.score);
       }
 
-      // Difficulty scaling
       state.gameSpeed = 3.6 + Math.min(4, state.score * 0.005);
 
-      // 2. Spawn Obstacles
       const now = Date.now();
       if (now - state.lastObstacleSpawn > Math.max(1200, 2200 - state.score * 3)) {
         state.lastObstacleSpawn = now;
@@ -218,7 +329,6 @@ export default function App() {
         });
       }
 
-      // 3. Spawn Coins & Items
       if (now - state.lastCoinSpawn > 1600) {
         state.lastCoinSpawn = now;
         const randomItem = coinItems[Math.floor(Math.random() * coinItems.length)];
@@ -231,18 +341,15 @@ export default function App() {
         });
       }
 
-      // 4. Update & Filter Obstacles
       for (let i = state.obstacles.length - 1; i >= 0; i--) {
         const obs = state.obstacles[i];
         obs.x -= obs.speed;
 
-        // Collision detection with Mas Bumi (player at x = 80, y = playerY, radius ~ 18)
         const dx = 80 - obs.x;
         const dy = (state.playerY + 12) - obs.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < 26) {
-          // HIT OBSTACLE! GAME OVER!
           playSound('hit');
           isRunning = false;
           setArcadeState('gameover');
@@ -263,7 +370,6 @@ export default function App() {
         }
       }
 
-      // 5. Update & Filter Coins
       for (let i = state.coins.length - 1; i >= 0; i--) {
         const coin = state.coins[i];
         coin.x -= state.gameSpeed;
@@ -273,7 +379,6 @@ export default function App() {
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < 28) {
-          // Collected Coin!
           playSound('coin');
           state.score += coin.points;
           setArcadeScore(state.score);
@@ -286,7 +391,6 @@ export default function App() {
         }
       }
 
-      // 6. Ambient Bubbles
       if (Math.random() > 0.4) {
         state.bubbles.push({
           x: Math.random() * width,
@@ -306,18 +410,13 @@ export default function App() {
         }
       }
 
-      // ==========================
-      // RENDER CANVAS
-      // ==========================
-      // Deep ocean water background
       const grad = ctx.createLinearGradient(0, 0, 0, height);
-      grad.addColorStop(0, '#0284c7'); // sky-600
-      grad.addColorStop(0.5, '#0369a1'); // sky-700
-      grad.addColorStop(1, '#0c4a6e'); // sky-900
+      grad.addColorStop(0, '#0284c7');
+      grad.addColorStop(0.5, '#0369a1');
+      grad.addColorStop(1, '#0c4a6e');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
 
-      // Light rays
       ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
       ctx.beginPath();
       ctx.moveTo(width * 0.3, 0);
@@ -326,7 +425,6 @@ export default function App() {
       ctx.lineTo(width * 0.45, 0);
       ctx.fill();
 
-      // Render Bubbles
       for (const b of state.bubbles) {
         ctx.fillStyle = `rgba(224, 242, 254, ${b.opacity})`;
         ctx.beginPath();
@@ -334,7 +432,6 @@ export default function App() {
         ctx.fill();
       }
 
-      // Render Coins
       ctx.font = '24px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -345,7 +442,6 @@ export default function App() {
         ctx.shadowBlur = 0;
       }
 
-      // Render Obstacles
       for (const obs of state.obstacles) {
         ctx.shadowColor = '#ef4444';
         ctx.shadowBlur = 8;
@@ -353,21 +449,16 @@ export default function App() {
         ctx.shadowBlur = 0;
       }
 
-      // Render Player (Mas Bumi Swimmer)
       ctx.save();
       ctx.translate(80, state.playerY + 12);
-      // Tilt swimmer according to velocity
       const tilt = Math.max(-0.4, Math.min(0.4, state.playerVy * 0.06));
       ctx.rotate(tilt);
-
-      // Draw Swimmer emoji
       ctx.shadowColor = '#38bdf8';
       ctx.shadowBlur = 12;
       ctx.font = '36px sans-serif';
       ctx.fillText('🏊‍♂️', 0, 0);
       ctx.shadowBlur = 0;
 
-      // Small name tag
       ctx.font = 'bold 9px sans-serif';
       ctx.fillStyle = '#fef08a';
       ctx.fillText('BUMI', 0, -22);
@@ -377,14 +468,12 @@ export default function App() {
     };
 
     gameStateRef.current.animationId = requestAnimationFrame(loop);
-
     return () => {
       isRunning = false;
       cancelAnimationFrame(gameStateRef.current.animationId);
     };
   }, [arcadeState, playSound]);
 
-  // Keyboard controls for Arcade
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.code === 'ArrowUp') {
@@ -416,7 +505,6 @@ export default function App() {
       const startTime = Date.now();
       raceInterval = setInterval(() => {
         setRaceTimeMs(Date.now() - startTime);
-
         setRivalProgress((prev) => {
           const nextVal = prev + Math.random() * 2.8 + 1.2;
           return nextVal >= 100 ? 100 : nextVal;
@@ -444,6 +532,7 @@ export default function App() {
   }, [bumiProgress, rivalProgress, raceState]);
 
   const startRace = () => {
+    playSound('tech');
     setBumiProgress(0);
     setRivalProgress(0);
     setRaceTimeMs(0);
@@ -482,7 +571,6 @@ export default function App() {
   const generateProblem = () => {
     const isMultiplication = Math.random() > 0.5;
     let n1: number, n2: number, ans: number, q: string;
-    
     if (isMultiplication) {
       n1 = Math.floor(Math.random() * 8) + 2;
       n2 = Math.floor(Math.random() * 8) + 2;
@@ -494,16 +582,15 @@ export default function App() {
       ans = n1 + n2;
       q = `${n1} + ${n2}`;
     }
-
     const wrong1 = ans + (Math.random() > 0.5 ? 2 : -2);
     const wrong2 = ans + (Math.random() > 0.5 ? 5 : -3);
     const wrong3 = ans + 10;
     const options = [ans, wrong1, wrong2, wrong3].sort(() => Math.random() - 0.5);
-
     return { q, ans, options };
   };
 
   const startMathGame = () => {
+    playSound('tech');
     setMathScore(0);
     setMathStreak(0);
     setMathTimeLeft(20);
@@ -644,10 +731,10 @@ export default function App() {
   const [currentRoundIdx, setCurrentRoundIdx] = useState(0);
   const [quizScore, setQuizScore] = useState<number | null>(null);
   const [answers, setAnswers] = useState<{ [key: number]: number }>({});
-
   const currentQuestions = quizRounds[currentRoundIdx].questions;
 
   const handleSelectAnswer = (qIdx: number, optIdx: number) => {
+    playSound('tech');
     setAnswers(prev => ({ ...prev, [qIdx]: optIdx }));
   };
 
@@ -663,6 +750,7 @@ export default function App() {
   };
 
   const nextQuizRound = () => {
+    playSound('tech');
     setCurrentRoundIdx((prev) => (prev + 1) % quizRounds.length);
     setAnswers({});
     setQuizScore(null);
@@ -693,7 +781,6 @@ export default function App() {
     if (flippedCards.length === 2 || memoryCards[index].matched || flippedCards.includes(index)) {
       return;
     }
-
     playSound('swim');
     const newFlipped = [...flippedCards, index];
     setFlippedCards(newFlipped);
@@ -726,6 +813,7 @@ export default function App() {
   };
 
   const resetMemoryGame = () => {
+    playSound('tech');
     setMemoryCards([...initialCards].sort(() => Math.random() - 0.5));
     setFlippedCards([]);
     setMemoryMoves(0);
@@ -768,6 +856,7 @@ export default function App() {
   };
 
   const resetTimer = () => {
+    playSound('tech');
     setIsRunning(false);
     setSeconds(0);
   };
@@ -779,7 +868,7 @@ export default function App() {
     { id: 1, text: 'Latihan renang rutin 50 meter gaya bebas tanpa henti', completed: true, category: 'Renang' },
     { id: 2, text: 'Selesaikan lembar kerja harian Kumon dengan konsisten', completed: true, category: 'Belajar' },
     { id: 3, text: 'Belajar rajin & berprestasi di MIM Basin Klaten', completed: true, category: 'Sekolah' },
-    { id: 4, text: 'Terbitkan website pribadi keren di bumi.pamungkas.org', completed: true, category: 'Website' },
+    { id: 4, text: 'Terbitkan website pribadi canggih di bumi.pamungkas.org', completed: true, category: 'Website' },
     { id: 5, text: 'Gowes sepeda santai keliling Klaten bareng teman', completed: false, category: 'Olahraga' },
     { id: 6, text: 'Bantu orang tua di rumah dan selalu buat mereka tersenyum', completed: true, category: 'Keluarga' }
   ]);
@@ -795,77 +884,119 @@ export default function App() {
   return (
     <div className={`min-h-screen transition-colors duration-500 selection:bg-cyan-400 selection:text-slate-900 ${
       isDarkMode 
-        ? 'bg-[#0b1120] text-slate-100' 
+        ? 'bg-[#060b14] text-slate-100' 
         : 'bg-gradient-to-b from-[#e0f2fe] via-[#f0f9ff] to-[#ecfeff] text-slate-800'
     }`}>
 
-      {/* FLOATING AMBIENT GLOWS */}
+      {/* AMBIENT GLOW EFFECTS */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className={`absolute top-10 left-10 w-96 h-96 rounded-full blur-3xl opacity-40 animate-pulse-glow ${
-          isDarkMode ? 'bg-cyan-500/20' : 'bg-cyan-300/40'
+        <div className={`absolute -top-10 left-1/4 w-[500px] h-[500px] rounded-full blur-[140px] opacity-30 animate-pulse-glow ${
+          isDarkMode ? 'bg-cyan-500' : 'bg-cyan-300'
         }`} />
-        <div className={`absolute top-1/3 right-10 w-80 h-80 rounded-full blur-3xl opacity-30 animate-float-slow ${
-          isDarkMode ? 'bg-blue-600/20' : 'bg-sky-400/30'
+        <div className={`absolute top-1/2 -right-10 w-[450px] h-[450px] rounded-full blur-[140px] opacity-25 animate-float-slow ${
+          isDarkMode ? 'bg-blue-600' : 'bg-sky-400'
         }`} />
-        <div className={`absolute bottom-20 left-1/4 w-72 h-72 rounded-full blur-3xl opacity-35 animate-float ${
-          isDarkMode ? 'bg-indigo-600/20' : 'bg-teal-300/30'
+        <div className={`absolute -bottom-20 left-10 w-[400px] h-[400px] rounded-full blur-[140px] opacity-20 animate-float ${
+          isDarkMode ? 'bg-purple-600' : 'bg-teal-300'
         }`} />
       </div>
 
+      {/* TOP HIGH-TECH HUD TICKER */}
+      <div className={`border-b text-[11px] font-mono-tech py-2 px-4 transition-colors z-50 relative backdrop-blur-md ${
+        isDarkMode ? 'bg-slate-950/90 border-slate-800/80 text-cyan-400' : 'bg-sky-100/80 border-sky-200 text-sky-900'
+      }`}>
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5 font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              SYSTEM NODE: ONLINE
+            </span>
+            <span className="hidden sm:inline opacity-40">|</span>
+            <span className="hidden sm:flex items-center gap-1.5 opacity-90">
+              <Clock className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{currentTime || '18:44:00 WIB'}</span>
+            </span>
+            <span className="hidden md:inline opacity-40">|</span>
+            <span className="hidden md:flex items-center gap-1.5 opacity-90">
+              <Thermometer className="w-3.5 h-3.5 text-amber-400" />
+              <span>Suhu Kolam Klaten: 27.2°C • Ideal</span>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-4 text-[10px] font-bold">
+            <span className="hidden sm:flex items-center gap-1 text-slate-400">
+              <CloudSun className="w-3.5 h-3.5 text-amber-300" />
+              <span>Klaten: Cerah Segar</span>
+            </span>
+            <span className="flex items-center gap-1 bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-md border border-cyan-400/40">
+              <Wifi className="w-3 h-3" />
+              <span>EDGE: CLOUDFLARE</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* TOP NAVBAR */}
-      <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors ${
+      <header className={`sticky top-0 z-40 backdrop-blur-xl border-b transition-colors ${
         isDarkMode 
-          ? 'bg-[#0b1120]/80 border-slate-800/80 shadow-lg shadow-black/20' 
-          : 'bg-white/70 border-sky-200/60 shadow-sm'
+          ? 'bg-[#060b14]/85 border-slate-800/90 shadow-xl shadow-black/40' 
+          : 'bg-white/80 border-sky-200/80 shadow-xs'
       }`}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <a href="#" className="flex items-center gap-3 group">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-500 via-sky-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-cyan-400/40 group-hover:scale-105 group-hover:rotate-3 transition-all">
-              <Waves className="w-6 h-6 animate-pulse" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-400 via-sky-500 to-blue-600 text-white flex items-center justify-center shadow-lg shadow-cyan-400/40 group-hover:scale-105 group-hover:rotate-6 transition-all">
+              <Waves className="w-5 h-5 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-lg tracking-tight block leading-tight font-fun">
                   Mas Bumi
                 </span>
-                <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-amber-950 uppercase tracking-wide">
-                  12 th
+                <span className="inline-flex items-center px-1.5 py-0.2 rounded-md text-[9px] font-black bg-cyan-400/20 text-cyan-300 border border-cyan-400/40 uppercase tracking-widest font-mono-tech">
+                  v2.6
                 </span>
               </div>
-              <span className="text-xs font-semibold text-cyan-500 tracking-wide block">
+              <span className="text-[11px] font-bold text-cyan-500 tracking-wide block font-mono-tech">
                 bumi.pamungkas.org
               </span>
             </div>
           </a>
 
-          <nav className="hidden md:flex items-center gap-6 text-sm font-semibold">
-            <a href="#tentang" className="hover:text-cyan-500 transition-colors">Tentang Mas Bumi</a>
-            <a href="#games" className="hover:text-cyan-500 transition-colors flex items-center gap-1.5 text-amber-500 font-extrabold">
-              <Gamepad2 className="w-4 h-4 animate-bounce" />
-              <span>5 Game & Kuis Seru!</span>
+          <nav className="hidden lg:flex items-center gap-6 text-xs font-bold uppercase tracking-wider font-mono-tech">
+            <a href="#tentang" className="hover:text-cyan-400 transition-colors">Profil ID</a>
+            <a href="#telemetri" className="hover:text-cyan-400 transition-colors">Telemetri Renang</a>
+            <a href="#bumibot" className="hover:text-cyan-400 transition-colors text-amber-400 flex items-center gap-1">
+              <Bot className="w-3.5 h-3.5" />
+              <span>BumiBot AI</span>
             </a>
-            <a href="#hobi" className="hover:text-cyan-500 transition-colors">Renang & Olahraga</a>
-            <a href="#stopwatch" className="hover:text-cyan-500 transition-colors">Stopwatch ⏱️</a>
-            <a href="#sekolah" className="hover:text-cyan-500 transition-colors">MIM Basin & Kumon</a>
+            <a href="#games" className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-cyan-400">
+              <Gamepad2 className="w-3.5 h-3.5" />
+              <span>5 Game Arcade</span>
+            </a>
+            <a href="#stopwatch" className="hover:text-cyan-400 transition-colors">Stopwatch</a>
           </nav>
 
           <div className="flex items-center gap-2">
-            {/* Audio sound toggle */}
             <button
-              onClick={() => setIsSoundMuted(!isSoundMuted)}
+              onClick={() => {
+                playSound('tech');
+                setIsSoundMuted(!isSoundMuted);
+              }}
               className={`p-2 rounded-xl transition-all cursor-pointer ${
                 isSoundMuted 
-                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300' 
-                  : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                  ? 'bg-rose-950/60 text-rose-300 border border-rose-800/60' 
+                  : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/60'
               }`}
               title={isSoundMuted ? 'Nyalakan Suara Game' : 'Matikan Suara Game'}
             >
               {isSoundMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
 
-            {/* Dark Mode Toggle */}
             <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
+              onClick={() => {
+                playSound('tech');
+                setIsDarkMode(!isDarkMode);
+              }}
               className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-1 text-xs font-bold ${
                 isDarkMode
                   ? 'bg-slate-800 text-amber-300 border border-slate-700 hover:bg-slate-700'
@@ -885,123 +1016,278 @@ export default function App() {
                   : 'bg-sky-100 hover:bg-sky-200 text-sky-800 border border-sky-200 shadow-xs'
               }`}
             >
-              <span>Keluarga</span>
+              <span>pamungkas.org</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
         </div>
       </header>
 
-      {/* MAIN CONTAINER */}
+      {/* MAIN CONTENT */}
       <main className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-16">
 
-        {/* HERO SECTION */}
+        {/* HERO: FUTURISTIC BENTO GRID + DIGITAL ATHLETE ID */}
         <section id="tentang" className="relative">
-          <div className={`rounded-3xl p-6 sm:p-10 border transition-all relative overflow-hidden backdrop-blur-md ${
-            isDarkMode 
-              ? 'bg-slate-900/80 border-slate-800 shadow-2xl shadow-cyan-950/50' 
-              : 'bg-white/80 border-sky-200/80 shadow-xl shadow-sky-200/40'
-          }`}>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-black tracking-wide bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20">
-                <Sparkles className="w-3.5 h-3.5 animate-spin" />
-                <span>WEBSITE RESMI KUN BUMI PAMUNGKAS</span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+
+            {/* Left Hero Card: Intro & Identity */}
+            <div className={`lg:col-span-7 rounded-3xl p-6 sm:p-8 border transition-all relative overflow-hidden backdrop-blur-xl flex flex-col justify-between ${
+              isDarkMode 
+                ? 'bg-slate-900/85 border-slate-800/90 shadow-2xl shadow-cyan-950/50' 
+                : 'bg-white/85 border-sky-200/80 shadow-xl shadow-sky-200/40'
+            }`}>
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-xs">
+                    <Sparkles className="w-3 h-3 animate-spin" />
+                    <span>PORTAL RESMI MAS BUMI</span>
+                  </span>
+                  <span className="text-[10px] font-mono-tech px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-cyan-300">
+                    STATUS: READY TO SWIM 🏊‍♂️
+                  </span>
+                </div>
+
+                <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight font-fun">
+                  Kun Bumi Pamungkas <br />
+                  <span className="bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 bg-clip-text text-transparent">
+                    Perenang Muda & Pelajar Klaten
+                  </span>
+                </h1>
+
+                <p className={`text-sm sm:text-base leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Biasa dipanggil <strong className="text-cyan-400 font-extrabold">Mas Bumi</strong> (12 tahun). 
+                  Berfokus pada kecepatan di lintasan renang, ketajaman logika di <strong className="text-emerald-400">Kumon</strong>, dan menuntut ilmu penuh berkah di <strong className="text-indigo-400">MIM Basin Klaten</strong>.
+                </p>
+
+                {/* Quick Spec Pills */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 font-mono-tech text-xs">
+                  <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10">
+                    <span className="text-[10px] text-slate-400 block">LAHIR</span>
+                    <strong className="text-white">05-06-2014</strong>
+                  </div>
+                  <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10">
+                    <span className="text-[10px] text-slate-400 block">ASAL</span>
+                    <strong className="text-white">Klaten, ID</strong>
+                  </div>
+                  <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10">
+                    <span className="text-[10px] text-slate-400 block">MADRASAH</span>
+                    <strong className="text-white">MIM Basin</strong>
+                  </div>
+                  <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10">
+                    <span className="text-[10px] text-slate-400 block">METODE</span>
+                    <strong className="text-white">Kumon Math</strong>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-xs font-bold text-cyan-600 dark:text-cyan-400">
-                <ShieldCheck className="w-4 h-4" />
-                <span>Pelajar & Atlet Muda Klaten</span>
+
+              <div className="flex flex-wrap gap-3 pt-6 mt-4 border-t border-white/10">
+                <a
+                  href="#telemetri"
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Activity className="w-4 h-4" />
+                  <span>Kalkulator Latihan Renang</span>
+                </a>
+
+                <a
+                  href="#bumibot"
+                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-amber-400/30 transition-all hover:scale-105 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Bot className="w-4 h-4" />
+                  <span>Tanya BumiBot AI 🤖</span>
+                </a>
               </div>
             </div>
 
-            <div className="flex flex-col md:flex-row items-center gap-8 md:gap-12">
-              <div className="relative flex-shrink-0 animate-float">
-                <div className="w-44 h-44 sm:w-52 sm:h-52 rounded-3xl bg-gradient-to-tr from-cyan-400 via-blue-500 to-teal-400 p-1.5 shadow-2xl shadow-cyan-500/30">
-                  <div className={`w-full h-full rounded-[22px] overflow-hidden flex flex-col items-center justify-center relative group select-none ${
-                    isDarkMode ? 'bg-[#0f172a]' : 'bg-gradient-to-b from-slate-900 to-blue-950'
-                  }`}>
-                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px]" />
-                    <span className="text-7xl sm:text-8xl transform group-hover:scale-110 transition-transform duration-300 drop-shadow-lg">
+            {/* Right Hero Card: 3D Holographic Swimmer Passport ID */}
+            <div className="lg:col-span-5 flex flex-col">
+              <div className={`h-full rounded-3xl p-6 border transition-all relative overflow-hidden backdrop-blur-xl scanline-effect flex flex-col justify-between ${
+                isDarkMode 
+                  ? 'bg-gradient-to-br from-slate-900/95 via-[#0c182b] to-slate-900 border-cyan-500/40 shadow-2xl shadow-cyan-950/70' 
+                  : 'bg-white/95 border-cyan-200 shadow-xl'
+              }`}>
+                {/* Holographic Header Bar */}
+                <div className="flex items-center justify-between pb-4 border-b border-cyan-500/30">
+                  <div className="flex items-center gap-2">
+                    <Scan className="w-5 h-5 text-cyan-400 animate-pulse" />
+                    <div>
+                      <span className="font-mono-tech font-black text-xs tracking-widest text-cyan-300 block">
+                        ATHLETE DIGITAL PASS
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-mono-tech">ID: BMP-2014-KLATEN</span>
+                    </div>
+                  </div>
+                  <div className="w-8 h-8 rounded-lg bg-cyan-400/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300">
+                    <QrCode className="w-5 h-5" />
+                  </div>
+                </div>
+
+                {/* Athlete Visual Display */}
+                <div className="py-6 flex items-center gap-5">
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-500 p-1 shadow-xl shadow-cyan-500/30 flex-shrink-0 animate-float">
+                    <div className="w-full h-full rounded-[14px] bg-slate-950 flex flex-col items-center justify-center text-5xl">
                       🏊‍♂️
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/30 inline-block font-mono-tech">
+                      DIVISI: KU-12 RENANG
                     </span>
-                    <div className="absolute bottom-2.5 px-3 py-0.5 rounded-full bg-cyan-400/20 border border-cyan-400/40 backdrop-blur-xs text-[11px] font-extrabold text-cyan-200">
-                      🌊 Perenang Klaten
+                    <h3 className="font-black text-xl font-fun">Mas Bumi</h3>
+                    <p className="text-xs text-slate-300">
+                      Spesialisasi: <strong>Gaya Bebas & Dada</strong>
+                    </p>
+                    <div className="flex items-center gap-1 text-[11px] text-cyan-400 font-mono-tech">
+                      <MapPin className="w-3 h-3" />
+                      <span>Klaten, Jawa Tengah</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="absolute -top-2 -left-2 bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 text-xs font-black px-3 py-1 rounded-full shadow-lg flex items-center gap-1 border border-white">
-                  <Flame className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
-                  <span>Semangat Juara!</span>
+                {/* Holographic Specs & Barcode Footer */}
+                <div className="pt-4 border-t border-cyan-500/30 space-y-3 font-mono-tech">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Target Musim Ini:</span>
+                    <span className="text-emerald-400 font-bold">50m Sprint Sub-45s</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Kumon Level Status:</span>
+                    <span className="text-cyan-300 font-bold">Consistent Daily Drill</span>
+                  </div>
+                  
+                  {/* Decorative Barcode */}
+                  <div className="pt-2 flex items-center justify-between opacity-60">
+                    <div className="h-6 w-full bg-[repeating-linear-gradient(90deg,#38bdf8,#38bdf8_2px,transparent_2px,transparent_5px)]" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        {/* ============================================================== */}
+        {/* FITUR CANGGIH 1: KALKULATOR TELEMETRI RENANG (INTERAKTIF)       */}
+        {/* ============================================================== */}
+        <section id="telemetri" className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs font-mono-tech font-bold text-cyan-400 uppercase tracking-wider mb-1">
+                <Sliders className="w-4 h-4" />
+                <span>TELEMETRY & WORKOUT CALCULATOR</span>
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
+                ⚡ Kalkulator Energi & Hidrasi Renang
+              </h2>
+            </div>
+            <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              Ubah durasi dan gaya renang untuk menghitung estimasi kalori terbakar dan kebutuhan air minum Mas Bumi!
+            </p>
+          </div>
+
+          <div className={`rounded-3xl p-6 sm:p-8 border transition-all backdrop-blur-xl ${
+            isDarkMode 
+              ? 'bg-slate-900/90 border-slate-800 shadow-2xl' 
+              : 'bg-white/90 border-sky-200 shadow-lg'
+          }`}>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              
+              {/* Controls Column */}
+              <div className="lg:col-span-6 space-y-6">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold uppercase tracking-wider font-mono-tech">
+                      Durasi Latihan: <strong className="text-cyan-400 text-base">{workoutDuration} Menit</strong>
+                    </label>
+                    <span className="text-xs text-slate-400 font-mono-tech">Maksimal: 120 Menit</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={15}
+                    max={120}
+                    step={5}
+                    value={workoutDuration}
+                    onChange={(e) => {
+                      playSound('tech');
+                      setWorkoutDuration(parseInt(e.target.value, 10));
+                    }}
+                    className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                  />
                 </div>
 
-                <div className="absolute -bottom-3 -right-2 bg-gradient-to-r from-emerald-400 to-teal-500 text-white text-xs font-black px-3 py-1 rounded-full shadow-lg flex items-center gap-1 border-2 border-white">
-                  <Star className="w-3.5 h-3.5 fill-white text-white" />
-                  <span>12 Tahun</span>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider font-mono-tech block mb-2">
+                    Pilih Gaya Renang Utama:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { id: 'bebas', name: 'Gaya Bebas 🏊‍♂️' },
+                      { id: 'dada', name: 'Gaya Dada 🐸' },
+                      { id: 'punggung', name: 'Gaya Punggung 🌊' },
+                      { id: 'kupu', name: 'Gaya Kupu 🦋' }
+                    ].map((stroke) => (
+                      <button
+                        key={stroke.id}
+                        onClick={() => {
+                          playSound('tech');
+                          setWorkoutStroke(stroke.id as 'bebas' | 'dada' | 'punggung' | 'kupu');
+                        }}
+                        className={`text-xs font-bold p-3 rounded-2xl border transition-all cursor-pointer ${
+                          workoutStroke === stroke.id
+                            ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white border-transparent shadow-lg shadow-cyan-500/30 scale-102'
+                            : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
+                        }`}
+                      >
+                        {stroke.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              <div className="text-center md:text-left space-y-4 flex-1">
-                <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight font-fun">
-                  Halo Teman-Teman! Aku <br className="hidden sm:inline" />
-                  <span className="bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 bg-clip-text text-transparent drop-shadow-xs">
-                    Kun Bumi Pamungkas
+              {/* Instant Output Telemetry Display */}
+              <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 text-center space-y-1">
+                  <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-400 flex items-center justify-center mx-auto mb-2">
+                    <Flame className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-mono-tech font-bold text-amber-300 uppercase block">
+                    Kalori Terbakar
                   </span>
-                </h1>
-
-                <p className={`text-base sm:text-lg font-medium leading-relaxed ${
-                  isDarkMode ? 'text-slate-300' : 'text-slate-700'
-                }`}>
-                  Biasa dipanggil <strong className="font-extrabold text-cyan-500">Mas Bumi</strong>. 
-                  Aku anak yang gemar berenang, suka olahraga aktif, bersekolah di <strong className="font-bold underline decoration-cyan-400 decoration-2">MIM Basin Klaten</strong>, dan melatih ketekunan logika di <strong className="font-bold underline decoration-blue-400 decoration-2">Kumon</strong>!
-                </p>
-
-                <div className="flex flex-wrap gap-2.5 justify-center md:justify-start pt-2">
-                  <span className={`inline-flex items-center gap-2 text-xs font-bold px-3.5 py-2 rounded-xl border transition-all ${
-                    isDarkMode ? 'bg-slate-800/90 text-slate-200 border-slate-700' : 'bg-white text-slate-700 border-sky-100 shadow-xs'
-                  }`}>
-                    <Calendar className="w-4 h-4 text-cyan-500" />
-                    <span>Lahir: 5 Juni 2014</span>
-                  </span>
-
-                  <span className={`inline-flex items-center gap-2 text-xs font-bold px-3.5 py-2 rounded-xl border transition-all ${
-                    isDarkMode ? 'bg-slate-800/90 text-slate-200 border-slate-700' : 'bg-white text-slate-700 border-sky-100 shadow-xs'
-                  }`}>
-                    <MapPin className="w-4 h-4 text-rose-500" />
-                    <span>Klaten, Jawa Tengah</span>
-                  </span>
-
-                  <span className={`inline-flex items-center gap-2 text-xs font-bold px-3.5 py-2 rounded-xl border transition-all ${
-                    isDarkMode ? 'bg-slate-800/90 text-slate-200 border-slate-700' : 'bg-white text-slate-700 border-sky-100 shadow-xs'
-                  }`}>
-                    <Award className="w-4 h-4 text-amber-500" />
-                    <span>MIM Basin Klaten</span>
-                  </span>
-
-                  <span className={`inline-flex items-center gap-2 text-xs font-bold px-3.5 py-2 rounded-xl border transition-all ${
-                    isDarkMode ? 'bg-slate-800/90 text-slate-200 border-slate-700' : 'bg-white text-slate-700 border-sky-100 shadow-xs'
-                  }`}>
-                    <BookOpen className="w-4 h-4 text-emerald-500" />
-                    <span>Siswa Kumon</span>
-                  </span>
+                  <div className="text-3xl font-black font-mono-tech text-white">
+                    {caloriesBurned} <span className="text-xs font-normal text-amber-300">kcal</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 block pt-1">Energi maksimal!</span>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 pt-3">
-                  <a
-                    href="#games"
-                    className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 text-xs sm:text-sm font-black px-6 py-2.5 rounded-xl shadow-lg shadow-orange-500/30 transition-all hover:scale-105 cursor-pointer"
-                  >
-                    <Gamepad2 className="w-4 h-4" />
-                    <span>Mainkan 5 Game Mas Bumi! 🎮</span>
-                  </a>
-
-                  <a
-                    href="#stopwatch"
-                    className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 cursor-pointer"
-                  >
-                    <Timer className="w-4 h-4" />
-                    <span>Stopwatch Renang</span>
-                  </a>
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/30 text-center space-y-1">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-400/20 text-cyan-400 flex items-center justify-center mx-auto mb-2">
+                    <Droplets className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-mono-tech font-bold text-cyan-300 uppercase block">
+                    Kebutuhan Hidrasi
+                  </span>
+                  <div className="text-3xl font-black font-mono-tech text-white">
+                    {waterNeededMl} <span className="text-xs font-normal text-cyan-300">ml</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 block pt-1">Minum air putih segar</span>
                 </div>
+
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 text-center space-y-1">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-400/20 text-emerald-400 flex items-center justify-center mx-auto mb-2">
+                    <Waves className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-mono-tech font-bold text-emerald-300 uppercase block">
+                    Estimasi Putaran
+                  </span>
+                  <div className="text-3xl font-black font-mono-tech text-white">
+                    ~{estimatedLaps} <span className="text-xs font-normal text-emerald-300">Laps</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 block pt-1">Lintasan 50 meter</span>
+                </div>
+
               </div>
 
             </div>
@@ -1009,28 +1295,153 @@ export default function App() {
         </section>
 
         {/* ============================================================== */}
-        {/* SECTION: ARENA 5 GAME & KUIS SUPER SERU                        */}
+        {/* FITUR CANGGIH 2: "BUMIBOT" VIRTUAL AI CHAT ASSISTANT           */}
+        {/* ============================================================== */}
+        <section id="bumibot" className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs font-mono-tech font-bold text-amber-400 uppercase tracking-wider mb-1">
+                <Bot className="w-4 h-4" />
+                <span>INTERACTIVE AI COMPANION</span>
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
+                🤖 BumiBot — Asisten Virtual Mas Bumi
+              </h2>
+            </div>
+            <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              Tanyakan apa saja kepada robot cerdas Mas Bumi! Klik pertanyaan cepat atau ketik sendiri di bawah.
+            </p>
+          </div>
+
+          <div className={`rounded-3xl border transition-all overflow-hidden backdrop-blur-xl ${
+            isDarkMode 
+              ? 'bg-slate-900/90 border-slate-800 shadow-2xl' 
+              : 'bg-white/90 border-sky-200 shadow-lg'
+          }`}>
+            {/* Bot Header */}
+            <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center font-bold">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="font-bold text-sm block leading-tight">BumiBot v2.6 AI</span>
+                  <span className="text-[10px] text-emerald-400 font-mono-tech flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    ONLINE & READY TO ANSWER
+                  </span>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono-tech text-slate-400 hidden sm:inline">
+                POWERED BY BUMI KNOWLEDGE CORE
+              </span>
+            </div>
+
+            {/* Chat Log Window */}
+            <div className="p-4 sm:p-6 space-y-4 max-h-80 overflow-y-auto font-sans">
+              {chatMessages.map((msg, i) => (
+                <div 
+                  key={i} 
+                  className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {msg.sender === 'bot' && (
+                    <div className="w-8 h-8 rounded-lg bg-amber-400/20 text-amber-400 flex items-center justify-center flex-shrink-0">
+                      <Bot className="w-4 h-4" />
+                    </div>
+                  )}
+
+                  <div className={`max-w-md p-3.5 rounded-2xl text-xs sm:text-sm leading-relaxed ${
+                    msg.sender === 'user'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-tr-xs'
+                      : isDarkMode
+                        ? 'bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-xs'
+                        : 'bg-slate-100 text-slate-800 border border-slate-200 rounded-tl-xs'
+                  }`}>
+                    <p>{msg.text}</p>
+                    <span className="text-[9px] opacity-60 block text-right mt-1 font-mono-tech">
+                      {msg.time}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Prompt Chips */}
+            <div className="p-3 border-t border-white/10 bg-white/5 flex flex-wrap gap-2">
+              <span className="text-[10px] font-mono-tech text-slate-400 flex items-center gap-1 self-center mr-1">
+                <Sparkles className="w-3 h-3 text-amber-400" />
+                Coba tanya:
+              </span>
+              {[
+                'Siapa Mas Bumi?',
+                'Gaya renang apa favoritnya?',
+                'Sekolah di MIM Basin?',
+                'Metode belajar Kumon?',
+                'Wisata umbul di Klaten?',
+                'Game apa yang ada di web?'
+              ].map((chip) => (
+                <button
+                  key={chip}
+                  onClick={() => handleSendMessage(chip)}
+                  className="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-white/10 hover:bg-cyan-500/20 hover:text-cyan-300 border border-white/10 transition-all cursor-pointer"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+
+            {/* Chat Input Bar */}
+            <div className="p-3 sm:p-4 border-t border-white/10 flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Ketik pertanyaan untuk BumiBot di sini..."
+                value={inputChat}
+                onChange={(e) => setInputChat(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSendMessage();
+                }}
+                className={`flex-1 text-xs sm:text-sm px-4 py-3 rounded-xl border focus:outline-hidden focus:border-cyan-400 ${
+                  isDarkMode 
+                    ? 'bg-slate-950/60 border-slate-800 text-white' 
+                    : 'bg-slate-50 border-slate-200 text-slate-900'
+                }`}
+              />
+              <button
+                onClick={() => handleSendMessage()}
+                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-5 py-3 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/30 transition-all cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Kirim</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* ============================================================== */}
+        {/* ARENA 5 GAME & KUIS ARCADE MAS BUMI                           */}
         {/* ============================================================== */}
         <section id="games" className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
             <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-extrabold tracking-wider text-amber-500 uppercase mb-1">
+              <div className="inline-flex items-center gap-1.5 text-xs font-mono-tech font-bold text-rose-400 uppercase tracking-wider mb-1">
                 <Gamepad2 className="w-4 h-4" />
-                <span>ZONA ARCADE & TANTANGAN KHUSUS</span>
+                <span>ARCADE CENTER & GAMES</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
-                🕹️ Arena 5 Game & Kuis Mas Bumi (Super Seru!)
+                🕹️ Arena 5 Game & Kuis Mas Bumi
               </h2>
             </div>
             <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Sekarang ada game arcade aksi meluncur di laut, balapan renang, hitung kilat Kumon, tebak kartu, dan kuis multi-ronde!
+              Nikmati game aksi arcade penyelaman, balapan renang 50m, hitung kilat Kumon, tebak kartu, dan kuis multi-ronde!
             </p>
           </div>
 
-          {/* Game Selection Tabs */}
           <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/40 dark:border-slate-700/60 max-w-fit">
             <button
-              onClick={() => setActiveGameTab('arcade')}
+              onClick={() => {
+                playSound('tech');
+                setActiveGameTab('arcade');
+              }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
                 activeGameTab === 'arcade'
                   ? 'bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500 text-white shadow-md scale-102'
@@ -1042,7 +1453,10 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveGameTab('swim')}
+              onClick={() => {
+                playSound('tech');
+                setActiveGameTab('swim');
+              }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
                 activeGameTab === 'swim'
                   ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
@@ -1054,7 +1468,10 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveGameTab('math')}
+              onClick={() => {
+                playSound('tech');
+                setActiveGameTab('math');
+              }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
                 activeGameTab === 'math'
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
@@ -1066,7 +1483,10 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveGameTab('memory')}
+              onClick={() => {
+                playSound('tech');
+                setActiveGameTab('memory');
+              }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
                 activeGameTab === 'memory'
                   ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md'
@@ -1078,7 +1498,10 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveGameTab('quiz')}
+              onClick={() => {
+                playSound('tech');
+                setActiveGameTab('quiz');
+              }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
                 activeGameTab === 'quiz'
                   ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md'
@@ -1090,7 +1513,7 @@ export default function App() {
             </button>
           </div>
 
-          {/* TAB 1: SUPER GAME ARCADE PETUALANGAN MENYELAM MAS BUMI */}
+          {/* TAB 1: ARCADE GAME */}
           {activeGameTab === 'arcade' && (
             <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
               isDarkMode 
@@ -1100,7 +1523,7 @@ export default function App() {
               <div className="max-w-2xl mx-auto space-y-4 text-center">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-left">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-rose-500 bg-rose-100 dark:bg-rose-950/80 px-2.5 py-0.5 rounded-md">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-rose-500 bg-rose-100 dark:bg-rose-950/80 px-2.5 py-0.5 rounded-md font-mono-tech">
                       ARCADE ACTION RUNNER
                     </span>
                     <h3 className="text-2xl font-black font-fun mt-1">
@@ -1108,14 +1531,14 @@ export default function App() {
                     </h3>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 font-mono-tech">
                     <div className="bg-black/20 px-3 py-1 rounded-xl border border-white/10 text-right">
                       <span className="text-[9px] uppercase block font-bold text-slate-400">Skor Tertinggi</span>
-                      <span className="text-amber-400 font-mono font-black text-sm">🏆 {arcadeHighScore}</span>
+                      <span className="text-amber-400 font-black text-sm">🏆 {arcadeHighScore}</span>
                     </div>
                     <div className="bg-black/20 px-3 py-1 rounded-xl border border-white/10 text-right">
                       <span className="text-[9px] uppercase block font-bold text-slate-400">Skor Saat Ini</span>
-                      <span className="text-cyan-300 font-mono font-black text-sm">{arcadeScore}</span>
+                      <span className="text-cyan-300 font-black text-sm">{arcadeScore}</span>
                     </div>
                   </div>
                 </div>
@@ -1124,7 +1547,6 @@ export default function App() {
                   Kumpulkan <strong>Medali 🏅</strong>, <strong>Bintang ⭐</strong>, dan <strong>Buku Kumon 📚</strong>! Hindari <strong>Ubur-ubur 🪼</strong>, <strong>Ikan Buntal 🐡</strong>, dan <strong>Karang 🪸</strong>!
                 </p>
 
-                {/* Canvas Game Screen */}
                 <div className="relative rounded-2xl overflow-hidden border-4 border-sky-400 shadow-2xl bg-sky-950 select-none">
                   <canvas
                     ref={canvasRef}
@@ -1134,7 +1556,6 @@ export default function App() {
                     className="w-full h-auto aspect-[2/1] block cursor-pointer"
                   />
 
-                  {/* Overlay: Idle Start */}
                   {arcadeState === 'idle' && (
                     <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4">
                       <span className="text-6xl animate-bounce">🏊‍♂️🌊</span>
@@ -1156,7 +1577,6 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Overlay: Game Over */}
                   {arcadeState === 'gameover' && (
                     <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4 animate-float">
                       <span className="text-5xl">💥🌊</span>
@@ -1165,10 +1585,10 @@ export default function App() {
                           Ups, Tersenggol Karang!
                         </h4>
                         <p className="text-sm">
-                          Skor Akhirmu: <strong className="font-mono text-xl text-amber-300">{arcadeScore}</strong>
+                          Skor Akhirmu: <strong className="font-mono-tech text-xl text-amber-300">{arcadeScore}</strong>
                         </p>
                         {arcadeScore >= arcadeHighScore && arcadeScore > 0 && (
-                          <p className="text-xs text-emerald-400 font-bold animate-pulse">
+                          <p className="text-xs text-emerald-400 font-bold animate-pulse font-mono-tech">
                             🎉 REKOR SKOR BARU TERCAPAI! LUAR BIASA!
                           </p>
                         )}
@@ -1184,7 +1604,6 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Mobile / Screen Tap Controls */}
                 {arcadeState === 'playing' && (
                   <div className="pt-2">
                     <button
@@ -1209,7 +1628,7 @@ export default function App() {
             }`}>
               <div className="max-w-3xl mx-auto space-y-6">
                 <div className="text-center space-y-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-cyan-500 bg-cyan-100 dark:bg-cyan-950/80 px-3 py-1 rounded-full border border-cyan-300">
+                  <span className="text-xs font-black uppercase tracking-wider text-cyan-500 bg-cyan-100 dark:bg-cyan-950/80 px-3 py-1 rounded-full border border-cyan-300 font-mono-tech">
                     VIRTUAL SWIMMING SPRINT
                   </span>
                   <h3 className="text-2xl sm:text-3xl font-black font-fun">
@@ -1223,7 +1642,7 @@ export default function App() {
                 <div className="p-4 sm:p-6 rounded-2xl bg-gradient-to-b from-sky-600 via-blue-700 to-blue-800 text-white shadow-inner relative overflow-hidden border-2 border-sky-400">
                   <div className="flex justify-between items-center text-xs font-bold text-sky-200 mb-4 pb-2 border-b border-sky-400/50">
                     <span>START 🚩</span>
-                    <span className="font-mono text-cyan-200 font-black text-sm">
+                    <span className="font-mono-tech text-cyan-200 font-black text-sm">
                       WAKTU: {(raceTimeMs / 1000).toFixed(1)}s
                     </span>
                     <span className="text-amber-300 flex items-center gap-1">
@@ -1235,7 +1654,7 @@ export default function App() {
                   <div className="space-y-1 mb-4">
                     <div className="flex justify-between text-xs font-extrabold text-cyan-200">
                       <span>LINTASAN 1: Mas Bumi ({selectedRaceStroke})</span>
-                      <span className="font-mono">{Math.round(bumiProgress)}%</span>
+                      <span className="font-mono-tech">{Math.round(bumiProgress)}%</span>
                     </div>
                     <div className="h-10 bg-sky-900/60 rounded-xl relative flex items-center px-1 border border-cyan-400/40">
                       <div 
@@ -1245,7 +1664,7 @@ export default function App() {
                         <span className="text-2xl filter drop-shadow-md transform -scale-x-100">
                           🏊‍♂️
                         </span>
-                        <span className="text-[10px] font-black bg-cyan-400 text-slate-950 px-1.5 py-0.2 rounded-md">
+                        <span className="text-[10px] font-black bg-cyan-400 text-slate-950 px-1.5 py-0.2 rounded-md font-mono-tech">
                           Bumi
                         </span>
                       </div>
@@ -1255,7 +1674,7 @@ export default function App() {
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs font-extrabold text-amber-200">
                       <span>LINTASAN 2: Si Lumba-Lumba Kawan Klaten 🐬</span>
-                      <span className="font-mono">{Math.round(rivalProgress)}%</span>
+                      <span className="font-mono-tech">{Math.round(rivalProgress)}%</span>
                     </div>
                     <div className="h-10 bg-sky-900/60 rounded-xl relative flex items-center px-1 border border-amber-400/30">
                       <div 
@@ -1265,7 +1684,7 @@ export default function App() {
                         <span className="text-2xl filter drop-shadow-md">
                           🐬
                         </span>
-                        <span className="text-[10px] font-black bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded-md">
+                        <span className="text-[10px] font-black bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded-md font-mono-tech">
                           Rival
                         </span>
                       </div>
@@ -1311,9 +1730,6 @@ export default function App() {
                         <Zap className="w-7 h-7 fill-slate-950 animate-bounce" />
                         <span>AYUN TANGAN! (KLIK CEPAT!)</span>
                       </button>
-                      <span className="text-xs text-slate-500 dark:text-slate-400 animate-pulse font-semibold">
-                        Semakin cepat kamu klik, semakin kencang Mas Bumi meluncur!
-                      </span>
                     </div>
                   )}
 
@@ -1333,7 +1749,7 @@ export default function App() {
                             : 'Lumba-Lumba Menyentuh Finish Duluan!'}
                         </h4>
                         <p className="text-xs sm:text-sm mt-1">
-                          Catatan Waktu: <strong className="font-mono text-base font-bold">{(raceTimeMs / 1000).toFixed(1)} detik</strong>
+                          Catatan Waktu: <strong className="font-mono-tech text-base font-bold">{(raceTimeMs / 1000).toFixed(1)} detik</strong>
                         </p>
                       </div>
 
@@ -1360,7 +1776,7 @@ export default function App() {
             }`}>
               <div className="max-w-xl mx-auto space-y-6 text-center">
                 <div className="space-y-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-emerald-600 bg-emerald-100 dark:bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-300">
+                  <span className="text-xs font-black uppercase tracking-wider text-emerald-600 bg-emerald-100 dark:bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-300 font-mono-tech">
                     KUMON SPEED MATH CHALLENGE
                   </span>
                   <h3 className="text-2xl sm:text-3xl font-black font-fun">
@@ -1389,15 +1805,15 @@ export default function App() {
 
                 {mathState === 'playing' && (
                   <div className="space-y-6">
-                    <div className="flex justify-between items-center bg-black/20 p-3.5 rounded-2xl border border-emerald-500/30">
+                    <div className="flex justify-between items-center bg-black/20 p-3.5 rounded-2xl border border-emerald-500/30 font-mono-tech">
                       <div className="text-left">
                         <span className="text-[10px] uppercase font-black text-emerald-400 block">Waktu Sisa</span>
-                        <span className="font-mono text-2xl font-black text-amber-300">{mathTimeLeft}s</span>
+                        <span className="text-2xl font-black text-amber-300">{mathTimeLeft}s</span>
                       </div>
 
                       <div>
                         {mathStreak > 1 && (
-                          <span className="text-xs font-black px-3 py-1 rounded-full bg-amber-400 text-slate-950 animate-pulse flex items-center gap-1">
+                          <span className="text-xs font-black px-3 py-1 rounded-full bg-amber-400 text-slate-950 animate-pulse flex items-center gap-1 font-sans">
                             <Flame className="w-3.5 h-3.5 fill-slate-950" />
                             <span>{mathStreak}x COMBO!</span>
                           </span>
@@ -1406,15 +1822,15 @@ export default function App() {
 
                       <div className="text-right">
                         <span className="text-[10px] uppercase font-black text-emerald-400 block">Skor Kamu</span>
-                        <span className="font-mono text-2xl font-black text-emerald-300">{mathScore}</span>
+                        <span className="text-2xl font-black text-emerald-300">{mathScore}</span>
                       </div>
                     </div>
 
                     <div className="p-6 rounded-3xl bg-white/10 border border-emerald-400/40 backdrop-blur-md">
-                      <span className="text-xs text-emerald-300 uppercase tracking-wider font-bold block mb-1">
+                      <span className="text-xs text-emerald-300 uppercase tracking-wider font-bold block mb-1 font-mono-tech">
                         Berapa Hasilnya?
                       </span>
-                      <div className="text-5xl sm:text-6xl font-black font-mono text-white drop-shadow-md">
+                      <div className="text-5xl sm:text-6xl font-black font-mono-tech text-white drop-shadow-md">
                         {currentProblem.q} = ?
                       </div>
                     </div>
@@ -1424,7 +1840,7 @@ export default function App() {
                         <button
                           key={idx}
                           onClick={() => handleMathAnswer(opt)}
-                          className="bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-2xl font-mono font-black py-4 rounded-2xl shadow-lg shadow-emerald-600/30 transition-transform cursor-pointer border border-emerald-300"
+                          className="bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-2xl font-mono-tech font-black py-4 rounded-2xl shadow-lg shadow-emerald-600/30 transition-transform cursor-pointer border border-emerald-300"
                         >
                           {opt}
                         </button>
@@ -1437,14 +1853,9 @@ export default function App() {
                   <div className="p-6 rounded-3xl bg-emerald-500/20 border border-emerald-400 space-y-4 animate-float">
                     <span className="text-5xl block">🎉🎖️</span>
                     <h4 className="text-2xl font-black font-fun">Waktu Habis! Hebat Banget!</h4>
-                    <div className="text-4xl font-mono font-black text-emerald-400">
+                    <div className="text-4xl font-mono-tech font-black text-emerald-400">
                       Total Skor: {mathScore}
                     </div>
-                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-                      {mathScore >= 100 
-                        ? 'Sensasional! Kecepatan hitung Kumon-mu setingkat juara matematika! 🌟' 
-                        : 'Bagus sekali! Terus latih konsentrasi dan kecepatan hitungmu! 💪'}
-                    </p>
                     <button
                       onClick={startMathGame}
                       className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-3 rounded-xl font-black text-sm shadow-md hover:scale-105 transition-all cursor-pointer inline-flex items-center gap-2"
@@ -1467,24 +1878,24 @@ export default function App() {
             }`}>
               <div className="max-w-xl mx-auto space-y-6 text-center">
                 <div className="space-y-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-indigo-500 bg-indigo-100 dark:bg-indigo-950/80 px-3 py-1 rounded-full border border-indigo-300">
+                  <span className="text-xs font-black uppercase tracking-wider text-indigo-500 bg-indigo-100 dark:bg-indigo-950/80 px-3 py-1 rounded-full border border-indigo-300 font-mono-tech">
                     GAME ASAH MEMORI & DAYA INGAT
                   </span>
                   <h3 className="text-2xl sm:text-3xl font-black font-fun">
                     🎴 Tebak & Cocokkan Pasangan Kartu Mas Bumi!
                   </h3>
                   <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                    Klik 2 kartu untuk membukanya. Temukan semua pasangan gambar yang sama (Renang, Piala, Kumon, dan MIM Basin)!
+                    Klik 2 kartu untuk membukanya. Temukan semua pasangan gambar yang sama!
                   </p>
                 </div>
 
-                <div className="flex justify-between items-center bg-black/20 p-3.5 rounded-2xl border border-indigo-500/30 max-w-sm mx-auto">
+                <div className="flex justify-between items-center bg-black/20 p-3.5 rounded-2xl border border-indigo-500/30 max-w-sm mx-auto font-mono-tech">
                   <span className="text-xs font-bold text-indigo-300">
-                    Langkah: <strong className="font-mono text-base text-white">{memoryMoves}</strong>
+                    Langkah: <strong className="text-base text-white">{memoryMoves}</strong>
                   </span>
                   <button
                     onClick={resetMemoryGame}
-                    className="text-xs font-bold bg-indigo-500 hover:bg-indigo-400 text-white px-3 py-1 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                    className="text-xs font-bold bg-indigo-500 hover:bg-indigo-400 text-white px-3 py-1 rounded-lg flex items-center gap-1 transition-all cursor-pointer font-sans"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>Acak Ulang</span>
@@ -1509,7 +1920,7 @@ export default function App() {
                         {isFlipped ? (
                           <div className="flex flex-col items-center">
                             <span>{card.symbol}</span>
-                            <span className="text-[10px] font-black uppercase mt-1 opacity-90">{card.name}</span>
+                            <span className="text-[10px] font-black uppercase mt-1 opacity-90 font-mono-tech">{card.name}</span>
                           </div>
                         ) : (
                           <Sparkles className="w-7 h-7 text-indigo-400 opacity-60" />
@@ -1548,11 +1959,11 @@ export default function App() {
               <div className="max-w-2xl mx-auto space-y-6">
                 <div className="text-center space-y-2">
                   <div className="flex flex-wrap items-center justify-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-xs font-black">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-xs font-black font-mono-tech">
                       <Sparkles className="w-3.5 h-3.5" />
                       <span>{quizRounds[currentRoundIdx].roundName}</span>
                     </span>
-                    <span className="text-xs font-bold text-slate-500">
+                    <span className="text-xs font-bold text-slate-500 font-mono-tech">
                       (Ronde {currentRoundIdx + 1} dari {quizRounds.length})
                     </span>
                   </div>
@@ -1621,13 +2032,6 @@ export default function App() {
                       <h4 className="font-black text-lg mt-1 font-fun">
                         Skor: {quizScore} dari {currentQuestions.length} Benar!
                       </h4>
-                      <p className="text-xs text-amber-600 dark:text-amber-300 mt-1">
-                        {quizScore === 5 
-                          ? 'SEMPURNA! Kamu jagoan sejati! Lanjut ke ronde berikutnya yuk! 💯🎉' 
-                          : quizScore >= 3
-                            ? 'Hebat! Skor yang sangat memuaskan! 👏'
-                            : 'Bagus! Coba klik tombol Ganti Ronde Baru untuk tantangan lain! 😊'}
-                      </p>
                     </div>
                   )}
                 </div>
@@ -1636,120 +2040,22 @@ export default function App() {
           )}
         </section>
 
-        {/* SECTION: HOBI & OLAHRAGA */}
-        <section id="hobi" className="space-y-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-extrabold tracking-wider text-cyan-500 uppercase mb-1">
-                <Waves className="w-4 h-4" />
-                <span>DUNIA AIR & OLAHRAGA</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight font-fun">
-                🏊‍♂️ Bakat, Hobi & Olahraga
-              </h2>
-            </div>
-            <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Bagi Mas Bumi, bergerak aktif dan berenang bukan sekadar hobi, tapi cara melatih tubuh sehat, disiplin, dan pantang menyerah!
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className={`rounded-3xl p-6 border transition-all duration-300 hover:-translate-y-1.5 relative overflow-hidden group ${
-              isDarkMode 
-                ? 'bg-slate-900/90 border-slate-800 hover:border-cyan-500/60 shadow-xl' 
-                : 'bg-white/90 border-sky-100 hover:border-cyan-300 shadow-lg shadow-sky-100'
-            }`}>
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-500 text-white flex items-center justify-center mb-5 shadow-lg shadow-cyan-500/30 group-hover:scale-110 transition-transform">
-                <Waves className="w-7 h-7" />
-              </div>
-              <h3 className="font-extrabold text-xl mb-2 font-fun">Berenang (Swimming)</h3>
-              <p className={`text-sm leading-relaxed mb-5 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Hobi nomor satu Mas Bumi! Suka meluncur di lintasan kolam, melatih daya tahan paru-paru, dan menyempurnakan berbagai teknik gaya renang.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {['Gaya Bebas', 'Gaya Dada', 'Gaya Punggung', 'Gaya Kupu-kupu'].map(gaya => (
-                  <span key={gaya} className={`text-xs font-bold px-3 py-1 rounded-lg border ${
-                    isDarkMode
-                      ? 'bg-cyan-950/60 text-cyan-300 border-cyan-800/80'
-                      : 'bg-cyan-50 text-cyan-800 border-cyan-200/70'
-                  }`}>
-                    {gaya}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className={`rounded-3xl p-6 border transition-all duration-300 hover:-translate-y-1.5 relative overflow-hidden group ${
-              isDarkMode 
-                ? 'bg-slate-900/90 border-slate-800 hover:border-amber-500/60 shadow-xl' 
-                : 'bg-white/90 border-sky-100 hover:border-amber-300 shadow-lg shadow-sky-100'
-            }`}>
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center mb-5 shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform">
-                <Activity className="w-7 h-7" />
-              </div>
-              <h3 className="font-extrabold text-xl mb-2 font-fun">Olahraga & Gerak Aktif</h3>
-              <p className={`text-sm leading-relaxed mb-5 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Selain di kolam renang, Mas Bumi gemar berlari, main bola bersama teman di sekolah MIM Basin, dan bersepeda keliling Klaten yang asri.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {['Lari Cepat 🏃', 'Bersepeda 🚴', 'Sepak Bola ⚽', 'Senam Pagi 🤸'].map(sport => (
-                  <span key={sport} className={`text-xs font-bold px-3 py-1 rounded-lg border ${
-                    isDarkMode
-                      ? 'bg-amber-950/60 text-amber-300 border-amber-800/80'
-                      : 'bg-amber-50 text-amber-900 border-amber-200/70'
-                  }`}>
-                    {sport}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className={`rounded-3xl p-6 border transition-all duration-300 hover:-translate-y-1.5 relative overflow-hidden group ${
-              isDarkMode 
-                ? 'bg-slate-900/90 border-slate-800 hover:border-emerald-500/60 shadow-xl' 
-                : 'bg-white/90 border-sky-100 hover:border-emerald-300 shadow-lg shadow-sky-100'
-            }`}>
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-400 to-teal-500 text-white flex items-center justify-center mb-5 shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
-                <Trophy className="w-7 h-7" />
-              </div>
-              <h3 className="font-extrabold text-xl mb-2 font-fun">Mental Juara & Sportif</h3>
-              <p className={`text-sm leading-relaxed mb-5 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Olahraga mengajarkan arti kerja keras. Menang disyukuri dengan rendah hati, kalah jadi bahan pelajaran untuk bangkit lebih kuat lagi!
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {['Disiplin Tinggi', 'Pantang Menyerah', 'Menghormati Lawan'].map(val => (
-                  <span key={val} className={`text-xs font-bold px-3 py-1 rounded-lg border ${
-                    isDarkMode
-                      ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/80'
-                      : 'bg-emerald-50 text-emerald-900 border-emerald-200/70'
-                  }`}>
-                    {val}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION: STOPWATCH INTERAKTIF MAS BUMI */}
+        {/* SECTION: STOPWATCH INTERAKTIF */}
         <section id="stopwatch" className="relative">
           <div className="bg-gradient-to-br from-[#061e38] via-[#0b2b4e] to-[#041527] rounded-3xl p-6 sm:p-10 text-white shadow-2xl shadow-cyan-950/60 border border-cyan-500/30 relative overflow-hidden">
             <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-cyan-400/10 blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
 
             <div className="relative z-10 max-w-2xl mx-auto text-center space-y-6">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 backdrop-blur-md text-cyan-300 text-xs font-black tracking-wide">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-400/40 backdrop-blur-md text-cyan-300 text-xs font-black tracking-wide font-mono-tech">
                 <Timer className="w-4 h-4 animate-spin" />
-                <span>FITUR SPESIAL: STOPWATCH LATIHAN MAS BUMI</span>
+                <span>STOPWATCH TELEMETRY</span>
               </div>
 
               <div>
                 <h2 className="text-2xl sm:text-4xl font-black text-white font-fun">
-                  ⏱️ Catat Waktu Renangmu!
+                  ⏱️ Catat Waktu Latihan Renang Mas Bumi
                 </h2>
-                <p className="text-slate-300 text-sm mt-2">
-                  Pilih gaya renang yang mau diuji, lalu tekan <strong>Mulai</strong> saat bersiap melompat ke air!
-                </p>
               </div>
 
               <div className="flex flex-wrap justify-center gap-2 pt-2">
@@ -1761,7 +2067,10 @@ export default function App() {
                 ].map((stroke) => (
                   <button
                     key={stroke}
-                    onClick={() => setSelectedStroke(stroke)}
+                    onClick={() => {
+                      playSound('tech');
+                      setSelectedStroke(stroke);
+                    }}
                     className={`text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer ${
                       selectedStroke === stroke
                         ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50 scale-105 border border-cyan-300'
@@ -1774,30 +2083,36 @@ export default function App() {
               </div>
 
               <div className="py-6 px-4 bg-black/40 rounded-3xl border border-cyan-500/30 backdrop-blur-md max-w-md mx-auto shadow-inner">
-                <div className="text-6xl sm:text-7xl font-mono font-black tracking-widest text-cyan-300 drop-shadow-[0_0_35px_rgba(34,211,238,0.5)]">
+                <div className="text-6xl sm:text-7xl font-mono-tech font-black tracking-widest text-cyan-300 drop-shadow-[0_0_35px_rgba(34,211,238,0.5)]">
                   {formatTime(seconds)}
                 </div>
                 <div className="text-xs text-cyan-200 mt-2 font-semibold">
-                  Gaya Aktif: <span className="font-bold text-white bg-cyan-500/30 px-2 py-0.5 rounded-md">{selectedStroke}</span>
+                  Gaya Aktif: <span className="font-bold text-white bg-cyan-500/30 px-2 py-0.5 rounded-md font-mono-tech">{selectedStroke}</span>
                 </div>
               </div>
 
               <div className="flex flex-wrap justify-center items-center gap-3">
                 {!isRunning ? (
                   <button
-                    onClick={() => setIsRunning(true)}
+                    onClick={() => {
+                      playSound('tech');
+                      setIsRunning(true);
+                    }}
                     className="flex items-center gap-2 bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-7 py-3.5 rounded-2xl font-black text-sm shadow-xl shadow-cyan-500/40 transition-all hover:scale-105 cursor-pointer"
                   >
                     <Play className="w-5 h-5 fill-white" />
-                    <span>Mulai Renang!</span>
+                    <span>Mulai Timer</span>
                   </button>
                 ) : (
                   <button
-                    onClick={() => setIsRunning(false)}
+                    onClick={() => {
+                      playSound('tech');
+                      setIsRunning(false);
+                    }}
                     className="flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-950 px-7 py-3.5 rounded-2xl font-black text-sm shadow-xl shadow-amber-400/40 transition-all hover:scale-105 cursor-pointer"
                   >
                     <Pause className="w-5 h-5 fill-slate-950" />
-                    <span>Jeda / Istirahat</span>
+                    <span>Jeda</span>
                   </button>
                 )}
 
@@ -1807,7 +2122,7 @@ export default function App() {
                   className="flex items-center gap-2 bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-white px-5 py-3.5 rounded-2xl font-bold text-sm border border-white/15 transition-all cursor-pointer"
                 >
                   <Award className="w-4 h-4 text-cyan-400" />
-                  <span>Catat Putaran (Lap)</span>
+                  <span>Catat Lap</span>
                 </button>
 
                 <button
@@ -1821,11 +2136,11 @@ export default function App() {
 
               {savedLaps.length > 0 && (
                 <div className="bg-white/5 rounded-2xl p-5 border border-white/10 text-left max-w-md mx-auto">
-                  <div className="text-xs font-black text-cyan-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  <div className="text-xs font-black text-cyan-300 uppercase tracking-wider mb-3 flex items-center gap-1.5 font-mono-tech">
                     <Trophy className="w-4 h-4 text-amber-400" />
-                    <span>Riwayat Catatan Waktu Mas Bumi:</span>
+                    <span>Riwayat Lap Mas Bumi:</span>
                   </div>
-                  <div className="space-y-2 font-mono">
+                  <div className="space-y-2 font-mono-tech">
                     {savedLaps.map((lap, i) => (
                       <div key={i} className="flex justify-between items-center text-xs py-1.5 px-2 rounded-lg bg-white/5 border border-white/5">
                         <span className="text-slate-300">{lap.stroke}</span>
@@ -1839,107 +2154,32 @@ export default function App() {
           </div>
         </section>
 
-        {/* SECTION: SEKOLAH & KUMON */}
-        <section id="sekolah" className="space-y-6">
-          <div className="text-center md:text-left">
-            <div className="inline-flex items-center gap-1.5 text-xs font-extrabold tracking-wider text-cyan-500 uppercase mb-1">
-              <BookOpen className="w-4 h-4" />
-              <span>TEMPAT MENUNTUT ILMU</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight font-fun">
-              🏫 Belajar di MIM Basin & Kumon
-            </h2>
-            <p className={`text-xs sm:text-sm mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Belajar setiap hari dengan penuh rasa ingin tahu dan ketekunan untuk masa depan yang gemilang.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className={`rounded-3xl p-6 sm:p-8 border transition-all duration-300 hover:shadow-xl relative overflow-hidden group ${
-              isDarkMode 
-                ? 'bg-slate-900/90 border-slate-800' 
-                : 'bg-white/90 border-sky-100 shadow-md'
-            }`}>
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center mb-5 shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
-                <BookOpen className="w-7 h-7" />
-              </div>
-              <h3 className="text-2xl font-black mb-2 font-fun">
-                MIM Basin Klaten
-              </h3>
-              <p className="text-xs font-bold text-indigo-500 dark:text-indigo-400 mb-3 uppercase tracking-wide">
-                Madrasah Ibtidaiyah Muhammadiyah Basin
-              </p>
-              <p className={`text-sm leading-relaxed mb-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Di MIM Basin Klaten, Mas Bumi mendapatkan bimbingan dari guru-guru hebat, belajar ilmu umum, nilai-nilai akhlak mulia, hafalan, serta bermain gembira bersama teman-teman seperjuangan.
-              </p>
-              <div className={`rounded-2xl p-3.5 border flex items-center gap-2.5 text-xs font-bold ${
-                isDarkMode 
-                  ? 'bg-indigo-950/50 border-indigo-800/60 text-indigo-300' 
-                  : 'bg-indigo-50/80 border-indigo-100 text-indigo-900'
-              }`}>
-                <MapPin className="w-4 h-4 text-indigo-500 flex-shrink-0" />
-                <span>Basin, Kec. Kebonarum, Kab. Klaten, Jawa Tengah</span>
-              </div>
-            </div>
-
-            <div className={`rounded-3xl p-6 sm:p-8 border transition-all duration-300 hover:shadow-xl relative overflow-hidden group ${
-              isDarkMode 
-                ? 'bg-slate-900/90 border-slate-800' 
-                : 'bg-white/90 border-sky-100 shadow-md'
-            }`}>
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 to-teal-500 text-white flex items-center justify-center mb-5 shadow-lg shadow-cyan-500/30 group-hover:scale-105 transition-transform">
-                <Sparkles className="w-7 h-7" />
-              </div>
-              <h3 className="text-2xl font-black mb-2 font-fun">
-                Metode Belajar Kumon
-              </h3>
-              <p className="text-xs font-bold text-cyan-500 dark:text-cyan-400 mb-3 uppercase tracking-wide">
-                Belajar Mandiri & Logika Matematika
-              </p>
-              <p className={`text-sm leading-relaxed mb-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Kumon melatih Mas Bumi menyelesaikan tantangan lembar kerja harian secara mandiri. Membangun kebiasaan fokus, daya hitung kilat, dan rasa percaya diri menyelesaikan soal yang sulit.
-              </p>
-              <div className={`rounded-2xl p-3.5 border flex items-center gap-2.5 text-xs font-bold ${
-                isDarkMode 
-                  ? 'bg-cyan-950/50 border-cyan-800/60 text-cyan-300' 
-                  : 'bg-cyan-50/80 border-cyan-100 text-cyan-900'
-              }`}>
-                <CheckCircle2 className="w-4 h-4 text-cyan-500 flex-shrink-0" />
-                <span>Disiplin Setiap Hari • Logika Cepat • Konsistensi Kuat</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION: MISI & CHECKLIST PETUALANGAN */}
+        {/* SECTION: MISI & CHECKLIST */}
         <section id="misi" className={`rounded-3xl p-6 sm:p-8 border transition-all ${
           isDarkMode 
             ? 'bg-slate-900/80 border-slate-800' 
-            : 'bg-white/85 border-sky-200/80 shadow-lg shadow-sky-100'
+            : 'bg-white/85 border-sky-200/80 shadow-lg'
         }`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-extrabold tracking-wider text-cyan-500 uppercase mb-1">
-                <Star className="w-4 h-4 fill-cyan-500" />
-                <span>INTERAKTIF CHECKLIST</span>
+              <div className="inline-flex items-center gap-1.5 text-xs font-mono-tech font-bold text-cyan-400 uppercase mb-1">
+                <Star className="w-4 h-4 fill-cyan-400" />
+                <span>MISSION TRACKER</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-black tracking-tight font-fun">
-                🎯 Misi Petualangan Mas Bumi (Umur 12 Tahun)
+                🎯 Target & Petualangan Mas Bumi (12 Tahun)
               </h2>
-              <p className={`text-xs sm:text-sm mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Klik kotak untuk mencentang misi yang sudah dicapai!
-              </p>
             </div>
 
-            <div className="text-right flex sm:flex-col items-center sm:items-end justify-between">
-              <span className="text-2xl font-black text-cyan-500">{progressPercent}%</span>
+            <div className="text-right flex sm:flex-col items-center sm:items-end justify-between font-mono-tech">
+              <span className="text-2xl font-black text-cyan-400">{progressPercent}%</span>
               <span className="text-xs font-bold text-slate-500">
-                {completedCount} dari {missions.length} Misi Selesai
+                {completedCount} / {missions.length} Selesai
               </span>
             </div>
           </div>
 
-          <div className="w-full bg-slate-200 dark:bg-slate-800 h-3.5 rounded-full overflow-hidden mb-6 p-0.5 border border-slate-300/40 dark:border-slate-700">
+          <div className="w-full bg-slate-800 h-3 rounded-full overflow-hidden mb-6 p-0.5 border border-slate-700">
             <div 
               className="h-full bg-gradient-to-r from-cyan-400 via-sky-500 to-emerald-400 rounded-full transition-all duration-500 shadow-sm"
               style={{ width: `${progressPercent}%` }}
@@ -1970,12 +2210,10 @@ export default function App() {
                 </div>
 
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-bold ${m.completed ? 'line-through opacity-80' : ''}`}>
-                      {m.text}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-white/40 dark:bg-white/10 mt-1 inline-block">
+                  <span className={`text-sm font-bold ${m.completed ? 'line-through opacity-80' : ''}`}>
+                    {m.text}
+                  </span>
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-white/10 mt-1 inline-block font-mono-tech">
                     {m.category}
                   </span>
                 </div>
@@ -1984,95 +2222,49 @@ export default function App() {
           </div>
         </section>
 
-        {/* SECTION: GALERI FOTO */}
-        <section className={`rounded-3xl p-6 sm:p-8 border transition-all ${
-          isDarkMode 
-            ? 'bg-slate-900/80 border-slate-800' 
-            : 'bg-white/85 border-sky-100 shadow-md'
-        }`}>
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-extrabold tracking-wider text-cyan-500 uppercase mb-1">
-                <span>📸 DOKUMENTASI & KENANGAN</span>
-              </div>
-              <h3 className="text-2xl font-black font-fun">
-                Galeri Foto & Momen Seru
-              </h3>
-              <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                Ruang siap pakai untuk menampilkan foto Mas Bumi saat di kolam renang, di sekolah, atau berpetualang.
-              </p>
-            </div>
-            <span className="text-xs font-bold bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 px-3.5 py-1.5 rounded-full border border-cyan-200 dark:border-cyan-800">
-              Siap Pasang Foto 🖼️
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="aspect-video bg-gradient-to-br from-cyan-400/20 to-blue-500/20 rounded-2xl flex flex-col items-center justify-center p-4 text-center border-2 border-dashed border-cyan-400/50 group hover:border-cyan-400 transition-colors">
-              <span className="text-4xl mb-2 group-hover:scale-110 transition-transform">🏊‍♂️</span>
-              <span className="text-xs font-black">Aksi di Kolam Renang</span>
-              <span className="text-[11px] opacity-70">Latihan gaya renang Mas Bumi</span>
-            </div>
-
-            <div className="aspect-video bg-gradient-to-br from-indigo-400/20 to-purple-500/20 rounded-2xl flex flex-col items-center justify-center p-4 text-center border-2 border-dashed border-indigo-400/50 group hover:border-indigo-400 transition-colors">
-              <span className="text-4xl mb-2 group-hover:scale-110 transition-transform">🎒</span>
-              <span className="text-xs font-black">Momen MIM Basin Klaten</span>
-              <span className="text-[11px] opacity-70">Belajar & bermain bersama teman</span>
-            </div>
-
-            <div className="aspect-video bg-gradient-to-br from-amber-400/20 to-orange-500/20 rounded-2xl flex flex-col items-center justify-center p-4 text-center border-2 border-dashed border-amber-400/50 group hover:border-amber-400 transition-colors">
-              <span className="text-4xl mb-2 group-hover:scale-110 transition-transform">🏅</span>
-              <span className="text-xs font-black">Prestasi & Semangat Olahraga</span>
-              <span className="text-[11px] opacity-70">Medali, piala, dan petualangan</span>
-            </div>
-          </div>
-        </section>
-
       </main>
 
       {/* FOOTER */}
       <footer className={`border-t mt-16 py-10 transition-colors ${
-        isDarkMode 
-          ? 'bg-[#070d19] border-slate-800/80 text-slate-400' 
-          : 'bg-white border-sky-100 text-slate-600'
+        isDarkMode ? 'bg-[#040810] border-slate-800/80 text-slate-400' : 'bg-white border-sky-100 text-slate-600'
       }`}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6 text-xs">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500 text-white flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-xl bg-cyan-500 text-white flex items-center justify-center font-bold font-mono-tech">
               KB
             </div>
             <div>
               <p className="font-extrabold text-sm text-slate-800 dark:text-slate-100">
                 Kun Bumi Pamungkas (Mas Bumi)
               </p>
-              <p className="text-[11px] text-slate-500">
-                Klaten, Jawa Tengah • Lahir 5 Juni 2014
+              <p className="text-[11px] text-slate-500 font-mono-tech">
+                Klaten, Jawa Tengah • 05-06-2014
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 font-semibold">
+          <div className="flex items-center gap-4 font-semibold font-mono-tech text-xs">
             <a 
               href="https://pamungkas.org" 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1"
+              className="text-cyan-400 hover:underline flex items-center gap-1"
             >
               <span>pamungkas.org</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3 h-3" />
             </a>
             <span>•</span>
             <a 
               href="https://github.com/satriyop/bumi.pamungkas.org" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="hover:text-cyan-500 transition-colors flex items-center gap-1"
+              className="hover:text-cyan-400 transition-colors flex items-center gap-1"
             >
-              <span>GitHub Repo</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <span>GitHub</span>
+              <ExternalLink className="w-3 h-3" />
             </a>
             <span>•</span>
-            <span>Subdomain: bumi.pamungkas.org</span>
+            <span className="text-cyan-500">bumi.pamungkas.org</span>
           </div>
         </div>
       </footer>
