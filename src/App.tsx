@@ -34,7 +34,12 @@ import {
   Droplets,
   Wifi,
   Scan,
-  Trash2
+  Trash2,
+  Calendar,
+  BookOpen,
+  CheckCircle2,
+  Camera,
+  Heart
 } from 'lucide-react';
 
 export default function App() {
@@ -988,9 +993,13 @@ export default function App() {
             </div>
           </a>
 
-          <nav className="hidden lg:flex items-center gap-6 text-xs font-bold uppercase tracking-wider font-mono-tech">
+          <nav className="hidden lg:flex items-center gap-5 text-xs font-bold uppercase tracking-wider font-mono-tech">
             <a href="#tentang" className="hover:text-cyan-400 transition-colors">Profil ID</a>
-            <a href="#telemetri" className="hover:text-cyan-400 transition-colors">Telemetri Renang</a>
+            <a href="#telemetri" className="hover:text-cyan-400 transition-colors">Telemetri</a>
+            <a href="#sekolah" className="hover:text-indigo-400 transition-colors flex items-center gap-1 text-indigo-400">
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Sekolah & Kumon</span>
+            </a>
             <a href="#bumibot" className="hover:text-cyan-400 transition-colors text-amber-400 flex items-center gap-1">
               <Bot className="w-3.5 h-3.5" />
               <span>BumiBot AI</span>
@@ -998,6 +1007,10 @@ export default function App() {
             <a href="#games" className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-cyan-400">
               <Gamepad2 className="w-3.5 h-3.5" />
               <span>5 Game Arcade</span>
+            </a>
+            <a href="#galeri" className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-sky-400">
+              <Camera className="w-3.5 h-3.5" />
+              <span>Galeri Foto</span>
             </a>
             <a href="#stopwatch" className="hover:text-cyan-400 transition-colors">Stopwatch</a>
           </nav>
@@ -1085,23 +1098,54 @@ export default function App() {
                   Berfokus pada kecepatan di lintasan renang, ketajaman logika di <strong className="text-emerald-400">Kumon</strong>, dan menuntut ilmu penuh berkah di <strong className="text-indigo-400">MIM Basin Klaten</strong>.
                 </p>
 
-                {/* Quick Spec Pills */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 font-mono-tech text-xs">
-                  <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10">
-                    <span className="text-[10px] text-slate-400 block">LAHIR</span>
-                    <strong className="text-white">05-06-2014</strong>
+                {/* Quick Spec Pills with Original Colorful Icons */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 font-mono-tech text-xs">
+                  <div className={`p-2.5 rounded-2xl border flex items-center gap-2.5 transition-all ${
+                    isDarkMode ? 'bg-cyan-950/40 border-cyan-800/60' : 'bg-cyan-50 border-cyan-200 shadow-xs'
+                  }`}>
+                    <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
+                      <Calendar className="w-4 h-4 text-cyan-500" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-bold">LAHIR</span>
+                      <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>5 Juni 2014</strong>
+                    </div>
                   </div>
-                  <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10">
-                    <span className="text-[10px] text-slate-400 block">ASAL</span>
-                    <strong className="text-white">Klaten, ID</strong>
+
+                  <div className={`p-2.5 rounded-2xl border flex items-center gap-2.5 transition-all ${
+                    isDarkMode ? 'bg-rose-950/40 border-rose-800/60' : 'bg-rose-50 border-rose-200 shadow-xs'
+                  }`}>
+                    <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-4 h-4 text-rose-500" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-bold">ASAL</span>
+                      <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>Klaten, ID</strong>
+                    </div>
                   </div>
-                  <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10">
-                    <span className="text-[10px] text-slate-400 block">MADRASAH</span>
-                    <strong className="text-white">MIM Basin</strong>
+
+                  <div className={`p-2.5 rounded-2xl border flex items-center gap-2.5 transition-all ${
+                    isDarkMode ? 'bg-amber-950/40 border-amber-800/60' : 'bg-amber-50 border-amber-200 shadow-xs'
+                  }`}>
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0">
+                      <Award className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-bold">MADRASAH</span>
+                      <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>MIM Basin</strong>
+                    </div>
                   </div>
-                  <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10">
-                    <span className="text-[10px] text-slate-400 block">METODE</span>
-                    <strong className="text-white">Kumon Math</strong>
+
+                  <div className={`p-2.5 rounded-2xl border flex items-center gap-2.5 transition-all ${
+                    isDarkMode ? 'bg-emerald-950/40 border-emerald-800/60' : 'bg-emerald-50 border-emerald-200 shadow-xs'
+                  }`}>
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                      <BookOpen className="w-4 h-4 text-emerald-500" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-bold">KURSUS</span>
+                      <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>Siswa Kumon</strong>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1316,6 +1360,94 @@ export default function App() {
 
               </div>
 
+            </div>
+          </div>
+        </section>
+
+        {/* ============================================================== */}
+        {/* SECTION: SEKOLAH MIM BASIN & METODE BELAJAR KUMON              */}
+        {/* ============================================================== */}
+        <section id="sekolah" className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs font-mono-tech font-bold text-indigo-400 uppercase tracking-wider mb-1">
+                <BookOpen className="w-4 h-4" />
+                <span>PENDIDIKAN & ILMU PENGETAHUAN</span>
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
+                🎒 Sekolah & Belajar Mandiri
+              </h2>
+            </div>
+            <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              Keseimbangan antara prestasi olahraga renang dengan rajin menuntut ilmu dan mengasah logika berpikir.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* School Card: MIM Basin Klaten */}
+            <div className={`rounded-3xl p-6 sm:p-8 border transition-all relative overflow-hidden backdrop-blur-xl flex flex-col justify-between ${
+              isDarkMode 
+                ? 'bg-slate-900/85 border-slate-800 shadow-xl' 
+                : 'bg-white/90 border-indigo-100 shadow-md'
+            }`}>
+              <div className="space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
+                  <BookOpen className="w-7 h-7" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono-tech font-bold text-indigo-400 uppercase tracking-wider">
+                    MADRASAH IBTIDAIYAH
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight font-fun mt-1">
+                    MIM Basin Klaten
+                  </h3>
+                </div>
+                <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Di <strong className="text-indigo-400 font-bold">MIM Basin Klaten</strong>, Mas Bumi belajar berbagai ilmu pelajaran umum, agama, adab yang santun, dan karakter mulia. Bertemu bapak ibu guru yang ramah dan saling mendukung bersama teman-teman sekelas.
+                </p>
+              </div>
+
+              <div className={`mt-6 rounded-2xl p-3.5 border flex items-center gap-2.5 text-xs font-semibold ${
+                isDarkMode 
+                  ? 'bg-indigo-950/40 border-indigo-800/60 text-indigo-200' 
+                  : 'bg-indigo-50 border-indigo-200 text-indigo-900'
+              }`}>
+                <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                <span>Basin, Kebonarum, Klaten, Jawa Tengah</span>
+              </div>
+            </div>
+
+            {/* Kumon Card */}
+            <div className={`rounded-3xl p-6 sm:p-8 border transition-all relative overflow-hidden backdrop-blur-xl flex flex-col justify-between ${
+              isDarkMode 
+                ? 'bg-slate-900/85 border-slate-800 shadow-xl' 
+                : 'bg-white/90 border-emerald-100 shadow-md'
+            }`}>
+              <div className="space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+                  <Sparkles className="w-7 h-7" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono-tech font-bold text-emerald-400 uppercase tracking-wider">
+                    METODE BELAJAR MANDIRI
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight font-fun mt-1">
+                    Metode Belajar Kumon
+                  </h3>
+                </div>
+                <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Mengikuti metode pembelajaran <strong className="text-emerald-400 font-bold">Kumon</strong> melatih Mas Bumi untuk belajar mandiri, konsisten menyelesaikan lembar kerja setiap hari, dan mengasah ketajaman hitungan serta daya fokus yang tinggi.
+                </p>
+              </div>
+
+              <div className={`mt-6 rounded-2xl p-3.5 border flex items-center gap-2.5 text-xs font-semibold ${
+                isDarkMode 
+                  ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200' 
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              }`}>
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>Belajar Mandiri • Konsisten Setiap Hari • Pantang Menyerah</span>
+              </div>
             </div>
           </div>
         </section>
@@ -2259,6 +2391,75 @@ export default function App() {
           </div>
         </section>
 
+        {/* ============================================================== */}
+        {/* SECTION: RUANG GALERI & MOMEN SERU MAS BUMI                    */}
+        {/* ============================================================== */}
+        <section id="galeri" className={`rounded-3xl p-6 sm:p-8 border transition-all backdrop-blur-xl ${
+          isDarkMode 
+            ? 'bg-slate-900/85 border-slate-800 shadow-xl' 
+            : 'bg-white/90 border-sky-100 shadow-md'
+        }`}>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-xs font-mono-tech font-bold text-cyan-400 uppercase mb-1">
+                <Camera className="w-4 h-4" />
+                <span>MOMENTS & ALBUM</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight font-fun">
+                📸 Galeri & Momen Seru
+              </h2>
+              <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                Mas Bumi bisa memajang foto saat berenang di umbul Klaten, kegiatan belajar di MIM Basin, atau bersama keluarga di sini!
+              </p>
+            </div>
+            <span className={`text-xs font-bold px-3.5 py-1.5 rounded-full border ${
+              isDarkMode 
+                ? 'bg-cyan-500/10 border-cyan-400/30 text-cyan-300' 
+                : 'bg-sky-50 border-sky-200 text-sky-700'
+            }`}>
+              Siap Dimasuki Foto Asli 🖼️
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className={`aspect-video rounded-2xl flex flex-col items-center justify-center p-4 text-center border-2 border-dashed transition-all hover:scale-[1.02] cursor-pointer ${
+              isDarkMode 
+                ? 'bg-cyan-950/20 border-cyan-800/50 hover:border-cyan-400/80' 
+                : 'bg-gradient-to-br from-cyan-50 to-sky-100 border-sky-300'
+            }`}>
+              <span className="text-4xl mb-2 animate-bounce">🏊‍♂️</span>
+              <span className="text-xs font-bold font-mono-tech text-cyan-400">Momen Latihan Renang</span>
+              <span className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-400' : 'text-sky-700'}`}>
+                Foto aksi Mas Bumi saat meluncur di kolam
+              </span>
+            </div>
+
+            <div className={`aspect-video rounded-2xl flex flex-col items-center justify-center p-4 text-center border-2 border-dashed transition-all hover:scale-[1.02] cursor-pointer ${
+              isDarkMode 
+                ? 'bg-indigo-950/20 border-indigo-800/50 hover:border-indigo-400/80' 
+                : 'bg-gradient-to-br from-indigo-50 to-purple-100 border-indigo-300'
+            }`}>
+              <span className="text-4xl mb-2 animate-bounce">🎒</span>
+              <span className="text-xs font-bold font-mono-tech text-indigo-400">Kegiatan di MIM Basin</span>
+              <span className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-400' : 'text-indigo-700'}`}>
+                Foto bersama guru & teman sekelas Klaten
+              </span>
+            </div>
+
+            <div className={`aspect-video rounded-2xl flex flex-col items-center justify-center p-4 text-center border-2 border-dashed transition-all hover:scale-[1.02] cursor-pointer ${
+              isDarkMode 
+                ? 'bg-amber-950/20 border-amber-800/50 hover:border-amber-400/80' 
+                : 'bg-gradient-to-br from-amber-50 to-orange-100 border-amber-300'
+            }`}>
+              <span className="text-4xl mb-2 animate-bounce">🏅</span>
+              <span className="text-xs font-bold font-mono-tech text-amber-400">Prestasi & Olahraga</span>
+              <span className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-400' : 'text-amber-700'}`}>
+                Foto piala, sertifikat, atau aktivitas gowes
+              </span>
+            </div>
+          </div>
+        </section>
+
       </main>
 
       {/* FOOTER */}
@@ -2271,8 +2472,9 @@ export default function App() {
               KB
             </div>
             <div>
-              <p className="font-extrabold text-sm text-slate-800 dark:text-slate-100">
-                Kun Bumi Pamungkas (Mas Bumi)
+              <p className="font-extrabold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                <span>Kun Bumi Pamungkas (Mas Bumi)</span>
+                <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
               </p>
               <p className="text-[11px] text-slate-500 font-mono-tech">
                 Klaten, Jawa Tengah • 05-06-2014
