@@ -158,7 +158,8 @@ export default function App() {
   const botResponses: { [key: string]: string } = {
     'siapa': 'Mas Bumi (Kun Bumi Pamungkas) adalah perenang muda berbakat asal Klaten, lahir 5 Juni 2014 (umur 12 tahun). Siswa MIM Basin Klaten & murid Kumon yang gemar berolahraga dan teknologi!',
     'sekolah': 'Mas Bumi bersekolah di Madrasah Ibtidaiyah Muhammadiyah (MIM) Basin di Kebonarum, Klaten. Sekolah yang hebat dengan guru ramah dan teman-teman kompak!',
-    'renang': 'Hobi utama Mas Bumi adalah renang! Mas Bumi menguasai gaya bebas, gaya dada, dan gaya punggung. Kolam renang adalah tempat favoritnya meluncur kencang!',
+    'renang': 'Hobi utama Mas Bumi adalah renang! Mas Bumi menguasai 4 gaya renang: Gaya Bebas, Gaya Dada, Gaya Punggung, dan Gaya Kupu-kupu (Butterfly)! Kolam renang adalah arena favoritnya meluncur kencang 🏊‍♂️🦋!',
+    'kupu': 'Gaya Kupu-kupu (Butterfly stroke) 🦋 adalah salah satu gaya renang paling hebat dan menantang yang dipelajari Mas Bumi! Gerakannya butuh kekuatan bahu yang tangguh, ayunan kedua tangan bersamaan ke depan, dan dolphin kick yang sangat kuat meluncur di air!',
     'kumon': 'Di Kumon, Mas Bumi melatih kemandirian, kecepatan berhitung, serta daya fokus logika matematika setiap hari tanpa bolong!',
     'klaten': 'Klaten adalah kota kelahiran Mas Bumi di Jawa Tengah yang terkenal dengan seribu mata air jernih (Umbul Ponggok, Umbul Sigedang), Candi Plaosan, dan semboyan Klaten BERSINAR!',
     'game': 'Ada 5 game keren di website ini! Ada game arcade petualangan menyelam, balapan renang 50m, tes hitung cepat Kumon, tebak kartu memori, dan kuis multi-ronde!'
@@ -182,9 +183,11 @@ export default function App() {
     setTimeout(() => {
       playSound('coin');
       const lower = query.toLowerCase();
-      let reply = 'Pertanyaan keren! Mas Bumi terus berlatih renang dan belajar tekun setiap hari untuk meraih cita-citanya!';
+      let reply = 'Pertanyaan keren! Mas Bumi terus berlatih renang gaya bebas, dada, punggung, dan kupu-kupu serta tekun belajar di MIM Basin dan Kumon!';
 
-      if (lower.includes('siapa') || lower.includes('nama') || lower.includes('profil') || lower.includes('umur')) {
+      if (lower.includes('kupu') || lower.includes('butterfly')) {
+        reply = botResponses['kupu'];
+      } else if (lower.includes('siapa') || lower.includes('nama') || lower.includes('profil') || lower.includes('umur')) {
         reply = botResponses['siapa'];
       } else if (lower.includes('sekolah') || lower.includes('mim') || lower.includes('basin')) {
         reply = botResponses['sekolah'];
@@ -476,6 +479,17 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept space or arrows if user is typing in chat or any input
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      // Only intercept space & arrows when the arcade game tab is active
+      if (activeGameTab !== 'arcade') {
+        return;
+      }
+
       if (e.code === 'Space' || e.code === 'ArrowUp') {
         e.preventDefault();
         if (arcadeState === 'playing') {
@@ -487,7 +501,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [arcadeState, swimUp]);
+  }, [arcadeState, swimUp, activeGameTab]);
 
   // ==========================================
   // GAME 2: BALAPAN RENANG 50 METER
@@ -1374,6 +1388,7 @@ export default function App() {
               </span>
               {[
                 'Siapa Mas Bumi?',
+                'Ceritain gaya kupu-kupu Mas Bumi! 🦋',
                 'Gaya renang apa favoritnya?',
                 'Sekolah di MIM Basin?',
                 'Metode belajar Kumon?',
