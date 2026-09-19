@@ -1749,6 +1749,20 @@ export default function App() {
                   </div>
                   <span className="text-cyan-400 font-bold">AKURASI ATLET AKTIF ✅</span>
                 </div>
+
+                {/* Food & Sport Equivalence Banner */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 text-xs font-mono-tech flex items-center gap-2.5 text-amber-200">
+                  <span className="text-xl">🍗</span>
+                  <div>
+                    <span className="text-amber-300 font-bold block">Ekuivalensi Energi Kalori:</span>
+                    <span>
+                      {caloriesBurned < 250 && `Energi ${caloriesBurned} kcal ini setara membakar 2 buah pisang cavendish 🍌🍌 pemulihan otot!`}
+                      {caloriesBurned >= 250 && caloriesBurned < 380 && `Energi ${caloriesBurned} kcal ini setara membakar 1 porsi nasi putih + lauk ayam panggang 🍗🍚!`}
+                      {caloriesBurned >= 380 && caloriesBurned < 500 && `Energi ${caloriesBurned} kcal ini setara membakar 1 mangkok bakso sapi kuah komplit gurih 🍲!`}
+                      {caloriesBurned >= 500 && `Energi ${caloriesBurned} kcal ini setara membakar 1 porsi nasi goreng spesial telur komplit 🍳🍛!`}
+                    </span>
+                  </div>
+                </div>
               </div>
 
             </div>
