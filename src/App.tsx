@@ -486,6 +486,18 @@ export default function App() {
   // ==========================================
   const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz' | 'chess'>('arcade');
 
+  useEffect(() => {
+    const checkHash = () => {
+      const h = window.location.hash.toLowerCase();
+      if (h.includes('catur') || h.includes('chess')) {
+        setActiveGameTab('chess');
+      }
+    };
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+    return () => window.removeEventListener('hashchange', checkHash);
+  }, []);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [arcadeState, setArcadeState] = useState<'idle' | 'playing' | 'gameover'>('idle');
   const [arcadeScore, setArcadeScore] = useState(0);
@@ -1253,9 +1265,13 @@ export default function App() {
               <Bot className="w-3.5 h-3.5" />
               <span>BumiBot AI</span>
             </a>
-            <a href="#games" className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-cyan-400">
+            <a 
+              href="#games" 
+              onClick={() => setActiveGameTab('chess')}
+              className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-cyan-400"
+            >
               <Gamepad2 className="w-3.5 h-3.5" />
-              <span>5 Game Arcade</span>
+              <span>6 Game & Catur ♟️</span>
             </a>
             <a href="#galeri" className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-sky-400">
               <Camera className="w-3.5 h-3.5" />
@@ -1400,6 +1416,18 @@ export default function App() {
               </div>
 
               <div className="flex flex-wrap gap-3 pt-6 mt-4 border-t border-white/10">
+                <a
+                  href="#games"
+                  onClick={() => {
+                    playSound('coin');
+                    setActiveGameTab('chess');
+                  }}
+                  className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-purple-600/30 transition-all hover:scale-105 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Crown className="w-4 h-4 text-amber-300 animate-pulse" />
+                  <span>Main Game Catur & Arcade 🕹️</span>
+                </a>
+
                 <a
                   href="#telemetri"
                   className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 flex items-center gap-1.5 cursor-pointer"
@@ -1563,6 +1591,19 @@ export default function App() {
                 <span className="text-xs font-bold bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-lg border border-purple-400/30">Langkah Kuda ♞</span>
                 <span className="text-xs font-bold bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-lg border border-purple-400/30">Kalkulasi Logika 🧠</span>
                 <span className="text-xs font-bold bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-lg border border-purple-400/30">Fokus & Sabar 👑</span>
+              </div>
+              <div className="pt-4 mt-2 border-t border-purple-500/20">
+                <a
+                  href="#games"
+                  onClick={() => {
+                    playSound('coin');
+                    setActiveGameTab('chess');
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-500/25 cursor-pointer font-sans hover:scale-[1.02]"
+                >
+                  <Crown className="w-4 h-4 text-amber-300" />
+                  <span>Main Catur Sekarang! ➡️</span>
+                </a>
               </div>
             </div>
 
