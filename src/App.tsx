@@ -43,6 +43,242 @@ import {
   Compass
 } from 'lucide-react';
 
+// ==========================================
+// BLACK MARLIN (IKAN MARLIN HITAM) GRAPHICS
+// ==========================================
+function BlackMarlinIcon({ className = "w-12 h-6" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 120 50" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+      <defs>
+        <linearGradient id="bmBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#0f172a" />
+          <stop offset="30%" stopColor="#1e3a8a" />
+          <stop offset="65%" stopColor="#0284c7" />
+          <stop offset="100%" stopColor="#f0f9ff" />
+        </linearGradient>
+        <linearGradient id="bmDorsalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#0284c7" />
+          <stop offset="100%" stopColor="#0f172a" />
+        </linearGradient>
+      </defs>
+      {/* Dorsal Sail Fin */}
+      <path d="M40 22 Q58 2 68 8 Q72 16 78 22 Z" fill="url(#bmDorsalGrad)" stroke="#38bdf8" strokeWidth="0.8" />
+      {/* Tail Fin (Crescent) */}
+      <path d="M22 25 Q14 16 6 8 Q12 25 6 42 Q14 34 22 25 Z" fill="#0f172a" stroke="#38bdf8" strokeWidth="1" />
+      {/* Torpedo Main Body */}
+      <path d="M85 23 C76 14 55 12 36 17 Q24 21 22 25 Q24 29 36 33 C55 38 76 35 84 27 Z" fill="url(#bmBodyGrad)" stroke="#0284c7" strokeWidth="1" />
+      {/* Neon Electric Stripes */}
+      <line x1="42" y1="18" x2="40" y2="31" stroke="#38bdf8" strokeWidth="1.2" opacity="0.6" />
+      <line x1="50" y1="17" x2="48" y2="33" stroke="#38bdf8" strokeWidth="1.2" opacity="0.6" />
+      <line x1="58" y1="16" x2="56" y2="34" stroke="#38bdf8" strokeWidth="1.2" opacity="0.6" />
+      <line x1="66" y1="16" x2="64" y2="33" stroke="#38bdf8" strokeWidth="1.2" opacity="0.6" />
+      <line x1="74" y1="18" x2="72" y2="30" stroke="#38bdf8" strokeWidth="1.2" opacity="0.6" />
+      {/* Rigid Pectoral Fin */}
+      <path d="M60 27 Q52 38 42 40 Q52 32 62 27 Z" fill="#0f172a" stroke="#38bdf8" strokeWidth="0.8" />
+      {/* Pelvic Fins */}
+      <line x1="68" y1="32" x2="56" y2="44" stroke="#0284c7" strokeWidth="1.5" />
+      {/* Spear / Sword Bill (Pointing Forward to the Right) */}
+      <polygon points="84,23.5 118,24.5 85,26.5" fill="#38bdf8" stroke="#0f172a" strokeWidth="0.5" />
+      {/* Fierce Golden Eye */}
+      <circle cx="76" cy="22" r="3" fill="#facc15" />
+      <circle cx="76.5" cy="22" r="1.6" fill="#020617" />
+      <circle cx="77" cy="21.5" r="0.6" fill="#ffffff" />
+    </svg>
+  );
+}
+
+function drawBlackMarlin(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  vy: number,
+  tailPhase: number
+) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Dynamic tilt when diving / surfacing
+  const tilt = Math.max(-0.42, Math.min(0.42, vy * 0.055));
+  ctx.rotate(tilt);
+
+  // Subtle swimming tail wag
+  const wag = Math.sin(tailPhase) * 2.8;
+
+  // Ocean glow aura
+  ctx.shadowColor = '#38bdf8';
+  ctx.shadowBlur = 14;
+
+  // 1. DORSAL FIN (Sirip Layar Atas)
+  ctx.beginPath();
+  ctx.moveTo(-12, -6);
+  ctx.quadraticCurveTo(4, -26, 12, -22);
+  ctx.quadraticCurveTo(16, -14, 22, -6);
+  ctx.lineTo(-24, -3);
+  ctx.closePath();
+  const dorsalGrad = ctx.createLinearGradient(0, -26, 0, 0);
+  dorsalGrad.addColorStop(0, '#0c192c');
+  dorsalGrad.addColorStop(0.5, '#0284c7');
+  dorsalGrad.addColorStop(1, '#0369a1');
+  ctx.fillStyle = dorsalGrad;
+  ctx.fill();
+
+  // Spiny dorsal rays
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-2, -6); ctx.lineTo(8, -23);
+  ctx.moveTo(-8, -5); ctx.lineTo(2, -19);
+  ctx.moveTo(-16, -4); ctx.lineTo(-6, -14);
+  ctx.stroke();
+
+  // 2. TAIL FIN (Sirip Ekor Sabit Melengkung)
+  ctx.beginPath();
+  ctx.moveTo(-26, 0);
+  ctx.quadraticCurveTo(-32, -8, -42 + wag, -18);
+  ctx.quadraticCurveTo(-35 + wag, 0, -42 + wag, 18);
+  ctx.quadraticCurveTo(-32, 8, -26, 0);
+  ctx.closePath();
+  const tailGrad = ctx.createLinearGradient(-42, 0, -24, 0);
+  tailGrad.addColorStop(0, '#0284c7');
+  tailGrad.addColorStop(0.5, '#0369a1');
+  tailGrad.addColorStop(1, '#0f172a');
+  ctx.fillStyle = tailGrad;
+  ctx.fill();
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // 3. MAIN TORPEDO BODY (Tubuh Black Marlin Hadap Depan)
+  ctx.beginPath();
+  ctx.moveTo(24, -2.5); // base of bill (top)
+  ctx.bezierCurveTo(16, -10, 0, -11, -16, -7);
+  ctx.quadraticCurveTo(-22, -4, -26, 0);
+  ctx.quadraticCurveTo(-22, 4, -16, 7);
+  ctx.bezierCurveTo(0, 11, 16, 9, 24, 2);
+  ctx.closePath();
+
+  // Body gradient: Midnight obsidian top to silver-white belly
+  const bodyGrad = ctx.createLinearGradient(0, -11, 0, 11);
+  bodyGrad.addColorStop(0, '#020617');
+  bodyGrad.addColorStop(0.3, '#0c2340');
+  bodyGrad.addColorStop(0.6, '#0284c7');
+  bodyGrad.addColorStop(1, '#f0f9ff');
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+
+  ctx.strokeStyle = '#0284c7';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // 4. NEON ELECTRIC STRIPES (Garis Biru Neon Khas Marlin)
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+  ctx.lineWidth = 1.6;
+  for (let sx = -14; sx <= 14; sx += 6) {
+    ctx.beginPath();
+    ctx.moveTo(sx, -6);
+    ctx.lineTo(sx - 1.5, 4);
+    ctx.stroke();
+  }
+
+  // 5. PECTORAL FIN (Sirip Dada Kaku Khas Black Marlin)
+  ctx.beginPath();
+  ctx.moveTo(6, 2);
+  ctx.quadraticCurveTo(0, 14, -8, 16);
+  ctx.quadraticCurveTo(0, 8, 8, 2);
+  ctx.closePath();
+  ctx.fillStyle = '#0f172a';
+  ctx.fill();
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // 6. VENTRAL FINS (Sirip Perut Panjang Bawah)
+  ctx.beginPath();
+  ctx.moveTo(10, 5);
+  ctx.lineTo(1, 17);
+  ctx.moveTo(8, 5);
+  ctx.lineTo(-1, 16);
+  ctx.strokeStyle = '#0284c7';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // 7. SWORD BILL / ROSTRUM (Moncong Pedang Hadap Depan Menghadap Kanan)
+  ctx.beginPath();
+  ctx.moveTo(24, -2.5);
+  ctx.lineTo(52, -1); // Tip of the sword pointing right
+  ctx.lineTo(24, 0.8);
+  ctx.closePath();
+  const billGrad = ctx.createLinearGradient(24, 0, 52, 0);
+  billGrad.addColorStop(0, '#0f172a');
+  billGrad.addColorStop(0.8, '#334155');
+  billGrad.addColorStop(1, '#38bdf8'); // Glowing sharp tip
+  ctx.fillStyle = billGrad;
+  ctx.fill();
+
+  // Sword highlight
+  ctx.beginPath();
+  ctx.moveTo(25, -2);
+  ctx.lineTo(51, -1);
+  ctx.strokeStyle = '#e0f2fe';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Lower jaw
+  ctx.beginPath();
+  ctx.moveTo(24, 2);
+  ctx.lineTo(32, 0.8);
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // 8. FIERCE GOLDEN EYE
+  ctx.shadowBlur = 6;
+  ctx.shadowColor = '#facc15';
+  ctx.beginPath();
+  ctx.arc(15, -2.5, 3.2, 0, Math.PI * 2);
+  ctx.fillStyle = '#facc15';
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Pupil
+  ctx.beginPath();
+  ctx.arc(15.6, -2.5, 1.8, 0, Math.PI * 2);
+  ctx.fillStyle = '#020617';
+  ctx.fill();
+
+  // Catchlight
+  ctx.beginPath();
+  ctx.arc(16.2, -3.1, 0.7, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  // 9. GILL SLIT
+  ctx.beginPath();
+  ctx.arc(7, -1, 7, -0.4, 0.8);
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+
+  // 10. SPEED BUBBLE JET
+  ctx.fillStyle = 'rgba(224, 242, 254, 0.65)';
+  ctx.beginPath();
+  ctx.arc(-46 + wag, -2, 2.2, 0, Math.PI * 2);
+  ctx.arc(-53 + wag * 0.5, 3, 1.6, 0, Math.PI * 2);
+  ctx.arc(-59, -1, 1.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 11. TEXT LABEL "BLACK MARLIN • BUMI"
+  ctx.font = 'bold 9px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fef08a';
+  ctx.shadowColor = '#000000';
+  ctx.shadowBlur = 5;
+  ctx.fillText('⚡ BLACK MARLIN • BUMI', 0, -26);
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
 export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(true); // Default high-tech dark mode!
 
@@ -470,20 +706,8 @@ export default function App() {
         ctx.shadowBlur = 0;
       }
 
-      ctx.save();
-      ctx.translate(80, state.playerY + 12);
-      const tilt = Math.max(-0.4, Math.min(0.4, state.playerVy * 0.06));
-      ctx.rotate(tilt);
-      ctx.shadowColor = '#38bdf8';
-      ctx.shadowBlur = 12;
-      ctx.font = '36px sans-serif';
-      ctx.fillText('🏊‍♂️', 0, 0);
-      ctx.shadowBlur = 0;
-
-      ctx.font = 'bold 9px sans-serif';
-      ctx.fillStyle = '#fef08a';
-      ctx.fillText('BUMI', 0, -22);
-      ctx.restore();
+      // Draw Black Marlin Player facing forward (right)
+      drawBlackMarlin(ctx, 80, state.playerY + 12, state.playerVy, Date.now() * 0.015);
 
       state.animationId = requestAnimationFrame(loop);
     };
@@ -1718,7 +1942,7 @@ export default function App() {
               }`}
             >
               <Zap className="w-4 h-4" />
-              <span>🔥 1. Petualangan Menyelam (Arcade)</span>
+              <span>⚡ 1. Menyelam Black Marlin (Arcade)</span>
             </button>
 
             <button
@@ -1792,11 +2016,11 @@ export default function App() {
               <div className="max-w-2xl mx-auto space-y-4 text-center">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-left">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-rose-500 bg-rose-100 dark:bg-rose-950/80 px-2.5 py-0.5 rounded-md font-mono-tech">
-                      ARCADE ACTION RUNNER
+                    <span className="text-[11px] font-black uppercase tracking-wider text-cyan-400 bg-cyan-950/80 px-2.5 py-0.5 rounded-md font-mono-tech border border-cyan-500/40">
+                      OCEAN SPRINT ARCADE
                     </span>
-                    <h3 className="text-2xl font-black font-fun mt-1">
-                      🌊 Petualangan Menyelam Samudra Mas Bumi
+                    <h3 className="text-2xl font-black font-fun mt-1 flex items-center gap-2">
+                      <span>⚡ Petualangan Menyelam Black Marlin Mas Bumi</span>
                     </h3>
                   </div>
 
@@ -1813,7 +2037,7 @@ export default function App() {
                 </div>
 
                 <p className={`text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                  Kumpulkan <strong>Medali 🏅</strong>, <strong>Bintang ⭐</strong>, dan <strong>Buku Kumon 📚</strong>! Hindari <strong>Ubur-ubur 🪼</strong>, <strong>Ikan Buntal 🐡</strong>, dan <strong>Karang 🪸</strong>!
+                  Luncurkan <strong>Ikan Black Marlin</strong> hadap depan membelah samudra! Kumpulkan <strong>Medali 🏅</strong>, <strong>Bintang ⭐</strong>, dan <strong>Buku Kumon 📚</strong>! Hindari <strong>Ubur-ubur 🪼</strong>, <strong>Ikan Buntal 🐡</strong>, dan <strong>Karang 🪸</strong>!
                 </p>
 
                 <div className="relative rounded-2xl overflow-hidden border-4 border-sky-400 shadow-2xl bg-sky-950 select-none">
@@ -1826,22 +2050,27 @@ export default function App() {
                   />
 
                   {arcadeState === 'idle' && (
-                    <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4">
-                      <span className="text-6xl animate-bounce">🏊‍♂️🌊</span>
+                    <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4">
+                      <div className="flex flex-col items-center gap-2 animate-float">
+                        <BlackMarlinIcon className="w-28 h-14 filter drop-shadow-[0_0_20px_rgba(56,189,248,0.8)]" />
+                        <span className="text-[10px] font-black tracking-widest text-cyan-300 font-mono-tech uppercase bg-cyan-950/80 px-2.5 py-0.5 rounded-full border border-cyan-400/40">
+                          AVATAR: BLACK MARLIN (IKAN MARLIN HITAM) ⚡
+                        </span>
+                      </div>
                       <div className="space-y-1">
                         <h4 className="text-2xl sm:text-3xl font-black font-fun text-cyan-300">
-                          Siap Menyelam, Mas Bumi?
+                          Siap Meluncur, Black Marlin Mas Bumi?
                         </h4>
                         <p className="text-xs text-slate-300 max-w-sm">
-                          Tekan tombol <strong>SPASI</strong> di keyboard atau <strong>KLIK LAYAR</strong> untuk mendayung berenang ke atas!
+                          Ikan Black Marlin menghadap ke depan siap menembus arus laut! Tekan tombol <strong>SPASI</strong> di keyboard atau <strong>KLIK LAYAR</strong> untuk berenang ke atas!
                         </p>
                       </div>
                       <button
                         onClick={startArcadeGame}
-                        className="bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-white font-black text-base px-8 py-3.5 rounded-2xl shadow-xl shadow-orange-500/40 transition-all hover:scale-105 cursor-pointer flex items-center gap-2"
+                        className="bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-base px-8 py-3.5 rounded-2xl shadow-xl shadow-cyan-500/40 transition-all hover:scale-105 cursor-pointer flex items-center gap-2 border-2 border-cyan-300/40"
                       >
                         <Play className="w-5 h-5 fill-white" />
-                        <span>MULAI MAIN SEKARANG!</span>
+                        <span>MULAI MELUNCUR SEKARANG!</span>
                       </button>
                     </div>
                   )}
@@ -1851,7 +2080,7 @@ export default function App() {
                       <span className="text-5xl">💥🌊</span>
                       <div className="space-y-1">
                         <h4 className="text-2xl sm:text-3xl font-black font-fun text-rose-400">
-                          Ups, Tersenggol Karang!
+                          Ups, Tersenggol Rintangan Laut!
                         </h4>
                         <p className="text-sm">
                           Skor Akhirmu: <strong className="font-mono-tech text-xl text-amber-300">{arcadeScore}</strong>
@@ -1867,7 +2096,7 @@ export default function App() {
                         className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black text-sm px-7 py-3 rounded-2xl shadow-lg transition-all hover:scale-105 cursor-pointer flex items-center gap-2"
                       >
                         <RotateCcw className="w-4 h-4" />
-                        <span>Coba Menyelam Lagi!</span>
+                        <span>Luncurkan Black Marlin Lagi!</span>
                       </button>
                     </div>
                   )}
@@ -1880,7 +2109,7 @@ export default function App() {
                       className="w-full bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 active:scale-95 text-white font-black text-lg py-4 rounded-2xl shadow-xl shadow-cyan-500/30 transition-transform cursor-pointer flex items-center justify-center gap-2 border-2 border-white/40"
                     >
                       <ArrowUp className="w-6 h-6 stroke-[3]" />
-                      <span>DAYUNG KE ATAS! (KLIK ATAU TEKAN SPASI) 🏊‍♂️</span>
+                      <span>LUNCURKAN BLACK MARLIN KE ATAS! (SPASI / KLIK) ⚡</span>
                     </button>
                   </div>
                 )}
@@ -1922,17 +2151,15 @@ export default function App() {
 
                   <div className="space-y-1 mb-4">
                     <div className="flex justify-between text-xs font-extrabold text-cyan-200">
-                      <span>LINTASAN 1: Mas Bumi ({selectedRaceStroke})</span>
+                      <span>LINTASAN 1: Mas Bumi — Black Marlin ⚡ ({selectedRaceStroke})</span>
                       <span className="font-mono-tech">{Math.round(bumiProgress)}%</span>
                     </div>
                     <div className="h-10 bg-sky-900/60 rounded-xl relative flex items-center px-1 border border-cyan-400/40">
                       <div 
-                        className="absolute transition-all duration-100 flex items-center gap-1"
+                        className="absolute transition-all duration-100 flex items-center gap-1.5"
                         style={{ left: `calc(${bumiProgress * 0.88}% + 4px)` }}
                       >
-                        <span className="text-2xl filter drop-shadow-md transform -scale-x-100">
-                          🏊‍♂️
-                        </span>
+                        <BlackMarlinIcon className="w-9 h-4.5 filter drop-shadow-[0_0_8px_rgba(56,189,248,0.7)]" />
                         <span className="text-[10px] font-black bg-cyan-400 text-slate-950 px-1.5 py-0.2 rounded-md font-mono-tech">
                           Bumi
                         </span>
