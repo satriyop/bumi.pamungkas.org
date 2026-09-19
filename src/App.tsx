@@ -44,6 +44,7 @@ import {
   Crown
 } from 'lucide-react';
 import { ChessMasterArena } from './components/ChessMasterArena';
+import { LaserOpticsArena } from './components/LaserOpticsArena';
 
 // ==========================================
 // BLACK MARLIN (IKAN MARLIN HITAM) GRAPHICS
@@ -484,13 +485,15 @@ export default function App() {
   // ==========================================
   // GAME TABS & ARCADE RUNNER
   // ==========================================
-  const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz' | 'chess'>('arcade');
+  const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz' | 'chess' | 'laser'>('arcade');
 
   useEffect(() => {
     const checkHash = () => {
       const h = window.location.hash.toLowerCase();
       if (h.includes('catur') || h.includes('chess')) {
         setActiveGameTab('chess');
+      } else if (h.includes('laser') || h.includes('optik')) {
+        setActiveGameTab('laser');
       }
     };
     checkHash();
@@ -1267,11 +1270,11 @@ export default function App() {
             </a>
             <a 
               href="#games" 
-              onClick={() => setActiveGameTab('chess')}
+              onClick={() => setActiveGameTab('laser')}
               className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-cyan-400"
             >
               <Gamepad2 className="w-3.5 h-3.5" />
-              <span>6 Game & Catur ♟️</span>
+              <span>7 Game & Asah Otak 🕹️</span>
             </a>
             <a href="#galeri" className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-sky-400">
               <Camera className="w-3.5 h-3.5" />
@@ -1420,12 +1423,24 @@ export default function App() {
                   href="#games"
                   onClick={() => {
                     playSound('coin');
+                    setActiveGameTab('laser');
+                  }}
+                  className="bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Zap className="w-4 h-4 text-cyan-300 animate-pulse" />
+                  <span>Labirin Laser Optik 🔮</span>
+                </a>
+
+                <a
+                  href="#games"
+                  onClick={() => {
+                    playSound('coin');
                     setActiveGameTab('chess');
                   }}
                   className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-purple-600/30 transition-all hover:scale-105 flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Crown className="w-4 h-4 text-amber-300 animate-pulse" />
-                  <span>Main Game Catur & Arcade 🕹️</span>
+                  <Crown className="w-4 h-4 text-amber-300" />
+                  <span>Taktik Catur ♟️</span>
                 </a>
 
                 <a
@@ -2074,7 +2089,7 @@ export default function App() {
         </section>
 
         {/* ============================================================== */}
-        {/* ARENA 6 GAME & KUIS ARCADE MAS BUMI                           */}
+        {/* ARENA 7 GAME & KUIS ARCADE MAS BUMI                           */}
         {/* ============================================================== */}
         <section id="games" className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
@@ -2084,11 +2099,11 @@ export default function App() {
                 <span>ARCADE CENTER & GAMES</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
-                🕹️ Arena 6 Game & Kuis Mas Bumi
+                🕹️ Arena 7 Game & Kuis Mas Bumi
               </h2>
             </div>
             <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Nikmati game aksi menyelam Black Marlin, balapan renang 50m, hitung kilat Kumon, tebak kartu, kuis multi-ronde, dan asah taktik catur ♟️!
+              Nikmati game aksi menyelam Black Marlin, balapan renang 50m, hitung kilat Kumon, tebak kartu, kuis multi-ronde, asah taktik catur ♟️, dan labirin laser optik 🔮!
             </p>
           </div>
 
@@ -2181,6 +2196,21 @@ export default function App() {
             >
               <Crown className="w-4 h-4 text-amber-300" />
               <span>6. Taktik Catur ♟️</span>
+            </button>
+
+            <button
+              onClick={() => {
+                playSound('tech');
+                setActiveGameTab('laser');
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                activeGameTab === 'laser'
+                  ? 'bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-600 text-white shadow-md scale-102'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Zap className="w-4 h-4 text-cyan-300 animate-pulse" />
+              <span>7. Labirin Laser Optik 🔮</span>
             </button>
           </div>
 
@@ -2716,6 +2746,11 @@ export default function App() {
           {/* TAB 6: ARENA CATUR GRANDMASTER MAS BUMI */}
           {activeGameTab === 'chess' && (
             <ChessMasterArena isDarkMode={isDarkMode} playSound={playSound} />
+          )}
+
+          {/* TAB 7: LABIRIN LASER OPTIK MAS BUMI */}
+          {activeGameTab === 'laser' && (
+            <LaserOpticsArena isDarkMode={isDarkMode} playSound={playSound} />
           )}
         </section>
 
