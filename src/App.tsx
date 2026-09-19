@@ -40,7 +40,9 @@ import {
   CheckCircle2,
   Camera,
   Heart,
-  Compass
+  Compass,
+  Crown,
+  Brain
 } from 'lucide-react';
 
 // ==========================================
@@ -409,10 +411,12 @@ export default function App() {
     'siapa': 'Mas Bumi (Kun Bumi Pamungkas) adalah perenang muda berbakat asal Klaten, lahir 5 Juni 2014 (umur 12 tahun). Siswa MIM Basin Klaten & murid Kumon yang gemar berolahraga dan teknologi!',
     'sekolah': 'Mas Bumi bersekolah di Madrasah Ibtidaiyah Muhammadiyah (MIM) Basin di Kebonarum, Klaten. Sekolah yang hebat dengan guru ramah dan teman-teman kompak!',
     'renang': 'Hobi utama Mas Bumi adalah renang! Mas Bumi menguasai 4 gaya renang: Gaya Bebas, Gaya Dada, Gaya Punggung, dan Gaya Kupu-kupu (Butterfly)! Kolam renang adalah arena favoritnya meluncur kencang 🏊‍♂️🦋!',
+    'catur': 'Mas Bumi sangat hobi bermain Catur (Chess) ♟️! Bagi Mas Bumi, catur adalah olahraga otak yang melatih perhitungan beberapa langkah ke depan, kesabaran, taktik garpu kuda, skakmat, dan ketenangan berpikir strategis!',
+    'hobi': 'Mas Bumi punya dua hobi unggulan yang seimbang: Renang di air (melatih fisik, stamina & 4 gaya renang) 🏊‍♂️ serta Catur di darat (melatih daya taktik, strategi berpikir beberapa langkah ke depan, & fokus mental) ♟️!',
     'kupu': 'Gaya Kupu-kupu (Butterfly stroke) 🦋 adalah salah satu gaya renang paling hebat dan menantang yang dipelajari Mas Bumi! Gerakannya butuh kekuatan bahu yang tangguh, ayunan kedua tangan bersamaan ke depan, dan dolphin kick yang sangat kuat meluncur di air!',
     'kumon': 'Di Kumon, Mas Bumi melatih kemandirian, kecepatan berhitung, serta daya fokus logika matematika setiap hari tanpa bolong!',
     'klaten': 'Klaten adalah kota kelahiran Mas Bumi di Jawa Tengah yang terkenal dengan seribu mata air jernih (Umbul Ponggok, Umbul Sigedang), Candi Plaosan, dan semboyan Klaten BERSINAR!',
-    'game': 'Ada 5 game keren di website ini! Ada game arcade petualangan menyelam, balapan renang 50m, tes hitung cepat Kumon, tebak kartu memori, dan kuis multi-ronde!'
+    'game': 'Ada 6 game seru di website ini! Ada game petualangan menyelam Black Marlin, balapan renang 50m, hitung kilat Kumon, tebak kartu memori, kuis multi-ronde, dan asah taktik catur ♟️!'
   };
 
   const handleSendMessage = (textToSend?: string) => {
@@ -433,15 +437,19 @@ export default function App() {
     setTimeout(() => {
       playSound('coin');
       const lower = query.toLowerCase();
-      let reply = 'Pertanyaan keren! Mas Bumi terus berlatih renang gaya bebas, dada, punggung, dan kupu-kupu serta tekun belajar di MIM Basin dan Kumon!';
+      let reply = 'Pertanyaan keren! Mas Bumi terus giat berlatih renang 4 gaya, asah strategi catur ♟️, serta tekun belajar di MIM Basin dan Kumon!';
 
-      if (lower.includes('kupu') || lower.includes('butterfly')) {
+      if (lower.includes('catur') || lower.includes('chess') || lower.includes('skak')) {
+        reply = botResponses['catur'];
+      } else if (lower.includes('kupu') || lower.includes('butterfly')) {
         reply = botResponses['kupu'];
       } else if (lower.includes('siapa') || lower.includes('nama') || lower.includes('profil') || lower.includes('umur')) {
         reply = botResponses['siapa'];
       } else if (lower.includes('sekolah') || lower.includes('mim') || lower.includes('basin')) {
         reply = botResponses['sekolah'];
-      } else if (lower.includes('renang') || lower.includes('gaya') || lower.includes('hobi')) {
+      } else if (lower.includes('hobi')) {
+        reply = botResponses['hobi'];
+      } else if (lower.includes('renang') || lower.includes('gaya')) {
         reply = botResponses['renang'];
       } else if (lower.includes('kumon') || lower.includes('hitung') || lower.includes('matematika')) {
         reply = botResponses['kumon'];
@@ -476,7 +484,7 @@ export default function App() {
   // ==========================================
   // GAME TABS & ARCADE RUNNER
   // ==========================================
-  const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz'>('arcade');
+  const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz' | 'chess'>('arcade');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [arcadeState, setArcadeState] = useState<'idle' | 'playing' | 'gameover'>('idle');
@@ -911,9 +919,9 @@ export default function App() {
           correct: 0
         },
         {
-          q: 'Apa cabang olahraga favorit yang paling ditekuni Mas Bumi?',
-          options: ['Bermain Catur', 'Renang (Swimming)', 'Lompat Tali'],
-          correct: 1
+          q: 'Selain olahraga renang di air, permainan asah taktik & strategi apa yang jadi hobi Mas Bumi?',
+          options: ['Bermain Catur (Chess ♟️)', 'Main Kelereng', 'Lompat Tali'],
+          correct: 0
         },
         {
           q: 'Apa nama metode belajar mandiri matematika yang Mas Bumi ikuti?',
@@ -1020,17 +1028,21 @@ export default function App() {
   };
 
   // ==========================================
-  // GAME 5: TEBAK KARTU MEMORI
+  // GAME 4: TEBAK KARTU MEMORI
   // ==========================================
   const initialCards = [
     { id: 1, symbol: '🏊‍♂️', name: 'Renang', matched: false },
     { id: 2, symbol: '🏊‍♂️', name: 'Renang', matched: false },
-    { id: 3, symbol: '🏆', name: 'Piala', matched: false },
-    { id: 4, symbol: '🏆', name: 'Piala', matched: false },
-    { id: 5, symbol: '🧮', name: 'Kumon', matched: false },
-    { id: 6, symbol: '🧮', name: 'Kumon', matched: false },
-    { id: 7, symbol: '🏫', name: 'MIM Basin', matched: false },
-    { id: 8, symbol: '🏫', name: 'MIM Basin', matched: false },
+    { id: 3, symbol: '♟️', name: 'Catur', matched: false },
+    { id: 4, symbol: '♟️', name: 'Catur', matched: false },
+    { id: 5, symbol: '🏆', name: 'Piala', matched: false },
+    { id: 6, symbol: '🏆', name: 'Piala', matched: false },
+    { id: 7, symbol: '🧮', name: 'Kumon', matched: false },
+    { id: 8, symbol: '🧮', name: 'Kumon', matched: false },
+    { id: 9, symbol: '🏫', name: 'MIM Basin', matched: false },
+    { id: 10, symbol: '🏫', name: 'MIM Basin', matched: false },
+    { id: 11, symbol: '♞', name: 'Kuda Catur', matched: false },
+    { id: 12, symbol: '♞', name: 'Kuda Catur', matched: false },
   ];
 
   const [memoryCards, setMemoryCards] = useState(() => 
@@ -1084,6 +1096,189 @@ export default function App() {
   };
 
   // ==========================================
+  // GAME 6: ARENA TAKTIK CATUR MAS BUMI (CHESS)
+  // ==========================================
+  interface ChessPuzzle {
+    id: number;
+    title: string;
+    motif: string;
+    subtitle: string;
+    instruction: string;
+    hint: string;
+    explanation: string;
+    board: string[][];
+    from: [number, number]; // [row, col]
+    to: [number, number];   // [row, col]
+    notation: string;
+  }
+
+  const chessPuzzles: ChessPuzzle[] = [
+    {
+      id: 1,
+      title: 'Taktik 1: Skakmat Ratu di Depan Raja 👑',
+      motif: 'Checkmate Ratu',
+      subtitle: 'Skakmat 1 Langkah (Serangan Kilat)',
+      instruction: 'Giliran Putih! Temukan 1 langkah Ratu putih untuk langsung memenangkan pertandingan (Skakmat)!',
+      hint: 'Arahkan Ratu putih ke petak f7 di depan Raja hitam. Petak f7 dijaga kuat oleh Gajah putih di c4!',
+      explanation: 'BRILIAN! Ratu putih meluncur ke f7 (Qxf7#). Karena dijaga oleh Gajah di c4, Raja hitam tidak bisa memakannya dan tidak punya petak aman untuk melarikan diri!',
+      board: [
+        ['r', 'n', 'b', 'q', 'k', '', '', 'r'],
+        ['p', 'p', 'p', 'p', '', 'p', 'p', 'p'],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', 'p', '', '', 'Q'],
+        ['', '', 'B', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['P', 'P', 'P', 'P', '', 'P', 'P', 'P'],
+        ['R', 'N', 'B', '', 'K', '', 'N', 'R']
+      ],
+      from: [3, 7], // Q at h5
+      to: [1, 5],   // f7
+      notation: 'Qxf7#'
+    },
+    {
+      id: 2,
+      title: 'Taktik 2: Garpu Kuda Emas (Royal Fork) ♞',
+      motif: 'Garpu Kuda (Fork)',
+      subtitle: 'Serangan Ganda Mengunci Raja & Benteng',
+      instruction: 'Giliran Putih! Lompatkan Kuda putih ke petak strategis untuk menyerang Raja dan Benteng lawan sekaligus!',
+      hint: 'Cari petak yang berjarak langkah L dari Raja hitam di e8 dan Benteng hitam di a8. Petak c7 kuncinya!',
+      explanation: 'TAKTIK GARPU KUDA SEMPURNA! Kuda melompat ke c7 (Nc7+), memberikan skak pada Raja sekaligus mengancam Benteng di petak sudut!',
+      board: [
+        ['r', '', 'b', 'q', 'k', 'b', 'n', 'r'],
+        ['p', 'p', '', 'p', 'p', 'p', 'p', 'p'],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', 'N', '', '', '', ''],
+        ['', '', '', '', 'P', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['P', 'P', 'P', '', '', 'P', 'P', 'P'],
+        ['R', '', 'B', 'Q', 'K', 'B', '', 'R']
+      ],
+      from: [3, 3], // N at d5
+      to: [1, 2],   // c7
+      notation: 'Nc7+'
+    },
+    {
+      id: 3,
+      title: 'Taktik 3: Skakmat Koridor Baris Belakang 🏰',
+      motif: 'Back-Rank Mate',
+      subtitle: 'Jebakan Dinding Pion Lawan Sendiri',
+      instruction: 'Giliran Putih! Luncurkan Benteng putih ke baris belakang Raja hitam yang terkurung!',
+      hint: 'Raja hitam terperangkap di baris 8 oleh pion-pionnya di f7, g7, h7. Luncurkan Benteng ke baris 8 (petak d8)!',
+      explanation: 'SKAKMAT KORIDOR (BACK-RANK)! Benteng meluncur ke d8 (Rd8#). Raja hitam tidak bisa kabur karena terhalang oleh barisan pion pasukannya sendiri!',
+      board: [
+        ['', '', '', '', '', '', 'k', ''],
+        ['', '', '', '', '', 'p', 'p', 'p'],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['P', 'P', 'P', '', '', 'P', 'P', 'P'],
+        ['', '', '', 'R', '', '', 'K', '']
+      ],
+      from: [7, 3], // R at d1
+      to: [0, 3],   // d8
+      notation: 'Rd8#'
+    },
+    {
+      id: 4,
+      title: 'Taktik 4: Baterai Serangan Ratu & Gajah ⚡',
+      motif: 'Battery Checkmate',
+      subtitle: 'Kombinasi Skakmat di Depan Sayap Raja',
+      instruction: 'Giliran Putih! Hantarkan Ratu putih untuk menembus pertahanan lawan di petak g7!',
+      hint: 'Ratu di f6 menyerang petak g7 tepat di depan Raja hitam dengan sokongan diagonal Gajah di c3!',
+      explanation: 'SKAKMAT BATERAI LUAR BIASA! Ratu mendarat di g7 (Qg7#) dengan perlindungan dari Gajah. Pertahanan hitam runtuh seketika!',
+      board: [
+        ['', '', '', '', '', '', 'k', ''],
+        ['p', 'p', 'p', '', '', 'p', '', 'p'],
+        ['', '', '', '', '', 'Q', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', '', ''],
+        ['', '', 'B', '', '', '', '', ''],
+        ['P', 'P', 'P', '', '', 'P', 'P', 'P'],
+        ['R', '', '', '', '', 'R', 'K', '']
+      ],
+      from: [2, 5], // Q at f6
+      to: [1, 6],   // g7
+      notation: 'Qg7#'
+    }
+  ];
+
+  const [currentChessIdx, setCurrentChessIdx] = useState(0);
+  const currentChessPuzzle = chessPuzzles[currentChessIdx];
+  const [activeChessBoard, setActiveChessBoard] = useState<string[][]>(() => 
+    chessPuzzles[0].board.map(row => [...row])
+  );
+  const [selectedChessSquare, setSelectedChessSquare] = useState<[number, number] | null>(null);
+  const [isChessSolved, setIsChessSolved] = useState(false);
+  const [showChessHint, setShowChessHint] = useState(false);
+  const [chessFeedback, setChessFeedback] = useState<string | null>(null);
+  const [solvedCount, setSolvedCount] = useState<number>(0);
+
+  const handleChessSquareClick = (r: number, c: number) => {
+    if (isChessSolved) return;
+
+    const puzzle = currentChessPuzzle;
+    const clickedPiece = activeChessBoard[r][c];
+
+    // If nothing selected yet
+    if (!selectedChessSquare) {
+      // Must select the source square
+      if (r === puzzle.from[0] && c === puzzle.from[1]) {
+        playSound('swim');
+        setSelectedChessSquare([r, c]);
+        setChessFeedback('Perwira terpilih! Klik petak tujuan untuk melangkah.');
+      } else if (clickedPiece && clickedPiece === clickedPiece.toUpperCase()) {
+        playSound('tech');
+        setChessFeedback('Perwira ini belum saatnya melangkah. Coba perwira kunci lainnya!');
+      }
+      return;
+    }
+
+    // If user clicked the same square, deselect
+    if (selectedChessSquare[0] === r && selectedChessSquare[1] === c) {
+      setSelectedChessSquare(null);
+      return;
+    }
+
+    // Check if target square matches puzzle.to
+    if (r === puzzle.to[0] && c === puzzle.to[1]) {
+      playSound('coin');
+      const newBoard = activeChessBoard.map(row => [...row]);
+      const piece = newBoard[selectedChessSquare[0]][selectedChessSquare[1]];
+      newBoard[selectedChessSquare[0]][selectedChessSquare[1]] = '';
+      newBoard[r][c] = piece;
+      setActiveChessBoard(newBoard);
+      setSelectedChessSquare(null);
+      setIsChessSolved(true);
+      setSolvedCount(prev => prev + 1);
+      setChessFeedback(`Langkah ${puzzle.notation} Berhasil! 🏆`);
+    } else {
+      playSound('tech');
+      setChessFeedback('Langkah belum tepat. Coba analisa petak lain atau buka petunjuk! 💡');
+    }
+  };
+
+  const resetCurrentChessPuzzle = () => {
+    playSound('tech');
+    setActiveChessBoard(currentChessPuzzle.board.map(row => [...row]));
+    setSelectedChessSquare(null);
+    setIsChessSolved(false);
+    setShowChessHint(false);
+    setChessFeedback(null);
+  };
+
+  const nextChessPuzzle = () => {
+    playSound('tech');
+    const nextIdx = (currentChessIdx + 1) % chessPuzzles.length;
+    setCurrentChessIdx(nextIdx);
+    setActiveChessBoard(chessPuzzles[nextIdx].board.map(row => [...row]));
+    setSelectedChessSquare(null);
+    setIsChessSolved(false);
+    setShowChessHint(false);
+    setChessFeedback(null);
+  };
+
+  // ==========================================
   // STOPWATCH STATE
   // ==========================================
   const [seconds, setSeconds] = useState(0);
@@ -1133,7 +1328,8 @@ export default function App() {
     { id: 3, text: 'Belajar rajin & berprestasi di MIM Basin Klaten', completed: true, category: 'Sekolah' },
     { id: 4, text: 'Terbitkan website pribadi canggih di bumi.pamungkas.org', completed: true, category: 'Website' },
     { id: 5, text: 'Gowes sepeda santai keliling Klaten bareng teman', completed: false, category: 'Olahraga' },
-    { id: 6, text: 'Bantu orang tua di rumah dan selalu buat mereka tersenyum', completed: true, category: 'Keluarga' }
+    { id: 6, text: 'Bantu orang tua di rumah dan selalu buat mereka tersenyum', completed: true, category: 'Keluarga' },
+    { id: 7, text: 'Latihan asah taktik catur ♟️ & analisis langkah skakmat', completed: true, category: 'Catur' }
   ]);
 
   const toggleMission = (id: number) => {
@@ -1331,7 +1527,7 @@ export default function App() {
 
                 <p className={`text-sm sm:text-base leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                   Biasa dipanggil <strong className="text-cyan-400 font-extrabold">Mas Bumi</strong> (12 tahun). 
-                  Berfokus pada kecepatan di lintasan renang, ketajaman logika di <strong className="text-emerald-400">Kumon</strong>, dan menuntut ilmu penuh berkah di <strong className="text-indigo-400">MIM Basin Klaten</strong>.
+                  Berfokus pada kecepatan di lintasan renang, ketajaman strategi di papan <strong className="text-amber-400">Catur (Chess ♟️)</strong>, kecepatan logika di <strong className="text-emerald-400">Kumon</strong>, dan menuntut ilmu penuh berkah di <strong className="text-indigo-400">MIM Basin Klaten</strong>.
                 </p>
 
                 {/* Quick Spec Pills with Original Colorful Icons */}
@@ -1471,6 +1667,10 @@ export default function App() {
                     <span className="text-slate-400">Kumon Level Status:</span>
                     <span className="text-cyan-300 font-bold">Consistent Daily Drill</span>
                   </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Hobi & Taktik:</span>
+                    <span className="text-amber-300 font-bold">Renang & Catur ♟️</span>
+                  </div>
                   
                   {/* Decorative Barcode */}
                   <div className="pt-2 flex items-center justify-between opacity-60">
@@ -1491,18 +1691,18 @@ export default function App() {
             <div>
               <div className="inline-flex items-center gap-1.5 text-xs font-mono-tech font-bold text-cyan-400 uppercase tracking-wider mb-1">
                 <Waves className="w-4 h-4" />
-                <span>AKTIVITAS & OLAHRAGA FAVORIT</span>
+                <span>AKTIVITAS & HOBI FAVORIT</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
-                🏊‍♂️ Renang & Olahraga Mas Bumi
+                🏊‍♂️ Renang, Catur & Olahraga Mas Bumi
               </h2>
             </div>
             <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Air dan olahraga bikin tubuh sehat, kuat, dan pikiran selalu segar setiap hari!
+              Air melatih ketangguhan fisik & kecepatan renang, sementara papan catur mengasah ketelitian strategi otak!
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Card 1: Renang */}
             <div className={`rounded-3xl p-6 sm:p-7 border transition-all hover:-translate-y-1 relative overflow-hidden group flex flex-col justify-between ${
               isDarkMode 
@@ -1526,7 +1726,30 @@ export default function App() {
               </div>
             </div>
 
-            {/* Card 2: Olahraga Lainnya */}
+            {/* Card 2: Bermain Catur */}
+            <div className={`rounded-3xl p-6 sm:p-7 border transition-all hover:-translate-y-1 relative overflow-hidden group flex flex-col justify-between ${
+              isDarkMode 
+                ? 'bg-slate-900/85 border-violet-800/40 shadow-xl shadow-purple-950/30' 
+                : 'bg-white/90 border-purple-100 shadow-md'
+            }`}>
+              <div className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Crown className="w-6 h-6 text-amber-400" />
+                </div>
+                <h3 className="font-bold text-xl font-fun">Bermain Catur (Chess ♟️)</h3>
+                <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                  Catur adalah hobi asah otak favorit Mas Bumi! Melatih kesabaran, daya analisis beberapa langkah ke depan, kalkulasi taktik, dan ketenangan berpikir strategis.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-4 font-mono-tech">
+                <span className="text-xs font-bold bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-lg border border-purple-400/30">Taktik Skakmat ♟️</span>
+                <span className="text-xs font-bold bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-lg border border-purple-400/30">Langkah Kuda ♞</span>
+                <span className="text-xs font-bold bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-lg border border-purple-400/30">Kalkulasi Logika 🧠</span>
+                <span className="text-xs font-bold bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-lg border border-purple-400/30">Fokus & Sabar 👑</span>
+              </div>
+            </div>
+
+            {/* Card 3: Olahraga Lainnya */}
             <div className={`rounded-3xl p-6 sm:p-7 border transition-all hover:-translate-y-1 relative overflow-hidden group flex flex-col justify-between ${
               isDarkMode 
                 ? 'bg-slate-900/85 border-amber-800/40 shadow-xl shadow-amber-950/30' 
@@ -1548,7 +1771,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Card 3: Sportivitas & Disiplin */}
+            {/* Card 4: Sportivitas & Disiplin */}
             <div className={`rounded-3xl p-6 sm:p-7 border transition-all hover:-translate-y-1 relative overflow-hidden group flex flex-col justify-between ${
               isDarkMode 
                 ? 'bg-slate-900/85 border-emerald-800/40 shadow-xl shadow-emerald-950/30' 
@@ -1947,6 +2170,7 @@ export default function App() {
               </span>
               {[
                 'Siapa Mas Bumi?',
+                'Mas Bumi suka main catur? ♟️',
                 'Ceritain gaya kupu-kupu Mas Bumi! 🦋',
                 'Gaya renang apa favoritnya?',
                 'Sekolah di MIM Basin?',
@@ -1992,7 +2216,7 @@ export default function App() {
         </section>
 
         {/* ============================================================== */}
-        {/* ARENA 5 GAME & KUIS ARCADE MAS BUMI                           */}
+        {/* ARENA 6 GAME & KUIS ARCADE MAS BUMI                           */}
         {/* ============================================================== */}
         <section id="games" className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
@@ -2002,11 +2226,11 @@ export default function App() {
                 <span>ARCADE CENTER & GAMES</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
-                🕹️ Arena 5 Game & Kuis Mas Bumi
+                🕹️ Arena 6 Game & Kuis Mas Bumi
               </h2>
             </div>
             <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Nikmati game aksi arcade penyelaman, balapan renang 50m, hitung kilat Kumon, tebak kartu, dan kuis multi-ronde!
+              Nikmati game aksi menyelam Black Marlin, balapan renang 50m, hitung kilat Kumon, tebak kartu, kuis multi-ronde, dan asah taktik catur ♟️!
             </p>
           </div>
 
@@ -2084,6 +2308,21 @@ export default function App() {
             >
               <Sparkles className="w-4 h-4" />
               <span>5. Kuis Multi-Ronde ❓</span>
+            </button>
+
+            <button
+              onClick={() => {
+                playSound('tech');
+                setActiveGameTab('chess');
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                activeGameTab === 'chess'
+                  ? 'bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white shadow-md scale-102'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Crown className="w-4 h-4 text-amber-300" />
+              <span>6. Taktik Catur ♟️</span>
             </button>
           </div>
 
@@ -2615,6 +2854,198 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* TAB 6: ARENA TAKTIK CATUR MAS BUMI */}
+          {activeGameTab === 'chess' && (
+            <div className={`rounded-3xl p-6 sm:p-8 border transition-all ${
+              isDarkMode 
+                ? 'bg-gradient-to-br from-[#0e0f24] via-[#161233] to-[#0d1326] border-purple-800/60 shadow-2xl' 
+                : 'bg-gradient-to-br from-white via-purple-50/70 to-indigo-50/70 border-purple-200 shadow-xl'
+            }`}>
+              <div className="max-w-2xl mx-auto space-y-6">
+                {/* Header info */}
+                <div className="text-center space-y-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-black font-mono-tech shadow-sm">
+                      <Crown className="w-3.5 h-3.5 text-amber-300" />
+                      <span>{currentChessPuzzle.motif}</span>
+                    </span>
+                    <span className="text-xs font-bold text-slate-400 font-mono-tech">
+                      (Teka-teki {currentChessIdx + 1} dari {chessPuzzles.length} • Berhasil: {solvedCount})
+                    </span>
+                  </div>
+                  <h3 className="text-2xl sm:text-3xl font-black font-fun">
+                    ♟️ {currentChessPuzzle.title}
+                  </h3>
+                  <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {currentChessPuzzle.subtitle}
+                  </p>
+                </div>
+
+                {/* Instruction Box */}
+                <div className={`p-3.5 rounded-2xl border text-xs sm:text-sm text-center flex items-center justify-center gap-2 ${
+                  isDarkMode 
+                    ? 'bg-purple-950/40 border-purple-800/50 text-purple-200' 
+                    : 'bg-purple-50 border-purple-200 text-purple-900'
+                }`}>
+                  <Brain className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                  <span>
+                    <strong>Instruksi: </strong>{currentChessPuzzle.instruction}
+                  </span>
+                </div>
+
+                {/* Chess Board Container */}
+                <div className="flex flex-col items-center justify-center space-y-3">
+                  <div className="relative p-2 sm:p-3 rounded-2xl bg-gradient-to-b from-[#382b1d] to-[#1f170f] shadow-2xl border-2 border-amber-800/60 inline-block">
+                    {/* 8x8 Board Grid */}
+                    <div className="grid grid-cols-8 grid-rows-8 w-[300px] h-[300px] sm:w-[380px] sm:h-[380px] rounded-lg overflow-hidden border border-amber-900/80">
+                      {activeChessBoard.map((row, r) =>
+                        row.map((piece, c) => {
+                          const isDark = (r + c) % 2 === 1;
+                          const isSelected = selectedChessSquare && selectedChessSquare[0] === r && selectedChessSquare[1] === c;
+                          const isHintSquare = showChessHint && (
+                            (r === currentChessPuzzle.from[0] && c === currentChessPuzzle.from[1]) ||
+                            (r === currentChessPuzzle.to[0] && c === currentChessPuzzle.to[1])
+                          );
+                          const isTargetWhenSelected = selectedChessSquare && r === currentChessPuzzle.to[0] && c === currentChessPuzzle.to[1];
+
+                          return (
+                            <button
+                              key={`${r}-${c}`}
+                              onClick={() => handleChessSquareClick(r, c)}
+                              className={`relative flex items-center justify-center text-2xl sm:text-3xl select-none transition-all cursor-pointer ${
+                                isDark 
+                                  ? 'bg-[#739552] hover:bg-[#688849]' 
+                                  : 'bg-[#ebecd0] hover:bg-[#dfe1c1]'
+                              } ${
+                                isSelected ? 'ring-4 ring-inset ring-amber-400 bg-amber-300/80 z-10' : ''
+                              } ${
+                                isHintSquare && !isSelected ? 'ring-4 ring-inset ring-cyan-400 bg-cyan-300/50 animate-pulse z-10' : ''
+                              }`}
+                              title={`Petak ${String.fromCharCode(97 + c)}${8 - r}`}
+                            >
+                              {/* Square Coordinate labels on edges */}
+                              {c === 0 && (
+                                <span className={`absolute top-0.5 left-1 text-[9px] font-black font-mono-tech pointer-events-none opacity-60 ${
+                                  isDark ? 'text-white' : 'text-slate-800'
+                                }`}>
+                                  {8 - r}
+                                </span>
+                              )}
+                              {r === 7 && (
+                                <span className={`absolute bottom-0.5 right-1 text-[9px] font-black font-mono-tech pointer-events-none opacity-60 ${
+                                  isDark ? 'text-white' : 'text-slate-800'
+                                }`}>
+                                  {String.fromCharCode(97 + c)}
+                                </span>
+                              )}
+
+                              {/* Target indicator dot */}
+                              {isTargetWhenSelected && (
+                                <span className="absolute w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-cyan-400/80 animate-ping pointer-events-none" />
+                              )}
+
+                              {/* Chess Piece Display */}
+                              {piece ? (
+                                <span className={`transform transition-transform duration-200 hover:scale-110 ${
+                                  piece === piece.toUpperCase()
+                                    ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]'
+                                    : 'text-slate-950 drop-shadow-[0_1px_2px_rgba(255,255,255,0.7)]'
+                                }`}>
+                                  {piece === 'K' && '♔'}
+                                  {piece === 'Q' && '♕'}
+                                  {piece === 'R' && '♖'}
+                                  {piece === 'B' && '♗'}
+                                  {piece === 'N' && '♘'}
+                                  {piece === 'P' && '♙'}
+                                  {piece === 'k' && '♚'}
+                                  {piece === 'q' && '♛'}
+                                  {piece === 'r' && '♜'}
+                                  {piece === 'b' && '♝'}
+                                  {piece === 'n' && '♞'}
+                                  {piece === 'p' && '♟'}
+                                </span>
+                              ) : null}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Feedback Status */}
+                  <div className="w-full text-center">
+                    <span className={`inline-block text-xs font-bold px-4 py-2 rounded-xl border transition-all ${
+                      isChessSolved
+                        ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 font-black'
+                        : isDarkMode
+                          ? 'bg-slate-800/80 border-slate-700 text-slate-300'
+                          : 'bg-white border-slate-200 text-slate-700 shadow-xs'
+                    }`}>
+                      {chessFeedback || (selectedChessSquare ? '👉 Klik petak tujuan untuk melangkah' : '⚪ Giliran Putih: Klik perwira putih yang ingin digerakkan')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Hints and Explanations */}
+                {showChessHint && !isChessSolved && (
+                  <div className="p-4 rounded-2xl bg-cyan-500/15 border border-cyan-400/40 text-center space-y-1 animate-fadeIn max-w-lg mx-auto">
+                    <span className="text-xs font-mono-tech text-cyan-300 font-bold block">💡 PETUNJUK TAKTIK:</span>
+                    <p className="text-xs text-cyan-200">{currentChessPuzzle.hint}</p>
+                  </div>
+                )}
+
+                {/* Solved Celebration Banner */}
+                {isChessSolved && (
+                  <div className="p-6 rounded-3xl bg-gradient-to-br from-emerald-950/80 via-emerald-900/60 to-slate-900 border-2 border-emerald-400/80 text-center space-y-3 animate-float max-w-lg mx-auto shadow-xl">
+                    <span className="text-4xl block animate-bounce">🏆🎉</span>
+                    <h4 className="text-xl font-black font-fun text-emerald-300">
+                      SKAKMAT / TAKTIK SEMPURNA!
+                    </h4>
+                    <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+                      {currentChessPuzzle.explanation}
+                    </p>
+                    <button
+                      onClick={nextChessPuzzle}
+                      className="mt-2 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 px-6 py-2.5 rounded-xl font-black text-xs shadow-lg shadow-emerald-500/30 transition-all hover:scale-105 cursor-pointer"
+                    >
+                      Lanjut Teka-teki Berikutnya ➡️
+                    </button>
+                  </div>
+                )}
+
+                {/* Control Action Buttons */}
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      playSound('tech');
+                      setShowChessHint(prev => !prev);
+                    }}
+                    className="bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/40 text-cyan-300 px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all hover:scale-105 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{showChessHint ? 'Tutup Petunjuk' : 'Beri Petunjuk 💡'}</span>
+                  </button>
+
+                  <button
+                    onClick={resetCurrentChessPuzzle}
+                    className="bg-slate-700/60 hover:bg-slate-700 border border-slate-600 text-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all hover:scale-105 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Ulang Posisi 🔄</span>
+                  </button>
+
+                  <button
+                    onClick={nextChessPuzzle}
+                    className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-5 py-2.5 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md shadow-purple-500/30 transition-all hover:scale-105 cursor-pointer"
+                  >
+                    <Crown className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Teka-teki Lain ➡️</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* SECTION: STOPWATCH INTERAKTIF */}
@@ -2798,10 +3229,11 @@ export default function App() {
             ))}
           </div>
 
-          {/* 4 Original Target & Adventure Cards with Icons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-white/10">
+          {/* 5 Target & Adventure Cards with Icons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-6 pt-6 border-t border-white/10">
             {[
               { title: 'Latihan Renang Rutin', desc: 'Meningkatkan stamina & kecepatan semua gaya renang', icon: Waves, color: 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30' },
+              { title: 'Asah Taktik Catur', desc: 'Latihan strategi papan catur, langkah kuda & skakmat ♟️', icon: Crown, color: 'text-purple-400 bg-purple-500/20 border-purple-500/30' },
               { title: 'Naik Level Kumon', desc: 'Menyelesaikan lembar kerja harian tepat waktu', icon: Sparkles, color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30' },
               { title: 'Bikin Web Sendiri', desc: 'Punya web pribadi aktif di bumi.pamungkas.org', icon: Compass, color: 'text-blue-400 bg-blue-500/20 border-blue-500/30' },
               { title: 'Membanggakan Orang Tua', desc: 'Rajin beribadah, belajar, dan selalu berbuat baik', icon: Heart, color: 'text-rose-400 bg-rose-500/20 border-rose-500/30' },
