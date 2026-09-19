@@ -45,6 +45,7 @@ import {
 } from 'lucide-react';
 import { ChessMasterArena } from './components/ChessMasterArena';
 import { LaserOpticsArena } from './components/LaserOpticsArena';
+import { TetrisCyberArena } from './components/TetrisCyberArena';
 
 // ==========================================
 // BLACK MARLIN (IKAN MARLIN HITAM) GRAPHICS
@@ -485,7 +486,7 @@ export default function App() {
   // ==========================================
   // GAME TABS & ARCADE RUNNER
   // ==========================================
-  const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz' | 'chess' | 'laser'>('arcade');
+  const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz' | 'chess' | 'laser' | 'tetris'>('arcade');
 
   useEffect(() => {
     const checkHash = () => {
@@ -494,6 +495,8 @@ export default function App() {
         setActiveGameTab('chess');
       } else if (h.includes('laser') || h.includes('optik')) {
         setActiveGameTab('laser');
+      } else if (h.includes('tetris')) {
+        setActiveGameTab('tetris');
       }
     };
     checkHash();
@@ -1270,11 +1273,11 @@ export default function App() {
             </a>
             <a 
               href="#games" 
-              onClick={() => setActiveGameTab('laser')}
+              onClick={() => setActiveGameTab('tetris')}
               className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-cyan-400"
             >
               <Gamepad2 className="w-3.5 h-3.5" />
-              <span>7 Game & Asah Otak 🕹️</span>
+              <span>8 Game & Asah Otak 🕹️</span>
             </a>
             <a href="#galeri" className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-sky-400">
               <Camera className="w-3.5 h-3.5" />
@@ -1419,6 +1422,18 @@ export default function App() {
               </div>
 
               <div className="flex flex-wrap gap-3 pt-6 mt-4 border-t border-white/10">
+                <a
+                  href="#games"
+                  onClick={() => {
+                    playSound('coin');
+                    setActiveGameTab('tetris');
+                  }}
+                  className="bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all hover:scale-105 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Gamepad2 className="w-4 h-4 text-amber-300 animate-pulse" />
+                  <span>Tetris Cyber 🧱</span>
+                </a>
+
                 <a
                   href="#games"
                   onClick={() => {
@@ -2089,7 +2104,7 @@ export default function App() {
         </section>
 
         {/* ============================================================== */}
-        {/* ARENA 7 GAME & KUIS ARCADE MAS BUMI                           */}
+        {/* ARENA 8 GAME & KUIS ARCADE MAS BUMI                           */}
         {/* ============================================================== */}
         <section id="games" className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
@@ -2099,11 +2114,11 @@ export default function App() {
                 <span>ARCADE CENTER & GAMES</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
-                🕹️ Arena 7 Game & Kuis Mas Bumi
+                🕹️ Arena 8 Game & Kuis Mas Bumi
               </h2>
             </div>
             <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Nikmati game aksi menyelam Black Marlin, balapan renang 50m, hitung kilat Kumon, tebak kartu, kuis multi-ronde, asah taktik catur ♟️, dan labirin laser optik 🔮!
+              Nikmati game aksi menyelam Black Marlin, balapan renang 50m, hitung kilat Kumon, tebak kartu, kuis multi-ronde, asah taktik catur ♟️, labirin laser optik 🔮, dan tetris cyber 🧱!
             </p>
           </div>
 
@@ -2211,6 +2226,21 @@ export default function App() {
             >
               <Zap className="w-4 h-4 text-cyan-300 animate-pulse" />
               <span>7. Labirin Laser Optik 🔮</span>
+            </button>
+
+            <button
+              onClick={() => {
+                playSound('tech');
+                setActiveGameTab('tetris');
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                activeGameTab === 'tetris'
+                  ? 'bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 text-white shadow-md scale-102'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Gamepad2 className="w-4 h-4 text-amber-300 animate-pulse" />
+              <span>8. Tetris Cyber 🧱</span>
             </button>
           </div>
 
@@ -2751,6 +2781,11 @@ export default function App() {
           {/* TAB 7: LABIRIN LASER OPTIK MAS BUMI */}
           {activeGameTab === 'laser' && (
             <LaserOpticsArena isDarkMode={isDarkMode} playSound={playSound} />
+          )}
+
+          {/* TAB 8: TETRIS CYBER MATRIX MAS BUMI */}
+          {activeGameTab === 'tetris' && (
+            <TetrisCyberArena isDarkMode={isDarkMode} playSound={playSound} />
           )}
         </section>
 
