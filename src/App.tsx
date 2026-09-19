@@ -367,7 +367,7 @@ export default function App() {
   // FITUR CANGGIH 1: KALKULATOR TELEMETRI RENANG & ENERGI
   // ==========================================
   const [workoutDuration, setWorkoutDuration] = useState(45); // minutes
-  const [bodyWeight, setBodyWeight] = useState(40); // kg (default for 12 y.o.)
+  const [bodyWeight, setBodyWeight] = useState(47); // 47 kg berat badan resmi Mas Bumi
   const [workoutStroke, setWorkoutStroke] = useState<'bebas' | 'dada' | 'punggung' | 'kupu'>('bebas');
 
   // Scientific MET (Metabolic Equivalent of Task) values for youth swimming
@@ -1460,6 +1460,10 @@ export default function App() {
                 {/* Holographic Specs & Barcode Footer */}
                 <div className="pt-4 border-t border-cyan-500/30 space-y-3 font-mono-tech">
                   <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Berat & Postur:</span>
+                    <span className="text-cyan-300 font-bold">47 kg (KU-12 Tangguh)</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
                     <span className="text-slate-400">Target Musim Ini:</span>
                     <span className="text-emerald-400 font-bold">50m Sprint Sub-45s</span>
                   </div>
@@ -1603,12 +1607,12 @@ export default function App() {
                       <span>⚖️</span>
                       <span>Berat Badan Mas Bumi: <strong className="text-emerald-400 text-base">{bodyWeight} kg</strong></span>
                     </label>
-                    <span className="text-xs text-slate-400 font-mono-tech">Rentang: 25 - 65 kg</span>
+                    <span className="text-xs text-slate-400 font-mono-tech">Rentang: 30 - 70 kg</span>
                   </div>
                   <input
                     type="range"
-                    min={25}
-                    max={65}
+                    min={30}
+                    max={70}
                     step={1}
                     value={bodyWeight}
                     onChange={(e) => {
@@ -1618,22 +1622,22 @@ export default function App() {
                     className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-400"
                   />
                   {/* Preset Berat Badan */}
-                  <div className="flex items-center gap-1.5 mt-2">
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     <span className="text-[10px] text-slate-400 font-mono-tech">Preset:</span>
-                    {[34, 37, 40, 43, 46].map((w) => (
+                    {[40, 44, 47, 50, 53].map((w) => (
                       <button
                         key={w}
                         onClick={() => {
                           playSound('tech');
                           setBodyWeight(w);
                         }}
-                        className={`text-[10px] font-mono-tech font-bold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                        className={`text-[10px] font-mono-tech font-bold px-2.5 py-0.5 rounded-md border transition-all cursor-pointer ${
                           bodyWeight === w
-                            ? 'bg-emerald-500/30 text-emerald-300 border-emerald-400/60 scale-105'
+                            ? 'bg-emerald-500/30 text-emerald-300 border-emerald-400/80 shadow-xs shadow-emerald-500/20 scale-105'
                             : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
                         }`}
                       >
-                        {w} kg
+                        {w === 47 ? `⭐ ${w} kg (Mas Bumi)` : `${w} kg`}
                       </button>
                     ))}
                   </div>
