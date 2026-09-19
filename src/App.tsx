@@ -367,18 +367,25 @@ export default function App() {
   // FITUR CANGGIH 1: KALKULATOR TELEMETRI RENANG & ENERGI
   // ==========================================
   const [workoutDuration, setWorkoutDuration] = useState(45); // minutes
+  const [bodyWeight, setBodyWeight] = useState(40); // kg (default for 12 y.o.)
   const [workoutStroke, setWorkoutStroke] = useState<'bebas' | 'dada' | 'punggung' | 'kupu'>('bebas');
 
-  const strokeBurnRate = {
-    bebas: 9.5, // kcal per min
-    dada: 8.8,
-    punggung: 8.0,
-    kupu: 12.0
+  // Scientific MET (Metabolic Equivalent of Task) values for youth swimming
+  const strokeMET = {
+    bebas: 8.5,    // Freestyle (moderate-to-vigorous)
+    dada: 8.0,     // Breaststroke
+    punggung: 7.5, // Backstroke
+    kupu: 11.5     // Butterfly (highest metabolic power)
   };
 
-  const caloriesBurned = Math.round(workoutDuration * strokeBurnRate[workoutStroke]);
-  const waterNeededMl = Math.round(workoutDuration * 14.5);
-  const estimatedLaps = Math.round((workoutDuration * 60) / 75); // approx 75 sec per 50m lap + rest
+  // Calories = MET × Weight (kg) × Duration (hours)
+  const caloriesBurned = Math.round(strokeMET[workoutStroke] * bodyWeight * (workoutDuration / 60));
+
+  // Hydration = ~12 ml per kg per hour + 150ml baseline fluid recovery
+  const waterNeededMl = Math.round(bodyWeight * 12 * (workoutDuration / 60) + 150);
+
+  // Estimated 50m laps (approx 75s per lap including turnaround and rest intervals)
+  const estimatedLaps = Math.round((workoutDuration * 60) / 75);
 
   // ==========================================
   // FITUR CANGGIH 2: "BUMIBOT" VIRTUAL AI ASISTEN INTERAKTIF
@@ -1576,7 +1583,7 @@ export default function App() {
               </h2>
             </div>
             <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Ubah durasi dan gaya renang untuk menghitung estimasi kalori terbakar dan kebutuhan air minum Mas Bumi!
+              Dihitung presisi berdasarkan <strong>berat badan ({bodyWeight} kg)</strong> Mas Bumi, durasi latihan, dan intensitas gaya renang menggunakan formula MET olahraga atlet muda!
             </p>
           </div>
 
@@ -1588,7 +1595,51 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               
               {/* Controls Column */}
-              <div className="lg:col-span-6 space-y-6">
+              <div className="lg:col-span-6 space-y-5">
+                {/* Control 1: Berat Badan Mas Bumi */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold uppercase tracking-wider font-mono-tech flex items-center gap-1.5">
+                      <span>⚖️</span>
+                      <span>Berat Badan Mas Bumi: <strong className="text-emerald-400 text-base">{bodyWeight} kg</strong></span>
+                    </label>
+                    <span className="text-xs text-slate-400 font-mono-tech">Rentang: 25 - 65 kg</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={25}
+                    max={65}
+                    step={1}
+                    value={bodyWeight}
+                    onChange={(e) => {
+                      playSound('tech');
+                      setBodyWeight(parseInt(e.target.value, 10));
+                    }}
+                    className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-400"
+                  />
+                  {/* Preset Berat Badan */}
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <span className="text-[10px] text-slate-400 font-mono-tech">Preset:</span>
+                    {[34, 37, 40, 43, 46].map((w) => (
+                      <button
+                        key={w}
+                        onClick={() => {
+                          playSound('tech');
+                          setBodyWeight(w);
+                        }}
+                        className={`text-[10px] font-mono-tech font-bold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                          bodyWeight === w
+                            ? 'bg-emerald-500/30 text-emerald-300 border-emerald-400/60 scale-105'
+                            : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'
+                        }`}
+                      >
+                        {w} kg
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Control 2: Durasi Latihan */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-xs font-bold uppercase tracking-wider font-mono-tech">
@@ -1610,6 +1661,7 @@ export default function App() {
                   />
                 </div>
 
+                {/* Control 3: Gaya Renang */}
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wider font-mono-tech block mb-2">
                     Pilih Gaya Renang Utama:
@@ -1641,47 +1693,58 @@ export default function App() {
               </div>
 
               {/* Instant Output Telemetry Display */}
-              <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 text-center space-y-1">
-                  <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-400 flex items-center justify-center mx-auto mb-2">
-                    <Flame className="w-5 h-5" />
+              <div className="lg:col-span-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 text-center space-y-1">
+                    <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-400 flex items-center justify-center mx-auto mb-2">
+                      <Flame className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-mono-tech font-bold text-amber-300 uppercase block">
+                      Kalori Terbakar
+                    </span>
+                    <div className="text-3xl font-black font-mono-tech text-white">
+                      {caloriesBurned} <span className="text-xs font-normal text-amber-300">kcal</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 block pt-1">Beban {bodyWeight} kg</span>
                   </div>
-                  <span className="text-[10px] font-mono-tech font-bold text-amber-300 uppercase block">
-                    Kalori Terbakar
-                  </span>
-                  <div className="text-3xl font-black font-mono-tech text-white">
-                    {caloriesBurned} <span className="text-xs font-normal text-amber-300">kcal</span>
+
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/30 text-center space-y-1">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-400/20 text-cyan-400 flex items-center justify-center mx-auto mb-2">
+                      <Droplets className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-mono-tech font-bold text-cyan-300 uppercase block">
+                      Kebutuhan Hidrasi
+                    </span>
+                    <div className="text-3xl font-black font-mono-tech text-white">
+                      {waterNeededMl} <span className="text-xs font-normal text-cyan-300">ml</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 block pt-1">Minum air putih segar</span>
                   </div>
-                  <span className="text-[10px] text-slate-400 block pt-1">Energi maksimal!</span>
+
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 text-center space-y-1">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-400/20 text-emerald-400 flex items-center justify-center mx-auto mb-2">
+                      <Waves className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-mono-tech font-bold text-emerald-300 uppercase block">
+                      Estimasi Putaran
+                    </span>
+                    <div className="text-3xl font-black font-mono-tech text-white">
+                      ~{estimatedLaps} <span className="text-xs font-normal text-emerald-300">Laps</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 block pt-1">Lintasan 50 meter</span>
+                  </div>
+
                 </div>
 
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/30 text-center space-y-1">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-400/20 text-cyan-400 flex items-center justify-center mx-auto mb-2">
-                    <Droplets className="w-5 h-5" />
+                {/* Telemetry Live Formula Badge */}
+                <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-mono-tech text-slate-300 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>MET Formula: <strong>{strokeMET[workoutStroke]} MET</strong> × <strong>{bodyWeight} kg</strong> × <strong>{(workoutDuration / 60).toFixed(2)} jam</strong></span>
                   </div>
-                  <span className="text-[10px] font-mono-tech font-bold text-cyan-300 uppercase block">
-                    Kebutuhan Hidrasi
-                  </span>
-                  <div className="text-3xl font-black font-mono-tech text-white">
-                    {waterNeededMl} <span className="text-xs font-normal text-cyan-300">ml</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 block pt-1">Minum air putih segar</span>
+                  <span className="text-cyan-400 font-bold">AKURASI ATLET AKTIF ✅</span>
                 </div>
-
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 text-center space-y-1">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-400/20 text-emerald-400 flex items-center justify-center mx-auto mb-2">
-                    <Waves className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] font-mono-tech font-bold text-emerald-300 uppercase block">
-                    Estimasi Putaran
-                  </span>
-                  <div className="text-3xl font-black font-mono-tech text-white">
-                    ~{estimatedLaps} <span className="text-xs font-normal text-emerald-300">Laps</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 block pt-1">Lintasan 50 meter</span>
-                </div>
-
               </div>
 
             </div>
