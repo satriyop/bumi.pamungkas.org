@@ -1355,8 +1355,9 @@ export default function App() {
                     <Sparkles className="w-3 h-3 animate-spin" />
                     <span>PORTAL RESMI MAS BUMI</span>
                   </span>
-                  <span className="text-[10px] font-mono-tech px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-cyan-300">
-                    STATUS: READY TO SWIM 🏊‍♂️
+                  <span className="text-[10px] font-mono-tech px-2.5 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 font-bold flex items-center gap-1">
+                    <Waves className="w-3 h-3 text-cyan-400" />
+                    <span>SPESIALISASI: GAYA PUNGGUNG 🌊</span>
                   </span>
                 </div>
 
@@ -1369,7 +1370,7 @@ export default function App() {
 
                 <p className={`text-sm sm:text-base leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                   Biasa dipanggil <strong className="text-cyan-400 font-extrabold">Mas Bumi</strong> (12 tahun). 
-                  Berfokus pada kecepatan di lintasan renang, ketajaman strategi di papan <strong className="text-amber-400">Catur (Chess ♟️)</strong>, kecepatan logika di <strong className="text-emerald-400">Kumon</strong>, dan menuntut ilmu penuh berkah di <strong className="text-indigo-400">MIM Basin Klaten</strong>.
+                  Atlet renang spesialis <strong className="text-cyan-300 font-bold">Gaya Punggung (Backstroke 🌊)</strong>, berfokus pada ketajaman strategi di papan <strong className="text-amber-400">Catur (Chess ♟️)</strong>, kecepatan logika di <strong className="text-emerald-400">Kumon</strong>, dan menuntut ilmu di <strong className="text-indigo-400">MIM Basin Klaten</strong>.
                 </p>
 
                 {/* Quick Spec Pills with Original Colorful Icons */}
