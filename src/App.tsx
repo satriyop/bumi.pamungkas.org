@@ -372,7 +372,7 @@ export default function App() {
   // ==========================================
   const [workoutDuration, setWorkoutDuration] = useState(45); // minutes
   const [bodyWeight, setBodyWeight] = useState(47); // 47 kg berat badan resmi Mas Bumi
-  const [workoutStroke, setWorkoutStroke] = useState<'bebas' | 'dada' | 'punggung' | 'kupu'>('bebas');
+  const [workoutStroke, setWorkoutStroke] = useState<'bebas' | 'dada' | 'punggung' | 'kupu'>('punggung');
 
   // Scientific MET (Metabolic Equivalent of Task) values for youth swimming
   const strokeMET = {
@@ -412,13 +412,13 @@ export default function App() {
   const botResponses: { [key: string]: string } = {
     'siapa': 'Mas Bumi (Kun Bumi Pamungkas) adalah perenang muda berbakat asal Klaten, lahir 5 Juni 2014 (umur 12 tahun). Siswa MIM Basin Klaten & murid Kumon yang gemar berolahraga dan teknologi!',
     'sekolah': 'Mas Bumi bersekolah di Madrasah Ibtidaiyah Muhammadiyah (MIM) Basin di Kebonarum, Klaten. Sekolah yang hebat dengan guru ramah dan teman-teman kompak!',
-    'renang': 'Hobi utama Mas Bumi adalah renang! Mas Bumi menguasai 4 gaya renang: Gaya Bebas, Gaya Dada, Gaya Punggung, dan Gaya Kupu-kupu (Butterfly)! Kolam renang adalah arena favoritnya meluncur kencang 🏊‍♂️🦋!',
+    'renang': 'Hobi utama Mas Bumi adalah renang dengan spesialisasi Gaya Punggung (Backstroke)! Mas Bumi juga menguasai 4 gaya renang lengkap: Gaya Bebas, Gaya Dada, Gaya Punggung, dan Gaya Kupu-kupu 🏊‍♂️🌊!',
     'catur': 'Mas Bumi sangat hobi bermain Catur (Chess) ♟️! Bagi Mas Bumi, catur adalah olahraga otak yang melatih perhitungan beberapa langkah ke depan, kesabaran, taktik garpu kuda, skakmat, dan ketenangan berpikir strategis!',
-    'hobi': 'Mas Bumi punya dua hobi unggulan yang seimbang: Renang di air (melatih fisik, stamina & 4 gaya renang) 🏊‍♂️ serta Catur di darat (melatih daya taktik, strategi berpikir beberapa langkah ke depan, & fokus mental) ♟️!',
+    'hobi': 'Mas Bumi punya dua hobi unggulan yang seimbang: Renang di air (melatih fisik, stamina & 4 gaya renang dengan spesialisasi gaya punggung) 🏊‍♂️ serta Catur di darat (melatih daya taktik, strategi berpikir beberapa langkah ke depan, & fokus mental) ♟️!',
     'kupu': 'Gaya Kupu-kupu (Butterfly stroke) 🦋 adalah salah satu gaya renang paling hebat dan menantang yang dipelajari Mas Bumi! Gerakannya butuh kekuatan bahu yang tangguh, ayunan kedua tangan bersamaan ke depan, dan dolphin kick yang sangat kuat meluncur di air!',
     'kumon': 'Di Kumon, Mas Bumi melatih kemandirian, kecepatan berhitung, serta daya fokus logika matematika setiap hari tanpa bolong!',
     'klaten': 'Klaten adalah kota kelahiran Mas Bumi di Jawa Tengah yang terkenal dengan seribu mata air jernih (Umbul Ponggok, Umbul Sigedang), Candi Plaosan, dan semboyan Klaten BERSINAR!',
-    'game': 'Ada 6 game seru di website ini! Ada game petualangan menyelam Black Marlin, balapan renang 50m, hitung kilat Kumon, tebak kartu memori, kuis multi-ronde, dan asah taktik catur ♟️!'
+    'game': 'Ada 8 game seru di website ini! Ada game petualangan menyelam Black Marlin, balapan renang 50m, hitung kilat Kumon, tebak kartu memori, kuis multi-ronde, asah taktik catur ♟️, labirin laser optik 🔮, dan tetris cyber 🧱!'
   };
 
   const handleSendMessage = (textToSend?: string) => {
@@ -1519,7 +1519,7 @@ export default function App() {
                     </span>
                     <h3 className="font-black text-xl font-fun">Mas Bumi</h3>
                     <p className="text-xs text-slate-300">
-                      Spesialisasi: <strong>Gaya Bebas & Dada</strong>
+                      Spesialisasi: <strong className="text-cyan-300">Gaya Punggung (Backstroke 🌊)</strong>
                     </p>
                     <div className="flex items-center gap-1 text-[11px] text-cyan-400 font-mono-tech">
                       <MapPin className="w-3 h-3" />
@@ -1594,9 +1594,9 @@ export default function App() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-1.5 pt-4 font-mono-tech">
+                <span className="text-xs font-bold bg-cyan-400 text-slate-950 px-2.5 py-1 rounded-lg border border-cyan-300 shadow-sm shadow-cyan-400/30">Gaya Punggung 🌊 (Spesialis)</span>
                 <span className="text-xs font-bold bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg border border-cyan-400/30">Gaya Bebas</span>
                 <span className="text-xs font-bold bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg border border-cyan-400/30">Gaya Dada</span>
-                <span className="text-xs font-bold bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg border border-cyan-400/30">Gaya Punggung</span>
                 <span className="text-xs font-bold bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg border border-cyan-400/30">Gaya Kupu-kupu 🦋</span>
               </div>
             </div>
