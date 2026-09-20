@@ -46,6 +46,7 @@ import {
 import { ChessMasterArena } from './components/ChessMasterArena';
 import { LaserOpticsArena } from './components/LaserOpticsArena';
 import { TetrisCyberArena } from './components/TetrisCyberArena';
+import { ZeldaAdventureArena } from './components/ZeldaAdventureArena';
 
 // ==========================================
 // BLACK MARLIN (IKAN MARLIN HITAM) GRAPHICS
@@ -486,12 +487,14 @@ export default function App() {
   // ==========================================
   // GAME TABS & ARCADE RUNNER
   // ==========================================
-  const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz' | 'chess' | 'laser' | 'tetris'>('arcade');
+  const [activeGameTab, setActiveGameTab] = useState<'arcade' | 'swim' | 'math' | 'memory' | 'quiz' | 'chess' | 'laser' | 'tetris' | 'zelda'>('arcade');
 
   useEffect(() => {
     const checkHash = () => {
       const h = window.location.hash.toLowerCase();
-      if (h.includes('catur') || h.includes('chess')) {
+      if (h.includes('zelda') || h.includes('petualangan') || h.includes('adventure') || h.includes('rpg')) {
+        setActiveGameTab('zelda');
+      } else if (h.includes('catur') || h.includes('chess')) {
         setActiveGameTab('chess');
       } else if (h.includes('laser') || h.includes('optik')) {
         setActiveGameTab('laser');
@@ -1276,11 +1279,11 @@ export default function App() {
             </a>
             <a 
               href="#games" 
-              onClick={() => setActiveGameTab('tetris')}
-              className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-cyan-400"
+              onClick={() => setActiveGameTab('zelda')}
+              className="hover:text-emerald-400 transition-colors flex items-center gap-1 text-emerald-400 font-bold"
             >
               <Gamepad2 className="w-3.5 h-3.5" />
-              <span>8 Game & Asah Otak 🕹️</span>
+              <span>9 Game & Petualangan 🗡️</span>
             </a>
             <a href="#galeri" className="hover:text-cyan-400 transition-colors flex items-center gap-1 text-sky-400">
               <Camera className="w-3.5 h-3.5" />
@@ -1426,6 +1429,18 @@ export default function App() {
               </div>
 
               <div className="flex flex-wrap gap-3 pt-6 mt-4 border-t border-white/10">
+                <a
+                  href="#games"
+                  onClick={() => {
+                    playSound('coin');
+                    setActiveGameTab('zelda');
+                  }}
+                  className="bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 transition-all hover:scale-105 flex items-center gap-1.5 cursor-pointer ring-2 ring-emerald-400/50 animate-pulse"
+                >
+                  <Compass className="w-4 h-4 text-amber-300" />
+                  <span>🗡️ Zelda Mas Bumi RPG</span>
+                </a>
+
                 <a
                   href="#games"
                   onClick={() => {
@@ -2237,25 +2252,40 @@ export default function App() {
         </section>
 
         {/* ============================================================== */}
-        {/* ARENA 8 GAME & KUIS ARCADE MAS BUMI                           */}
+        {/* ARENA 9 GAME & PETUALANGAN MAS BUMI                           */}
         {/* ============================================================== */}
         <section id="games" className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-2">
             <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-mono-tech font-bold text-rose-400 uppercase tracking-wider mb-1">
-                <Gamepad2 className="w-4 h-4" />
-                <span>ARCADE CENTER & GAMES</span>
+              <div className="inline-flex items-center gap-1.5 text-xs font-mono-tech font-bold text-emerald-400 uppercase tracking-wider mb-1">
+                <Compass className="w-4 h-4 animate-spin" />
+                <span>ARCADE & OPEN WORLD ADVENTURE</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tight font-fun">
-                🕹️ Arena 8 Game & Kuis Mas Bumi
+                🕹️ Arena 9 Game & Petualangan Mas Bumi
               </h2>
             </div>
             <p className={`text-xs sm:text-sm max-w-md ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-              Nikmati game aksi menyelam Black Marlin, balapan renang 50m, hitung kilat Kumon, tebak kartu, kuis multi-ronde, asah taktik catur ♟️, labirin laser optik 🔮, dan tetris cyber 🧱!
+              Nikmati petualangan open-world Legenda Zelda 🗡️, aksi menyelam Black Marlin, balapan renang 50m, hitung kilat Kumon, tebak kartu, kuis multi-ronde, asah taktik catur ♟️, labirin laser optik 🔮, dan tetris cyber 🧱!
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2 p-1.5 rounded-2xl bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/40 dark:border-slate-700/60 max-w-fit">
+            <button
+              onClick={() => {
+                playSound('tech');
+                setActiveGameTab('zelda');
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                activeGameTab === 'zelda'
+                  ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 text-white shadow-md scale-102 ring-2 ring-emerald-400/50'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Compass className="w-4 h-4 text-emerald-400 animate-spin" />
+              <span>🗡️ 9. Legenda Zelda (Open World RPG) ⭐</span>
+            </button>
+
             <button
               onClick={() => {
                 playSound('tech');
@@ -2268,7 +2298,7 @@ export default function App() {
               }`}
             >
               <Zap className="w-4 h-4" />
-              <span>⚡ 1. Menyelam Black Marlin (Arcade)</span>
+              <span>⚡ 1. Menyelam Black Marlin</span>
             </button>
 
             <button
@@ -2919,6 +2949,11 @@ export default function App() {
           {/* TAB 8: TETRIS CYBER MATRIX MAS BUMI */}
           {activeGameTab === 'tetris' && (
             <TetrisCyberArena isDarkMode={isDarkMode} playSound={playSound} />
+          )}
+
+          {/* TAB 9: LEGENDA ZELDA MAS BUMI (OPEN WORLD RPG) */}
+          {activeGameTab === 'zelda' && (
+            <ZeldaAdventureArena isDarkMode={isDarkMode} playSound={playSound} />
           )}
         </section>
 
