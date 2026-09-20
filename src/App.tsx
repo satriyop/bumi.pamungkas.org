@@ -1263,6 +1263,9 @@ export default function App() {
               <span>Hobi & Renang</span>
             </a>
             <a href="#telemetri" className="hover:text-cyan-400 transition-colors">Telemetri</a>
+            <a href="#target" className="hover:text-emerald-300 transition-colors text-emerald-400 font-bold flex items-center gap-1">
+              <span>🎯 Target 50m</span>
+            </a>
             <a href="#sekolah" className="hover:text-indigo-400 transition-colors flex items-center gap-1 text-indigo-400">
               <BookOpen className="w-3.5 h-3.5" />
               <span>Sekolah & Kumon</span>
@@ -1456,6 +1459,14 @@ export default function App() {
                 >
                   <Crown className="w-4 h-4 text-amber-300" />
                   <span>Taktik Catur ♟️</span>
+                </a>
+
+                <a
+                  href="#target"
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-black px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-500/30 transition-all hover:scale-105 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trophy className="w-4 h-4 text-amber-300 animate-pulse" />
+                  <span>🎯 Target 50m Sprint</span>
                 </a>
 
                 <a
@@ -1895,6 +1906,98 @@ export default function App() {
                 </div>
               </div>
 
+            </div>
+          </div>
+        </section>
+
+        {/* ============================================================== */}
+        {/* SECTION: TARGET SPRINT 50M MUSIM INI                          */}
+        {/* ============================================================== */}
+        <section id="target" className="space-y-6">
+          <div className={`rounded-3xl p-6 sm:p-9 border-2 transition-all relative overflow-hidden shadow-2xl ${
+            isDarkMode 
+              ? 'bg-gradient-to-br from-[#071d37] via-[#0d284a] to-[#05162a] border-emerald-500/40 shadow-emerald-950/50' 
+              : 'bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 border-emerald-300 shadow-emerald-100'
+          }`}>
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+            <div className="relative z-10 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/10 dark:border-white/10 pb-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-400/40 text-xs font-black font-mono-tech uppercase tracking-wider mb-2">
+                    <Trophy className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                    <span>TARGET SPRINT 50M KU-12 RENANG</span>
+                  </div>
+                  <h2 className="text-2xl sm:text-4xl font-black font-fun tracking-tight">
+                    🎯 Target Waktu Sprint 50 Meter Mas Bumi
+                  </h2>
+                  <p className={`text-xs sm:text-sm mt-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                    Target waktu resmi musim ini untuk menembus batas kecepatan di kolam lintasan 50 meter!
+                  </p>
+                </div>
+                <div className="px-4 py-2 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 font-mono-tech text-xs font-bold self-start md:self-auto">
+                  🏊‍♂️ Spesialisasi: <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>Gaya Punggung 🌊</strong>
+                </div>
+              </div>
+
+              {/* 4 Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-mono-tech">
+                {/* Bebas */}
+                <div className={`p-5 rounded-2xl border transition-all hover:scale-102 space-y-2 ${
+                  isDarkMode ? 'bg-slate-900/80 border-cyan-500/30 hover:border-cyan-400' : 'bg-white/90 border-cyan-200 shadow-md'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400 font-bold uppercase">Gaya Bebas 🏊‍♂️</span>
+                    <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-black">50M</span>
+                  </div>
+                  <div className={`text-4xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    31 <span className="text-sm font-normal text-emerald-400">detik</span>
+                  </div>
+                  <p className={`text-[11px] font-sans ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Sprint kayuhan cepat dan pernapasan stabil.</p>
+                </div>
+
+                {/* Dada */}
+                <div className={`p-5 rounded-2xl border transition-all hover:scale-102 space-y-2 ${
+                  isDarkMode ? 'bg-slate-900/80 border-emerald-500/30 hover:border-emerald-400' : 'bg-white/90 border-emerald-200 shadow-md'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400 font-bold uppercase">Gaya Dada 🐸</span>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-black">50M</span>
+                  </div>
+                  <div className={`text-4xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    43 <span className="text-sm font-normal text-emerald-400">detik</span>
+                  </div>
+                  <p className={`text-[11px] font-sans ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Dorongan tendangan kaki kodok yang kuat & meluncur.</p>
+                </div>
+
+                {/* Punggung */}
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/90 via-blue-950/90 to-slate-900/90 border-2 border-cyan-400 shadow-lg shadow-cyan-500/30 hover:scale-105 transition-all space-y-2 relative overflow-hidden">
+                  <div className="absolute top-2 right-2 text-[10px] bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full font-black flex items-center gap-1 shadow-md">
+                    <Star className="w-2.5 h-2.5 fill-current" />
+                    <span>SPESIALIS ⭐</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-cyan-300 font-black uppercase">Gaya Punggung 🌊</span>
+                  </div>
+                  <div className="text-4xl font-black text-cyan-300 drop-shadow-[0_0_15px_rgba(6,182,212,0.6)]">
+                    36 <span className="text-sm font-normal text-white">detik</span>
+                  </div>
+                  <p className="text-[11px] text-cyan-200 font-sans">Gaya andalan Mas Bumi dengan putaran bahu presisi!</p>
+                </div>
+
+                {/* Kupu-kupu */}
+                <div className={`p-5 rounded-2xl border transition-all hover:scale-102 space-y-2 ${
+                  isDarkMode ? 'bg-slate-900/80 border-purple-500/30 hover:border-purple-400' : 'bg-white/90 border-purple-200 shadow-md'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400 font-bold uppercase">Gaya Kupu 🦋</span>
+                    <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded font-black">50M</span>
+                  </div>
+                  <div className={`text-4xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    34 <span className="text-sm font-normal text-emerald-400">detik</span>
+                  </div>
+                  <p className={`text-[11px] font-sans ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Dolphin kick eksplosif dan ayunan tangan serentak.</p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
