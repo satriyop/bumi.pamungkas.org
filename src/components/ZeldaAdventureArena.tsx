@@ -10,9 +10,13 @@ import {
   Flame, 
   Crosshair, 
   Zap, 
-  Volume2,
-  VolumeX,
-  Compass
+  Volume2, 
+  VolumeX, 
+  Compass,
+  Bomb,
+  Wind,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 // World dimensions
@@ -25,23 +29,29 @@ interface Player {
   vx: number;
   vy: number;
   facing: number; // angle in radians
-  hearts: number;
+  hearts: number; // in quarters (e.g. 20 = 5 full hearts)
   maxHearts: number;
-  stamina: number;
+  bonusHearts: number;
+  stamina: number; // 0..100
   maxStamina: number;
   isAttacking: boolean;
   attackTimer: number;
+  chargeTimer: number; // for Spin Attack
+  isSpinAttacking: boolean;
+  spinTimer: number;
   isBlocking: boolean;
+  parryWindow: number; // frames where parry is active
   isAiming: boolean;
-  aimPower: number;
   isDashing: boolean;
   dashTimer: number;
+  isGliding: boolean;
   invulnerableTimer: number;
   apples: number;
   meat: number;
-  cookedMeat: number;
+  cookedMeals: { name: string; type: 'heal' | 'stamina' | 'attack'; bonus: number }[];
   arrows: number;
   rupees: number;
+  korokSeeds: number;
 }
 
 interface Projectile {
@@ -58,7 +68,7 @@ interface Projectile {
 
 interface Enemy {
   id: string;
-  type: 'slime' | 'bokoblin' | 'archer' | 'moblin' | 'guardian_boss';
+  type: 'chuchu' | 'bokoblin' | 'archer' | 'moblin' | 'guardian_stalker';
   name: string;
   x: number;
   y: number;
@@ -70,10 +80,12 @@ interface Enemy {
   attackCooldown: number;
   attackWindup: number;
   isAttacking: boolean;
-  state: 'patrol' | 'chase' | 'attack' | 'hurt';
+  state: 'patrol' | 'chase' | 'attack' | 'stunned';
   patrolTarget: { x: number; y: number };
   laserChargeTimer?: number;
   targetAngle?: number;
+  stunTimer?: number;
+  legCycle?: number;
 }
 
 interface Animal {
@@ -92,6 +104,40 @@ interface TreeItem {
   x: number;
   y: number;
   hasApples: boolean;
+  chopped: boolean;
+}
+
+interface GrassTuft {
+  id: string;
+  x: number;
+  y: number;
+  cut: boolean;
+  respawnTimer: number;
+}
+
+interface ClayPot {
+  id: string;
+  x: number;
+  y: number;
+  broken: boolean;
+  respawnTimer: number;
+}
+
+interface KorokSpot {
+  id: string;
+  x: number;
+  y: number;
+  found: boolean;
+  prompt: string;
+  popupTimer: number;
+}
+
+interface RemoteBombItem {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  pulseTimer: number;
 }
 
 interface Particle {
@@ -107,7 +153,7 @@ interface Particle {
 
 interface DroppedItem {
   id: string;
-  type: 'apple' | 'meat' | 'arrow' | 'rupee' | 'heart';
+  type: 'green_rupee' | 'blue_rupee' | 'red_rupee' | 'apple' | 'meat' | 'arrow' | 'fairy' | 'ancient_core';
   x: number;
   y: number;
   life: number;
@@ -123,44 +169,75 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
   const [gameState, setGameState] = useState<'intro' | 'playing' | 'gameover' | 'victory'>('intro');
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Player state
+  // Time of day (0..1: 0 = dawn, 0.25 = noon, 0.5 = sunset, 0.75 = night)
+  const timeOfDayRef = useRef(0.25);
+  const [currentTimePhase, setCurrentTimePhase] = useState<'Pagi' | 'Siang' | 'Senja' | 'Malam'>('Siang');
+
+  // Flurry Rush (Bullet Time) State
+  const flurryRushTimerRef = useRef(0);
+  const [flurryActive, setFlurryActive] = useState(false);
+
+  // Cooking Modal State
+  const [cookingModal, setCookingModal] = useState<{
+    isOpen: boolean;
+    stage: 'cooking' | 'ready';
+    dishName: string;
+    dishDesc: string;
+    icon: string;
+  } | null>(null);
+
+  // Player state (Master Link / Mas Bumi)
   const playerRef = useRef<Player>({
-    x: 400,
-    y: 400,
+    x: 520,
+    y: 520,
     vx: 0,
     vy: 0,
     facing: 0,
-    hearts: 5,
-    maxHearts: 5,
+    hearts: 20, // 5 full hearts (4 quarters each)
+    maxHearts: 20,
+    bonusHearts: 0,
     stamina: 100,
     maxStamina: 100,
     isAttacking: false,
     attackTimer: 0,
+    chargeTimer: 0,
+    isSpinAttacking: false,
+    spinTimer: 0,
     isBlocking: false,
+    parryWindow: 0,
     isAiming: false,
-    aimPower: 0,
     isDashing: false,
     dashTimer: 0,
+    isGliding: false,
     invulnerableTimer: 0,
-    apples: 3,
-    meat: 1,
-    cookedMeat: 0,
-    arrows: 20,
-    rupees: 50
+    apples: 5,
+    meat: 2,
+    cookedMeals: [
+      { name: 'Hearty Meat Skewer', type: 'heal', bonus: 8 }
+    ],
+    arrows: 25,
+    rupees: 100,
+    korokSeeds: 0
   });
 
   // UI Mirror of Player
   const [hudStats, setHudStats] = useState({
-    hearts: 5,
-    maxHearts: 5,
+    hearts: 20,
+    maxHearts: 20,
+    bonusHearts: 0,
     stamina: 100,
-    apples: 3,
-    cookedMeat: 0,
-    arrows: 20,
-    rupees: 50,
+    apples: 5,
+    meat: 2,
+    mealsCount: 1,
+    arrows: 25,
+    rupees: 100,
+    korokSeeds: 0,
     bossHp: 0,
     bossMaxHp: 800,
     nearCampfire: false,
+    nearCookingPot: false,
+    nearKorok: null as KorokSpot | null,
+    hasBombActive: false,
     message: null as string | null
   });
 
@@ -168,124 +245,356 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
   const enemiesRef = useRef<Enemy[]>([]);
   const animalsRef = useRef<Animal[]>([]);
   const treesRef = useRef<TreeItem[]>([]);
+  const grassRef = useRef<GrassTuft[]>([]);
+  const potsRef = useRef<ClayPot[]>([]);
+  const koroksRef = useRef<KorokSpot[]>([]);
+  const activeBombRef = useRef<RemoteBombItem | null>(null);
   const projectilesRef = useRef<Projectile[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const dropsRef = useRef<DroppedItem[]>([]);
 
   // Input states
   const keysRef = useRef<{ [key: string]: boolean }>({});
-  const mousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const touchDpadRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
 
-  // Web Audio Synthesizer
+  // Web Audio Synthesizer for Authentic Zelda Sfx
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const playSfx = useCallback((type: 'slash' | 'arrow' | 'parry' | 'hit' | 'laser' | 'cook' | 'boss_roar' | 'victory') => {
+
+  const getAudioCtx = useCallback(() => {
+    if (!audioCtxRef.current) {
+      const AudioClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      audioCtxRef.current = new AudioClass();
+    }
+    if (audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
+    return audioCtxRef.current;
+  }, []);
+
+  const playZeldaSfx = useCallback((type: 
+    'slash' | 'spin' | 'arrow' | 'parry' | 'hit' | 'flurry_warp' | 
+    'bomb_drop' | 'bomb_explode' | 'guardian_beep' | 'guardian_laser' | 
+    'cook_jingle' | 'cook_success' | 'secret_chime' | 'korok_yahaha' | 
+    'rupee_get' | 'fairy_heal' | 'glide_wind' | 'victory'
+  ) => {
     if (!soundEnabled) return;
     try {
-      if (!audioCtxRef.current) {
-        const AudioClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        audioCtxRef.current = new AudioClass();
+      if (playSound) {
+        if (type === 'rupee_get') playSound('coin');
+        else if (type === 'hit') playSound('hit');
+        else if (type === 'secret_chime') playSound('tech');
       }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === 'suspended') ctx.resume();
 
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+      const ctx = getAudioCtx();
+      const now = ctx.currentTime;
 
       if (type === 'slash') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(450, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.12);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.12);
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.1);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
+      } else if (type === 'spin') {
+        // 360 degree wind whoosh
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.linearRampToValueAtTime(800, now + 0.15);
+        osc.frequency.exponentialRampToValueAtTime(150, now + 0.35);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.35);
       } else if (type === 'arrow') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(600, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.08);
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.08);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.08);
+        osc.frequency.setValueAtTime(650, now);
+        osc.frequency.exponentialRampToValueAtTime(900, now + 0.08);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.08);
       } else if (type === 'parry') {
-        // Bright bell chime
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1046, ctx.currentTime);
-        osc.frequency.setValueAtTime(1318, ctx.currentTime + 0.06);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.35);
+        // Metallic clink + bright bell
+        [1760, 2200, 880].forEach((freq) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.005, now + 0.45);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.45);
+        });
       } else if (type === 'hit') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
         osc.type = 'square';
-        osc.frequency.setValueAtTime(150, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(60, ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.15);
-      } else if (type === 'laser') {
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.linearRampToValueAtTime(50, now + 0.12);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      } else if (type === 'flurry_warp') {
+        // Bullet time slow-down pitch drop
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
         osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.4);
-        gain.gain.setValueAtTime(0.35, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
-      } else if (type === 'cook') {
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(90, now + 0.4);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      } else if (type === 'bomb_drop') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(523, ctx.currentTime);
-        osc.frequency.setValueAtTime(659, ctx.currentTime + 0.1);
-        osc.frequency.setValueAtTime(783, ctx.currentTime + 0.2);
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(120, now + 0.15);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      } else if (type === 'bomb_explode') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.5);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      } else if (type === 'guardian_beep') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(950, now);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.05);
+      } else if (type === 'guardian_laser') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1100, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.4);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      } else if (type === 'secret_chime') {
+        // Authentic 8-note rising Zelda secret sound!
+        // G5, G#5, A5, A#5, B5, C6, C#6, D6
+        const notes = [784, 830, 880, 932, 988, 1046, 1108, 1174];
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+          gain.gain.setValueAtTime(0.25, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.005, now + idx * 0.08 + 0.2);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.2);
+        });
+      } else if (type === 'korok_yahaha') {
+        // Two cute high chimes + chirp
+        [1318, 1568].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+          gain.gain.setValueAtTime(0.25, now + idx * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.1 + 0.18);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.1);
+          osc.stop(now + idx * 0.1 + 0.18);
+        });
+      } else if (type === 'cook_jingle') {
+        // Zelda cooking pot bouncy marimba
+        const cookNotes = [523, 659, 587, 783, 659];
+        cookNotes.forEach((f, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(f, now + i * 0.12);
+          gain.gain.setValueAtTime(0.25, now + i * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.15);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + i * 0.12);
+          osc.stop(now + i * 0.12 + 0.15);
+        });
+      } else if (type === 'cook_success') {
+        // Item discovery fanfare (Da-na-na-NAAAA!)
+        const fanfare = [523, 659, 783, 1046];
+        fanfare.forEach((f, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          const t = now + i * 0.15;
+          osc.frequency.setValueAtTime(f, t);
+          gain.gain.setValueAtTime(0.3, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + (i === 3 ? 0.6 : 0.2));
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + (i === 3 ? 0.6 : 0.2));
+        });
+      } else if (type === 'rupee_get') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.setValueAtTime(1600, now + 0.05);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      } else if (type === 'fairy_heal') {
+        [880, 1100, 1320, 1760].forEach((f, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          const t = now + i * 0.08;
+          osc.frequency.setValueAtTime(f, t);
+          gain.gain.setValueAtTime(0.2, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.25);
+        });
+      } else if (type === 'glide_wind') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(180, now);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
       } else if (type === 'victory') {
         // Grand fanfare
-        const now = ctx.currentTime;
-        [523, 659, 783, 1046].forEach((f, idx) => {
+        [523, 659, 783, 1046, 1318].forEach((f, idx) => {
           const o = ctx.createOscillator();
           const g = ctx.createGain();
           o.type = 'triangle';
-          o.frequency.setValueAtTime(f, now + idx * 0.15);
-          g.gain.setValueAtTime(0.3, now + idx * 0.15);
-          g.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.15 + 0.35);
+          const t = now + idx * 0.16;
+          o.frequency.setValueAtTime(f, t);
+          g.gain.setValueAtTime(0.35, t);
+          g.gain.exponentialRampToValueAtTime(0.01, t + 0.45);
           o.connect(g);
           g.connect(ctx.destination);
-          o.start(now + idx * 0.15);
-          o.stop(now + idx * 0.15 + 0.35);
+          o.start(t);
+          o.stop(t + 0.45);
         });
       }
     } catch {
       // Audio fallback
     }
-  }, [soundEnabled]);
+  }, [soundEnabled, getAudioCtx]);
 
-  // Spawn initial world entities
+  // Initialize Zelda World (Biome, Enemies, Items, Koroks, Pots, Grass)
   const initWorld = useCallback(() => {
     // 1. Trees
     const trees: TreeItem[] = [];
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 70; i++) {
       trees.push({
         id: `tree_${i}`,
-        x: Math.random() * (WORLD_W - 200) + 100,
-        y: Math.random() * (WORLD_H - 200) + 100,
-        hasApples: Math.random() > 0.4
+        x: Math.random() * (WORLD_W - 240) + 120,
+        y: Math.random() * (WORLD_H - 240) + 120,
+        hasApples: Math.random() > 0.35,
+        chopped: false
       });
     }
     treesRef.current = trees;
 
-    // 2. Animals
+    // 2. Interactive Grass Tufts (Rumput Ilalang yang bisa ditebas)
+    const grass: GrassTuft[] = [];
+    for (let i = 0; i < 120; i++) {
+      grass.push({
+        id: `grass_${i}`,
+        x: Math.random() * (WORLD_W - 200) + 100,
+        y: Math.random() * (WORLD_H - 200) + 100,
+        cut: false,
+        respawnTimer: 0
+      });
+    }
+    grassRef.current = grass;
+
+    // 3. Ceramic Clay Pots (Kendi Tanah Liat di Kuil & Perkemahan)
+    const pots: ClayPot[] = [];
+    const potLocations = [
+      { x: 530, y: 470 }, { x: 550, y: 475 }, { x: 470, y: 530 },
+      { x: 2040, y: 2040 }, { x: 2070, y: 2040 }, { x: 2320, y: 2050 },
+      { x: 2050, y: 2330 }, { x: 2330, y: 2330 }, { x: 1350, y: 550 },
+      { x: 1380, y: 570 }, { x: 600, y: 1450 }
+    ];
+    potLocations.forEach((pos, idx) => {
+      pots.push({
+        id: `pot_${idx}`,
+        x: pos.x,
+        y: pos.y,
+        broken: false,
+        respawnTimer: 0
+      });
+    });
+    potsRef.current = pots;
+
+    // 4. Hidden Korok Puzzle Locations ("Yahaha! You found me!")
+    const koroks: KorokSpot[] = [
+      { id: 'korok_1', x: 280, y: 280, found: false, prompt: '🌿 Angkat Batu Mencurigakan', popupTimer: 0 },
+      { id: 'korok_2', x: 1750, y: 350, found: false, prompt: '🌸 Periksa Lingkaran Bunga Hutan', popupTimer: 0 },
+      { id: 'korok_3', x: 450, y: 1850, found: false, prompt: '💧 Selam Mata Air Danau Klaten', popupTimer: 0 },
+      { id: 'korok_4', x: 1850, y: 1550, found: false, prompt: '⛰️ Daki Puncak Ngarai Bebatuan', popupTimer: 0 }
+    ];
+    koroksRef.current = koroks;
+
+    // 5. Animals (Deer & Rabbits)
     const animals: Animal[] = [];
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 18; i++) {
       animals.push({
         id: `animal_${i}`,
         type: i % 2 === 0 ? 'rabbit' : 'deer',
-        x: Math.random() * 1000 + 200,
-        y: Math.random() * 1000 + 200,
+        x: Math.random() * 1100 + 150,
+        y: Math.random() * 1100 + 150,
         vx: 0,
         vy: 0,
         hp: i % 2 === 0 ? 15 : 35,
@@ -294,22 +603,22 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     }
     animalsRef.current = animals;
 
-    // 3. Enemies
+    // 6. Enemies (Chuchu, Bokoblin, Archer, Moblin, Guardian Stalker)
     const enemies: Enemy[] = [];
 
-    // Slimes in Plains (0..1200, 0..1200)
-    for (let i = 0; i < 8; i++) {
+    // Chuchu Slimes (Plains)
+    for (let i = 0; i < 7; i++) {
       enemies.push({
-        id: `slime_${i}`,
-        type: 'slime',
-        name: 'Slime Lembah',
+        id: `chuchu_${i}`,
+        type: 'chuchu',
+        name: 'Chuchu Hijau',
         x: Math.random() * 800 + 200,
         y: Math.random() * 800 + 200,
         vx: 0,
         vy: 0,
-        hp: 30,
-        maxHp: 30,
-        speed: 1.2,
+        hp: 25,
+        maxHp: 25,
+        speed: 1.1,
         attackCooldown: 0,
         attackWindup: 0,
         isAttacking: false,
@@ -318,27 +627,28 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       });
     }
 
-    // Bokoblins & Archers in Forest (1200..2400, 0..1200)
+    // Bokoblin Scouts in Forest
     for (let i = 0; i < 6; i++) {
       enemies.push({
         id: `boko_${i}`,
         type: 'bokoblin',
-        name: 'Bokoblin Scout',
-        x: Math.random() * 900 + 1300,
-        y: Math.random() * 900 + 200,
+        name: 'Bokoblin Merah',
+        x: Math.random() * 800 + 1300,
+        y: Math.random() * 800 + 200,
         vx: 0,
         vy: 0,
-        hp: 55,
-        maxHp: 55,
+        hp: 50,
+        maxHp: 50,
         speed: 1.8,
         attackCooldown: 0,
         attackWindup: 0,
         isAttacking: false,
         state: 'patrol',
-        patrolTarget: { x: Math.random() * 900 + 1300, y: Math.random() * 900 + 200 }
+        patrolTarget: { x: Math.random() * 800 + 1300, y: Math.random() * 800 + 200 }
       });
     }
 
+    // Skeleton Archers
     for (let i = 0; i < 5; i++) {
       enemies.push({
         id: `archer_${i}`,
@@ -348,9 +658,9 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         y: Math.random() * 800 + 300,
         vx: 0,
         vy: 0,
-        hp: 60,
-        maxHp: 60,
-        speed: 1.5,
+        hp: 45,
+        maxHp: 45,
+        speed: 1.4,
         attackCooldown: 0,
         attackWindup: 0,
         isAttacking: false,
@@ -359,251 +669,486 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       });
     }
 
-    // Moblins in Canyon (1200..2000, 1200..2000)
+    // Moblin Berserker in Canyon
     for (let i = 0; i < 4; i++) {
       enemies.push({
         id: `moblin_${i}`,
         type: 'moblin',
-        name: 'Dark Moblin Berserker',
-        x: Math.random() * 700 + 1300,
-        y: Math.random() * 700 + 1300,
+        name: 'Moblin Berserker',
+        x: Math.random() * 800 + 1300,
+        y: Math.random() * 800 + 1300,
         vx: 0,
         vy: 0,
-        hp: 160,
-        maxHp: 160,
-        speed: 1.4,
+        hp: 130,
+        maxHp: 130,
+        speed: 1.5,
         attackCooldown: 0,
         attackWindup: 0,
         isAttacking: false,
         state: 'patrol',
-        patrolTarget: { x: Math.random() * 700 + 1300, y: Math.random() * 700 + 1300 }
+        patrolTarget: { x: Math.random() * 800 + 1300, y: Math.random() * 800 + 1300 }
       });
     }
 
-    // BOSS: Ancient Guardian Leviathan at Ancient Temple (2150, 2150)
+    // ANCIENT GUARDIAN STALKER (BOSS UTAMA DI KUIL KUNO)
     enemies.push({
       id: 'guardian_boss',
-      type: 'guardian_boss',
-      name: 'Ancient Guardian Leviathan (BOSS)',
-      x: 2150,
-      y: 2150,
+      type: 'guardian_stalker',
+      name: 'Ancient Guardian Leviathan',
+      x: 2180,
+      y: 2180,
       vx: 0,
       vy: 0,
       hp: 800,
       maxHp: 800,
-      speed: 1.1,
-      attackCooldown: 60,
+      speed: 1.6,
+      attackCooldown: 0,
       attackWindup: 0,
       isAttacking: false,
       state: 'patrol',
-      patrolTarget: { x: 2150, y: 2150 },
+      patrolTarget: { x: 2180, y: 2180 },
       laserChargeTimer: 0,
-      targetAngle: 0
+      targetAngle: 0,
+      stunTimer: 0,
+      legCycle: 0
     });
 
     enemiesRef.current = enemies;
     projectilesRef.current = [];
     particlesRef.current = [];
     dropsRef.current = [];
+    activeBombRef.current = null;
+  }, []);
 
-    // Reset player
+  // Start / Restart Game
+  const handleStartGame = () => {
     playerRef.current = {
-      x: 450,
-      y: 450,
+      x: 520,
+      y: 520,
       vx: 0,
       vy: 0,
       facing: 0,
-      hearts: 5,
-      maxHearts: 5,
+      hearts: 20,
+      maxHearts: 20,
+      bonusHearts: 0,
       stamina: 100,
       maxStamina: 100,
       isAttacking: false,
       attackTimer: 0,
+      chargeTimer: 0,
+      isSpinAttacking: false,
+      spinTimer: 0,
       isBlocking: false,
+      parryWindow: 0,
       isAiming: false,
-      aimPower: 0,
       isDashing: false,
       dashTimer: 0,
+      isGliding: false,
       invulnerableTimer: 0,
-      apples: 3,
-      meat: 1,
-      cookedMeat: 0,
+      apples: 5,
+      meat: 2,
+      cookedMeals: [
+        { name: 'Hearty Meat Skewer', type: 'heal', bonus: 8 }
+      ],
       arrows: 25,
-      rupees: 50
+      rupees: 100,
+      korokSeeds: 0
     };
-  }, []);
-
-  // Start game handler
-  const handleStartGame = () => {
     initWorld();
     setGameState('playing');
-    playSound?.('coin');
-    playSfx('cook');
+    playZeldaSfx('secret_chime');
   };
 
-  // Player action: Sword Slash
-  const handleAttack = useCallback(() => {
+  // Combat Handlers
+  const handleAttack = () => {
     const p = playerRef.current;
-    if (p.isAttacking || p.isDashing || p.isAiming) return;
+    if (p.isAttacking || p.isDashing || p.isGliding) return;
 
     p.isAttacking = true;
     p.attackTimer = 16;
-    playSfx('slash');
+    playZeldaSfx('slash');
 
-    // Create sword slash arc particles
-    const arcDist = 48;
-    const arcX = p.x + Math.cos(p.facing) * arcDist;
-    const arcY = p.y + Math.sin(p.facing) * arcDist;
+    // Check hit against grass, pots, enemies, animals
+    checkPlayerMeleeHits(p, false);
+  };
 
-    for (let i = 0; i < 8; i++) {
-      particlesRef.current.push({
-        x: arcX + (Math.random() - 0.5) * 20,
-        y: arcY + (Math.random() - 0.5) * 20,
-        vx: Math.cos(p.facing + (Math.random() - 0.5)) * 4,
-        vy: Math.sin(p.facing + (Math.random() - 0.5)) * 4,
-        color: '#38bdf8',
-        size: 3,
-        life: 12,
-        maxLife: 12
-      });
-    }
+  // Spin Attack (Tebasan Putar 360 derajat)
+  const handleSpinAttack = () => {
+    const p = playerRef.current;
+    if (p.stamina < 25) return;
+    p.stamina = Math.max(0, p.stamina - 25);
+    p.isSpinAttacking = true;
+    p.spinTimer = 22;
+    playZeldaSfx('spin');
 
-    // Check hit against enemies
-    enemiesRef.current.forEach(enemy => {
-      const dist = Math.hypot(enemy.x - p.x, enemy.y - p.y);
-      if (dist < 70) {
-        const angleToEnemy = Math.atan2(enemy.y - p.y, enemy.x - p.x);
-        let angleDiff = Math.abs(angleToEnemy - p.facing);
-        if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+    // 360 degree hit
+    checkPlayerMeleeHits(p, true);
+  };
 
-        if (angleDiff < Math.PI / 2.2) {
-          // Hit!
-          const dmg = 30;
-          enemy.hp -= dmg;
-          enemy.state = 'hurt';
-          enemy.vx += Math.cos(p.facing) * 5;
-          enemy.vy += Math.sin(p.facing) * 5;
-          playSfx('hit');
+  // Melee Hit Detection
+  const checkPlayerMeleeHits = (p: Player, isSpin: boolean) => {
+    const hitRadius = isSpin ? 75 : 55;
+    const hitDamage = isSpin ? 45 : 24;
 
-          // Blood / spark particles
-          for (let k = 0; k < 6; k++) {
-            particlesRef.current.push({
-              x: enemy.x,
-              y: enemy.y,
-              vx: (Math.random() - 0.5) * 6,
-              vy: (Math.random() - 0.5) * 6,
-              color: '#f43f5e',
-              size: 4,
-              life: 14,
-              maxLife: 14
+    // Cut Grass
+    grassRef.current.forEach(g => {
+      if (!g.cut) {
+        const d = Math.hypot(g.x - p.x, g.y - p.y);
+        if (d < hitRadius) {
+          g.cut = true;
+          g.respawnTimer = 600; // 10 seconds
+          // Grass drop: rupee, arrows, or fairy!
+          const roll = Math.random();
+          if (roll < 0.35) {
+            dropsRef.current.push({
+              id: `drop_${Date.now()}_${Math.random()}`,
+              type: roll < 0.2 ? 'green_rupee' : roll < 0.32 ? 'blue_rupee' : 'red_rupee',
+              x: g.x,
+              y: g.y,
+              life: 400
+            });
+          } else if (roll > 0.94) {
+            // Rare Healing Fairy!
+            dropsRef.current.push({
+              id: `fairy_${Date.now()}`,
+              type: 'fairy',
+              x: g.x,
+              y: g.y,
+              life: 500
             });
           }
         }
       }
     });
 
-    // Check hit against trees (shake apples)
-    treesRef.current.forEach(t => {
-      const dist = Math.hypot(t.x - p.x, t.y - p.y);
-      if (dist < 60 && t.hasApples) {
-        t.hasApples = false;
-        dropsRef.current.push({
-          id: `apple_${Date.now()}`,
-          type: 'apple',
-          x: t.x + (Math.random() - 0.5) * 30,
-          y: t.y + (Math.random() - 0.5) * 30,
-          life: 600
-        });
+    // Smash Clay Pots
+    potsRef.current.forEach(pot => {
+      if (!pot.broken) {
+        const d = Math.hypot(pot.x - p.x, pot.y - p.y);
+        if (d < hitRadius) {
+          pot.broken = true;
+          pot.respawnTimer = 800;
+          playZeldaSfx('hit');
+          // Spawn clay particles
+          for (let k = 0; k < 8; k++) {
+            particlesRef.current.push({
+              x: pot.x,
+              y: pot.y,
+              vx: (Math.random() - 0.5) * 4,
+              vy: (Math.random() - 0.5) * 4,
+              color: '#d97706',
+              size: 4,
+              life: 25,
+              maxLife: 25
+            });
+          }
+          // Drop rupees / arrows
+          dropsRef.current.push({
+            id: `potdrop_${Date.now()}_${Math.random()}`,
+            type: Math.random() > 0.5 ? 'blue_rupee' : 'arrow',
+            x: pot.x,
+            y: pot.y,
+            life: 450
+          });
+        }
       }
     });
 
-    // Check hit against animals (hunting)
-    animalsRef.current.forEach(animal => {
-      const dist = Math.hypot(animal.x - p.x, animal.y - p.y);
-      if (dist < 60) {
-        animal.hp -= 35;
-        playSfx('hit');
+    // Hit Enemies
+    enemiesRef.current.forEach(e => {
+      const d = Math.hypot(e.x - p.x, e.y - p.y);
+      let canHit = false;
+      if (isSpin) {
+        canHit = d < hitRadius + 20;
+      } else {
+        const angleToEnemy = Math.atan2(e.y - p.y, e.x - p.x);
+        let diff = Math.abs(angleToEnemy - p.facing);
+        if (diff > Math.PI) diff = Math.PI * 2 - diff;
+        canHit = d < hitRadius + 15 && diff < 1.1;
+      }
+
+      if (canHit) {
+        e.hp -= hitDamage;
+        playZeldaSfx('hit');
+
+        // Knockback
+        const pushAngle = Math.atan2(e.y - p.y, e.x - p.x);
+        e.vx += Math.cos(pushAngle) * (isSpin ? 7 : 4);
+        e.vy += Math.sin(pushAngle) * (isSpin ? 7 : 4);
+
+        // Blood / Spark Particles
+        for (let k = 0; k < 6; k++) {
+          particlesRef.current.push({
+            x: e.x,
+            y: e.y,
+            vx: (Math.random() - 0.5) * 5,
+            vy: (Math.random() - 0.5) * 5,
+            color: '#38bdf8',
+            size: 3,
+            life: 20,
+            maxLife: 20
+          });
+        }
       }
     });
-  }, [playSfx]);
 
-  // Player action: Shoot Bow & Arrow
-  const handleShootArrow = useCallback(() => {
+    // Hit Animals (Hunting)
+    animalsRef.current.forEach(a => {
+      const d = Math.hypot(a.x - p.x, a.y - p.y);
+      if (d < hitRadius) {
+        a.hp -= hitDamage;
+        playZeldaSfx('hit');
+        if (a.hp <= 0) {
+          dropsRef.current.push({
+            id: `meat_${Date.now()}`,
+            type: 'meat',
+            x: a.x,
+            y: a.y,
+            life: 600
+          });
+        }
+      }
+    });
+  };
+
+  // Shoot Bow & Arrow
+  const handleShootArrow = () => {
     const p = playerRef.current;
-    if (p.arrows <= 0 || p.isDashing) return;
+    if (p.arrows <= 0 || p.isGliding) return;
 
-    p.arrows -= 1;
-    playSfx('arrow');
+    p.arrows--;
+    playZeldaSfx('arrow');
 
-    const arrowSpeed = 11;
+    const speed = 12;
     projectilesRef.current.push({
       id: `arrow_${Date.now()}_${Math.random()}`,
-      x: p.x,
-      y: p.y,
-      vx: Math.cos(p.facing) * arrowSpeed,
-      vy: Math.sin(p.facing) * arrowSpeed,
+      x: p.x + Math.cos(p.facing) * 16,
+      y: p.y + Math.sin(p.facing) * 16,
+      vx: Math.cos(p.facing) * speed,
+      vy: Math.sin(p.facing) * speed,
       fromPlayer: true,
-      damage: 40,
-      life: 80
+      damage: 32,
+      life: 70
     });
-  }, [playSfx]);
+  };
 
-  // Player action: Dash Roll
-  const handleDash = useCallback(() => {
+  // Dash / Dodge Roll (with Flurry Rush Trigger!)
+  const handleDash = () => {
     const p = playerRef.current;
-    if (p.isDashing || p.stamina < 25) return;
+    if (p.isDashing || p.stamina < 15 || p.isGliding) return;
 
-    p.stamina -= 25;
+    p.stamina = Math.max(0, p.stamina - 15);
     p.isDashing = true;
-    p.dashTimer = 14;
-    p.invulnerableTimer = 18;
+    p.dashTimer = 16;
+    p.invulnerableTimer = 16;
+    playZeldaSfx('slash');
 
-    // Dash burst velocity
-    const dashSpeed = 9;
-    p.vx = Math.cos(p.facing) * dashSpeed;
-    p.vy = Math.sin(p.facing) * dashSpeed;
+    // Move in facing direction
+    p.vx = Math.cos(p.facing) * 9;
+    p.vy = Math.sin(p.facing) * 9;
 
-    for (let i = 0; i < 10; i++) {
-      particlesRef.current.push({
-        x: p.x,
-        y: p.y,
-        vx: (Math.random() - 0.5) * 3,
-        vy: (Math.random() - 0.5) * 3,
-        color: '#10b981',
-        size: 3,
-        life: 12,
-        maxLife: 12
+    // Check if dodging during enemy attack windup => TRIGGER FLURRY RUSH!
+    const nearAttackingEnemy = enemiesRef.current.some(e => {
+      const d = Math.hypot(e.x - p.x, e.y - p.y);
+      return d < 120 && (e.attackWindup > 0 || (e.laserChargeTimer && e.laserChargeTimer > 0));
+    });
+
+    if (nearAttackingEnemy && flurryRushTimerRef.current <= 0) {
+      flurryRushTimerRef.current = 90; // 1.5s real-time
+      setFlurryActive(true);
+      playZeldaSfx('flurry_warp');
+      setHudStats(prev => ({ ...prev, message: '⚡ FLURRY RUSH! TEKAN TEBAS SECEPATNYA!' }));
+    }
+  };
+
+  // Shield Parry
+  const handleShieldDown = () => {
+    const p = playerRef.current;
+    p.isBlocking = true;
+    p.parryWindow = 14; // First 14 frames count as a Perfect Parry!
+  };
+
+  const handleShieldUp = () => {
+    const p = playerRef.current;
+    p.isBlocking = false;
+    p.parryWindow = 0;
+  };
+
+  // Sheikah Rune: Remote Bomb (Bom Biru Kuno)
+  const handleRemoteBomb = () => {
+    const p = playerRef.current;
+    if (activeBombRef.current) {
+      // Detonate active bomb
+      const b = activeBombRef.current;
+      playZeldaSfx('bomb_explode');
+
+      // Blue shockwave particles
+      for (let i = 0; i < 24; i++) {
+        const ang = (i / 24) * Math.PI * 2;
+        particlesRef.current.push({
+          x: b.x,
+          y: b.y,
+          vx: Math.cos(ang) * 6,
+          vy: Math.sin(ang) * 6,
+          color: '#38bdf8',
+          size: 6,
+          life: 30,
+          maxLife: 30
+        });
+      }
+
+      // Damage enemies & knock back
+      enemiesRef.current.forEach(e => {
+        const d = Math.hypot(e.x - b.x, e.y - b.y);
+        if (d < 110) {
+          e.hp -= 65;
+          const ang = Math.atan2(e.y - b.y, e.x - b.x);
+          e.vx += Math.cos(ang) * 9;
+          e.vy += Math.sin(ang) * 9;
+        }
       });
-    }
-  }, []);
 
-  // Player action: Eat Food / Heal
-  const handleEat = useCallback(() => {
+      // Break pots & cut grass
+      potsRef.current.forEach(pot => {
+        if (!pot.broken && Math.hypot(pot.x - b.x, pot.y - b.y) < 100) {
+          pot.broken = true;
+          pot.respawnTimer = 800;
+        }
+      });
+      grassRef.current.forEach(g => {
+        if (!g.cut && Math.hypot(g.x - b.x, g.y - b.y) < 100) {
+          g.cut = true;
+          g.respawnTimer = 600;
+        }
+      });
+
+      activeBombRef.current = null;
+      setHudStats(prev => ({ ...prev, hasBombActive: false }));
+    } else {
+      // Place new bomb
+      activeBombRef.current = {
+        x: p.x + Math.cos(p.facing) * 20,
+        y: p.y + Math.sin(p.facing) * 20,
+        vx: Math.cos(p.facing) * 3,
+        vy: Math.sin(p.facing) * 3,
+        pulseTimer: 0
+      };
+      playZeldaSfx('bomb_drop');
+      setHudStats(prev => ({ ...prev, hasBombActive: true }));
+    }
+  };
+
+  // Paraglider (Parasut Layang)
+  const toggleParaglider = () => {
     const p = playerRef.current;
-    if (p.cookedMeat > 0 && p.hearts < p.maxHearts) {
-      p.cookedMeat -= 1;
-      p.hearts = Math.min(p.maxHearts, p.hearts + 3);
-      playSfx('cook');
-    } else if (p.apples > 0 && p.hearts < p.maxHearts) {
-      p.apples -= 1;
-      p.hearts = Math.min(p.maxHearts, p.hearts + 1);
-      playSfx('cook');
+    if (p.isGliding) {
+      p.isGliding = false;
+    } else if (p.stamina > 15) {
+      p.isGliding = true;
+      playZeldaSfx('glide_wind');
     }
-  }, [playSfx]);
+  };
 
-  // Player action: Cook at Campfire
-  const handleCook = useCallback(() => {
+  // Korok Discovery
+  const handleInteractKorok = () => {
     const p = playerRef.current;
-    if (p.meat > 0) {
-      const cooked = p.meat;
-      p.meat = 0;
-      p.cookedMeat += cooked;
-      playSfx('cook');
-      playSound?.('coin');
+    const spot = koroksRef.current.find(k => !k.found && Math.hypot(k.x - p.x, k.y - p.y) < 70);
+    if (spot) {
+      spot.found = true;
+      spot.popupTimer = 180; // 3 seconds
+      p.korokSeeds++;
+      playZeldaSfx('secret_chime');
+      setTimeout(() => playZeldaSfx('korok_yahaha'), 400);
+      setHudStats(prev => ({
+        ...prev,
+        korokSeeds: p.korokSeeds,
+        message: '🍃 YAHAHA! You found me! (+1 Korok Seed)'
+      }));
     }
-  }, [playSfx, playSound]);
+  };
 
-  // Main 60 FPS Game Loop
+  // Zelda Cooking Pot System
+  const handleOpenCooking = () => {
+    const p = playerRef.current;
+    if (p.meat < 1 && p.apples < 1) {
+      setHudStats(prev => ({ ...prev, message: 'Bahan makanan tidak cukup! Cari apel di pohon atau berburu daging.' }));
+      return;
+    }
+
+    // Determine recipe
+    let dishName = 'Baked Apple';
+    let dishDesc = 'Apel panggang manis yang memulihkan 2 Hati!';
+    let icon = '🍎';
+    let bonusHeal = 8; // 2 hearts
+
+    if (p.meat >= 1 && p.apples >= 1) {
+      p.meat--;
+      p.apples--;
+      dishName = 'Hearty Steamed Meat';
+      dishDesc = 'Daging lezat dipadukan apel hutan! Memulihkan semua Hati + bonus 1 Hati emas!';
+      icon = '🥩';
+      bonusHeal = 24;
+      p.bonusHearts = Math.min(4, p.bonusHearts + 4);
+    } else if (p.meat >= 1) {
+      p.meat--;
+      dishName = 'Seared Prime Steak';
+      dishDesc = 'Steak daging bakar gurih! Memulihkan 4 Hati!';
+      icon = '🍖';
+      bonusHeal = 16;
+    } else {
+      p.apples--;
+      dishName = 'Simmered Fruit';
+      dishDesc = 'Rebusan buah manis yang memulihkan 2 Hati dan Stamina penuh!';
+      icon = '🍎';
+      bonusHeal = 8;
+      p.stamina = p.maxStamina;
+    }
+
+    p.cookedMeals.push({ name: dishName, type: 'heal', bonus: bonusHeal });
+
+    // Open cooking animation modal
+    setCookingModal({
+      isOpen: true,
+      stage: 'cooking',
+      dishName,
+      dishDesc,
+      icon
+    });
+    playZeldaSfx('cook_jingle');
+
+    setTimeout(() => {
+      setCookingModal(prev => prev ? { ...prev, stage: 'ready' } : null);
+      playZeldaSfx('cook_success');
+    }, 1200);
+  };
+
+  // Eat cooked meal from pouch
+  const handleEatMeal = () => {
+    const p = playerRef.current;
+    if (p.cookedMeals.length > 0) {
+      const meal = p.cookedMeals.pop()!;
+      p.hearts = Math.min(p.maxHearts, p.hearts + meal.bonus);
+      playZeldaSfx('fairy_heal');
+      setHudStats(prev => ({
+        ...prev,
+        hearts: p.hearts,
+        mealsCount: p.cookedMeals.length,
+        message: `Makan ${meal.name}! Hati terisi kembali ❤️`
+      }));
+    } else if (p.apples > 0) {
+      p.apples--;
+      p.hearts = Math.min(p.maxHearts, p.hearts + 4);
+      playZeldaSfx('rupee_get');
+      setHudStats(prev => ({
+        ...prev,
+        hearts: p.hearts,
+        apples: p.apples,
+        message: 'Makan Apel Segar (+1 Hati)'
+      }));
+    }
+  };
+
+  // Main Game Loop (60 FPS Canvas Engine)
   useEffect(() => {
     if (gameState !== 'playing') return;
 
@@ -611,429 +1156,631 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
     const update = () => {
       const p = playerRef.current;
-      const keys = keysRef.current;
+      const isBulletTime = flurryRushTimerRef.current > 0;
+      const timeScale = isBulletTime ? 0.2 : 1.0;
 
-      // 1. Player Movement
-      const moveSpeed = p.isBlocking ? 1.6 : p.isDashing ? 8 : 3.4;
-      let dx = 0;
-      let dy = 0;
+      // Update time of day (1 full cycle every 4 minutes = 14400 frames)
+      timeOfDayRef.current = (timeOfDayRef.current + 0.0001) % 1;
+      const tod = timeOfDayRef.current;
+      if (tod < 0.2) setCurrentTimePhase('Pagi');
+      else if (tod < 0.5) setCurrentTimePhase('Siang');
+      else if (tod < 0.75) setCurrentTimePhase('Senja');
+      else setCurrentTimePhase('Malam');
 
-      if (keys['w'] || keys['W'] || keys['ArrowUp']) dy -= 1;
-      if (keys['s'] || keys['S'] || keys['ArrowDown']) dy += 1;
-      if (keys['a'] || keys['A'] || keys['ArrowLeft']) dx -= 1;
-      if (keys['d'] || keys['D'] || keys['ArrowRight']) dx += 1;
-
-      if (dx !== 0 && dy !== 0) {
-        dx *= 0.7071;
-        dy *= 0.7071;
-      }
-
-      if (!p.isDashing) {
-        p.vx = dx * moveSpeed;
-        p.vy = dy * moveSpeed;
-        if (dx !== 0 || dy !== 0) {
-          p.facing = Math.atan2(dy, dx);
+      // Update Flurry Rush Timer
+      if (flurryRushTimerRef.current > 0) {
+        flurryRushTimerRef.current--;
+        if (flurryRushTimerRef.current <= 0) {
+          setFlurryActive(false);
         }
       }
 
-      p.x += p.vx;
-      p.y += p.vy;
+      // --- PLAYER CONTROLS & PHYSICS ---
+      let mx = 0;
+      let my = 0;
 
-      // World boundaries
-      p.x = Math.max(40, Math.min(WORLD_W - 40, p.x));
-      p.y = Math.max(40, Math.min(WORLD_H - 40, p.y));
+      if (keysRef.current['w'] || keysRef.current['W'] || keysRef.current['ArrowUp']) my -= 1;
+      if (keysRef.current['s'] || keysRef.current['S'] || keysRef.current['ArrowDown']) my += 1;
+      if (keysRef.current['a'] || keysRef.current['A'] || keysRef.current['ArrowLeft']) mx -= 1;
+      if (keysRef.current['d'] || keysRef.current['D'] || keysRef.current['ArrowRight']) mx += 1;
 
-      // Timers & Regeneration
-      if (p.attackTimer > 0) {
-        p.attackTimer--;
-        if (p.attackTimer === 0) p.isAttacking = false;
+      // Virtual D-pad input
+      if (touchDpadRef.current.dx !== 0 || touchDpadRef.current.dy !== 0) {
+        mx = touchDpadRef.current.dx;
+        my = touchDpadRef.current.dy;
       }
-      if (p.dashTimer > 0) {
-        p.dashTimer--;
-        if (p.dashTimer === 0) p.isDashing = false;
-      }
-      if (p.invulnerableTimer > 0) p.invulnerableTimer--;
 
-      // Stamina regen
-      if (!p.isDashing && p.stamina < p.maxStamina) {
+      // Paragliding mechanics
+      if (p.isGliding) {
+        p.stamina -= 0.35;
+        if (p.stamina <= 0) {
+          p.isGliding = false;
+        }
+      } else if (!p.isDashing && !p.isSpinAttacking && p.stamina < p.maxStamina) {
         p.stamina = Math.min(p.maxStamina, p.stamina + 0.5);
       }
 
-      // 2. Update Animals (Rabbit / Deer)
-      animalsRef.current.forEach((animal, idx) => {
-        const dist = Math.hypot(animal.x - p.x, animal.y - p.y);
-        if (dist < 180) {
-          animal.fleeTimer = 40;
-          const fleeAngle = Math.atan2(animal.y - p.y, animal.x - p.x);
-          animal.vx = Math.cos(fleeAngle) * 3.5;
-          animal.vy = Math.sin(fleeAngle) * 3.5;
-        } else if (animal.fleeTimer > 0) {
-          animal.fleeTimer--;
+      if (mx !== 0 || my !== 0) {
+        const moveSpeed = p.isGliding ? 4.8 : p.isBlocking ? 1.5 : 3.2;
+        const mag = Math.hypot(mx, my);
+        p.vx = (mx / mag) * moveSpeed;
+        p.vy = (my / mag) * moveSpeed;
+        p.facing = Math.atan2(my, mx);
+
+        // Wind particles during glide
+        if (p.isGliding && Math.random() > 0.5) {
+          particlesRef.current.push({
+            x: p.x - p.vx * 2 + (Math.random() - 0.5) * 10,
+            y: p.y - p.vy * 2 + (Math.random() - 0.5) * 10,
+            vx: -p.vx * 0.4,
+            vy: -p.vy * 0.4,
+            color: '#e2e8f0',
+            size: 3,
+            life: 18,
+            maxLife: 18
+          });
+        }
+      } else {
+        p.vx *= 0.75;
+        p.vy *= 0.75;
+      }
+
+      // Attack & Timers
+      if (p.isAttacking) {
+        p.attackTimer--;
+        if (p.attackTimer <= 0) p.isAttacking = false;
+      }
+      if (p.isSpinAttacking) {
+        p.spinTimer--;
+        if (p.spinTimer <= 0) p.isSpinAttacking = false;
+      }
+      if (p.isDashing) {
+        p.dashTimer--;
+        if (p.dashTimer <= 0) p.isDashing = false;
+      }
+      if (p.invulnerableTimer > 0) p.invulnerableTimer--;
+      if (p.parryWindow > 0) p.parryWindow--;
+
+      // Move player with world bounds
+      p.x = Math.max(40, Math.min(WORLD_W - 40, p.x + p.vx));
+      p.y = Math.max(40, Math.min(WORLD_H - 40, p.y + p.vy));
+
+      // --- REMOTE BOMB PHYSICS ---
+      if (activeBombRef.current) {
+        const b = activeBombRef.current;
+        b.x += b.vx;
+        b.y += b.vy;
+        b.vx *= 0.94;
+        b.vy *= 0.94;
+        b.pulseTimer++;
+      }
+
+      // --- ANIMALS AI ---
+      animalsRef.current.forEach(a => {
+        const distToPlayer = Math.hypot(a.x - p.x, a.y - p.y);
+        if (distToPlayer < 140 || a.fleeTimer > 0) {
+          // Flee from player
+          const angle = Math.atan2(a.y - p.y, a.x - p.x);
+          a.vx = Math.cos(angle) * (a.type === 'rabbit' ? 3.5 : 2.8) * timeScale;
+          a.vy = Math.sin(angle) * (a.type === 'rabbit' ? 3.5 : 2.8) * timeScale;
+          if (distToPlayer < 140) a.fleeTimer = 60;
+          else a.fleeTimer--;
         } else {
-          animal.vx *= 0.9;
-          animal.vy *= 0.9;
+          // Wander gently
           if (Math.random() < 0.02) {
-            const randAng = Math.random() * Math.PI * 2;
-            animal.vx = Math.cos(randAng) * 1.2;
-            animal.vy = Math.sin(randAng) * 1.2;
+            const wanderAng = Math.random() * Math.PI * 2;
+            a.vx = Math.cos(wanderAng) * 0.8 * timeScale;
+            a.vy = Math.sin(wanderAng) * 0.8 * timeScale;
           }
         }
-        animal.x += animal.vx;
-        animal.y += animal.vy;
-
-        // Death & drop
-        if (animal.hp <= 0) {
-          dropsRef.current.push({
-            id: `meat_${Date.now()}_${idx}`,
-            type: 'meat',
-            x: animal.x,
-            y: animal.y,
-            life: 800
-          });
-          animalsRef.current.splice(idx, 1);
-        }
+        a.x = Math.max(100, Math.min(WORLD_W - 100, a.x + a.vx));
+        a.y = Math.max(100, Math.min(WORLD_H - 100, a.y + a.vy));
       });
 
-      // 3. Update Enemies
-      let bossCurrentHp = 0;
-      let bossMaxHp = 800;
+      // Filter dead animals
+      animalsRef.current = animalsRef.current.filter(a => a.hp > 0);
 
-      enemiesRef.current.forEach((enemy, idx) => {
-        if (enemy.type === 'guardian_boss') {
-          bossCurrentHp = enemy.hp;
-          bossMaxHp = enemy.maxHp;
+      // --- ENEMIES AI & GUARDIAN STALKER ---
+      let currentBossHp = 0;
+      let currentBossMaxHp = 800;
+
+      enemiesRef.current.forEach(e => {
+        if (e.type === 'guardian_stalker') {
+          currentBossHp = e.hp;
+          currentBossMaxHp = e.maxHp;
         }
 
-        const dist = Math.hypot(p.x - enemy.x, p.y - enemy.y);
-        const angleToPlayer = Math.atan2(p.y - enemy.y, p.x - enemy.x);
+        // Stunned check
+        if (e.stunTimer && e.stunTimer > 0) {
+          e.stunTimer -= timeScale;
+          e.vx = 0;
+          e.vy = 0;
+          return;
+        }
 
-        // State Machine
-        if (enemy.type === 'guardian_boss') {
-          // Boss AI
-          if (dist < 800) {
-            // Laser charge attack
-            if (enemy.attackCooldown > 0) {
-              enemy.attackCooldown--;
+        const dist = Math.hypot(p.x - e.x, p.y - e.y);
+
+        if (e.type === 'guardian_stalker') {
+          // Guardian Stalker AI with authentic lock-on laser
+          e.legCycle = (e.legCycle || 0) + 0.08 * timeScale;
+          const seePlayerDist = 550;
+
+          if (dist < seePlayerDist) {
+            e.state = 'attack';
+            e.targetAngle = Math.atan2(p.y - e.y, p.x - e.x);
+
+            // Guardian repositions to optimal distance (~280px)
+            if (dist > 300) {
+              e.vx = Math.cos(e.targetAngle) * e.speed * timeScale;
+              e.vy = Math.sin(e.targetAngle) * e.speed * timeScale;
+            } else if (dist < 180) {
+              e.vx = -Math.cos(e.targetAngle) * e.speed * timeScale;
+              e.vy = -Math.sin(e.targetAngle) * e.speed * timeScale;
             } else {
-              enemy.targetAngle = angleToPlayer;
-              enemy.laserChargeTimer = (enemy.laserChargeTimer || 0) + 1;
-
-              // Laser aiming particles
-              if (enemy.laserChargeTimer % 6 === 0) {
-                particlesRef.current.push({
-                  x: enemy.x + Math.cos(angleToPlayer) * 30,
-                  y: enemy.y + Math.sin(angleToPlayer) * 30,
-                  vx: (Math.random() - 0.5) * 2,
-                  vy: (Math.random() - 0.5) * 2,
-                  color: '#ef4444',
-                  size: 3,
-                  life: 15,
-                  maxLife: 15
-                });
-              }
-
-              // Fire Laser Beam after 90 ticks (1.5s charge)
-              if (enemy.laserChargeTimer >= 90) {
-                playSfx('laser');
-                projectilesRef.current.push({
-                  id: `laser_${Date.now()}`,
-                  x: enemy.x,
-                  y: enemy.y,
-                  vx: Math.cos(enemy.targetAngle) * 14,
-                  vy: Math.sin(enemy.targetAngle) * 14,
-                  fromPlayer: false,
-                  isLaser: true,
-                  damage: 35,
-                  life: 60
-                });
-                enemy.laserChargeTimer = 0;
-                enemy.attackCooldown = enemy.hp < 400 ? 55 : 90; // enrage when low HP
-              }
-            }
-          }
-        } else if (dist < 320) {
-          // Standard Enemies Chase & Attack
-          enemy.state = 'chase';
-          if (enemy.type === 'archer') {
-            // Archer keeps distance
-            if (dist < 150) {
-              enemy.vx = -Math.cos(angleToPlayer) * enemy.speed;
-              enemy.vy = -Math.sin(angleToPlayer) * enemy.speed;
-            } else {
-              enemy.vx = 0;
-              enemy.vy = 0;
+              e.vx = 0;
+              e.vy = 0;
             }
 
-            // Shoot arrow every 90 ticks
-            enemy.attackCooldown = (enemy.attackCooldown || 0) + 1;
-            if (enemy.attackCooldown >= 90) {
-              enemy.attackCooldown = 0;
+            // Laser Charge Sequence
+            e.laserChargeTimer = (e.laserChargeTimer || 0) + 1 * timeScale;
+
+            // Beep sounds accelerating
+            if (e.laserChargeTimer % 20 < 1) {
+              playZeldaSfx('guardian_beep');
+            }
+
+            // Fire laser at 110 frames
+            if (e.laserChargeTimer >= 110) {
+              e.laserChargeTimer = 0;
+              playZeldaSfx('guardian_laser');
+
+              const laserSpeed = 16;
+              const angle = Math.atan2(p.y - e.y, p.x - e.x);
               projectilesRef.current.push({
-                id: `enemy_arrow_${Date.now()}_${idx}`,
-                x: enemy.x,
-                y: enemy.y,
-                vx: Math.cos(angleToPlayer) * 7,
-                vy: Math.sin(angleToPlayer) * 7,
+                id: `guardian_laser_${Date.now()}`,
+                x: e.x + Math.cos(angle) * 35,
+                y: e.y + Math.sin(angle) * 35,
+                vx: Math.cos(angle) * laserSpeed,
+                vy: Math.sin(angle) * laserSpeed,
                 fromPlayer: false,
-                damage: 20,
-                life: 70
+                isLaser: true,
+                damage: 32, // 8 hearts!
+                life: 90
               });
-              playSfx('arrow');
             }
           } else {
-            // Melee enemies run towards player
-            enemy.vx = Math.cos(angleToPlayer) * enemy.speed;
-            enemy.vy = Math.sin(angleToPlayer) * enemy.speed;
+            e.state = 'patrol';
+            e.laserChargeTimer = 0;
+            e.vx = 0;
+            e.vy = 0;
+          }
+        } else if (e.type === 'archer') {
+          // Skeleton Archer
+          if (dist < 380) {
+            e.state = 'chase';
+            const ang = Math.atan2(p.y - e.y, p.x - e.x);
+            if (dist < 200) {
+              e.vx = -Math.cos(ang) * e.speed * timeScale;
+              e.vy = -Math.sin(ang) * e.speed * timeScale;
+            } else {
+              e.vx = 0;
+              e.vy = 0;
+            }
 
-            // Melee attack hit
-            if (dist < 42 && p.invulnerableTimer === 0) {
+            e.attackCooldown -= timeScale;
+            if (e.attackCooldown <= 0) {
+              e.attackCooldown = 90;
+              playZeldaSfx('arrow');
+              const spd = 9;
+              projectilesRef.current.push({
+                id: `skel_arrow_${Date.now()}_${Math.random()}`,
+                x: e.x,
+                y: e.y,
+                vx: Math.cos(ang) * spd,
+                vy: Math.sin(ang) * spd,
+                fromPlayer: false,
+                damage: 8,
+                life: 60
+              });
+            }
+          } else {
+            e.state = 'patrol';
+            e.vx *= 0.9;
+            e.vy *= 0.9;
+          }
+        } else {
+          // Bokoblin, Chuchu, Moblin Melee
+          if (dist < 320) {
+            e.state = 'chase';
+            const ang = Math.atan2(p.y - e.y, p.x - e.x);
+            e.vx = Math.cos(ang) * e.speed * timeScale;
+            e.vy = Math.sin(ang) * e.speed * timeScale;
+
+            if (dist < 40 && e.attackCooldown <= 0) {
+              e.attackWindup = 25;
+              e.attackCooldown = 75;
+            }
+          } else {
+            e.state = 'patrol';
+            e.vx *= 0.9;
+            e.vy *= 0.9;
+          }
+
+          if (e.attackWindup > 0) {
+            e.attackWindup -= timeScale;
+            if (e.attackWindup <= 0 && dist < 45) {
+              // Deal melee damage to player unless blocked
               if (p.isBlocking) {
-                // Block / Parry
-                playSfx('parry');
-                enemy.vx = -Math.cos(angleToPlayer) * 6;
-                enemy.vy = -Math.sin(angleToPlayer) * 6;
+                playZeldaSfx('parry');
                 p.stamina = Math.max(0, p.stamina - 15);
-              } else {
-                p.hearts -= 1;
+              } else if (p.invulnerableTimer <= 0) {
+                p.hearts -= (e.type === 'moblin' ? 12 : 6);
                 p.invulnerableTimer = 35;
-                playSfx('hit');
-                if (p.hearts <= 0) {
-                  setGameState('gameover');
-                }
+                playZeldaSfx('hit');
               }
             }
           }
-        } else {
-          // Patrol wander
-          enemy.state = 'patrol';
-          const pDist = Math.hypot(enemy.patrolTarget.x - enemy.x, enemy.patrolTarget.y - enemy.y);
-          if (pDist < 20 || Math.random() < 0.01) {
-            enemy.patrolTarget = {
-              x: enemy.x + (Math.random() - 0.5) * 300,
-              y: enemy.y + (Math.random() - 0.5) * 300
-            };
-          }
-          const pAngle = Math.atan2(enemy.patrolTarget.y - enemy.y, enemy.patrolTarget.x - enemy.x);
-          enemy.vx = Math.cos(pAngle) * (enemy.speed * 0.5);
-          enemy.vy = Math.sin(pAngle) * (enemy.speed * 0.5);
         }
 
-        enemy.x += enemy.vx;
-        enemy.y += enemy.vy;
-
-        // Enemy Death
-        if (enemy.hp <= 0) {
-          // Boss Defeated!
-          if (enemy.type === 'guardian_boss') {
-            setGameState('victory');
-            playSfx('victory');
-          }
-
-          // Drops
-          dropsRef.current.push({
-            id: `drop_heart_${Date.now()}_${idx}`,
-            type: Math.random() > 0.5 ? 'heart' : 'arrow',
-            x: enemy.x,
-            y: enemy.y,
-            life: 800
-          });
-          dropsRef.current.push({
-            id: `drop_rupee_${Date.now()}_${idx}`,
-            type: 'rupee',
-            x: enemy.x + 10,
-            y: enemy.y + 10,
-            life: 800
-          });
-
-          enemiesRef.current.splice(idx, 1);
-        }
+        e.x += e.vx;
+        e.y += e.vy;
       });
 
-      // 4. Update Projectiles
-      projectilesRef.current.forEach((proj, pIdx) => {
-        proj.x += proj.vx;
-        proj.y += proj.vy;
-        proj.life--;
+      // Filter dead enemies & spawn drops
+      enemiesRef.current = enemiesRef.current.filter(e => {
+        if (e.hp <= 0) {
+          playZeldaSfx('hit');
+          if (e.type === 'guardian_stalker') {
+            playZeldaSfx('victory');
+            setGameState('victory');
+            dropsRef.current.push({
+              id: `core_${Date.now()}`,
+              type: 'ancient_core',
+              x: e.x,
+              y: e.y,
+              life: 2000
+            });
+          } else {
+            // Drop rupees
+            dropsRef.current.push({
+              id: `drop_rupee_${Date.now()}_${Math.random()}`,
+              type: e.type === 'moblin' ? 'red_rupee' : 'blue_rupee',
+              x: e.x,
+              y: e.y,
+              life: 500
+            });
+          }
+          return false;
+        }
+        return true;
+      });
 
-        // Player projectile hitting enemies
-        if (proj.fromPlayer) {
-          enemiesRef.current.forEach(enemy => {
-            const d = Math.hypot(enemy.x - proj.x, enemy.y - proj.y);
-            if (d < (enemy.type === 'guardian_boss' ? 55 : 30)) {
-              enemy.hp -= proj.damage;
-              proj.life = 0;
-              playSfx('hit');
-              for (let k = 0; k < 5; k++) {
+      // --- PROJECTILES LOGIC & PERFECT PARRY ---
+      projectilesRef.current.forEach(proj => {
+        proj.x += proj.vx * timeScale;
+        proj.y += proj.vy * timeScale;
+        proj.life -= timeScale;
+
+        // Check collision with Player
+        if (!proj.fromPlayer) {
+          const distP = Math.hypot(proj.x - p.x, proj.y - p.y);
+          if (distP < 25) {
+            // PERFECT PARRY CHECK!
+            if (p.isBlocking && p.parryWindow > 0) {
+              // REFLECT LASER OR ARROW 180 DEGREES!
+              playZeldaSfx('parry');
+              proj.fromPlayer = true;
+              proj.vx = -proj.vx * 1.5;
+              proj.vy = -proj.vy * 1.5;
+              proj.damage *= 2;
+              p.invulnerableTimer = 25;
+
+              // Spark particles
+              for (let k = 0; k < 12; k++) {
                 particlesRef.current.push({
-                  x: enemy.x,
-                  y: enemy.y,
-                  vx: (Math.random() - 0.5) * 5,
-                  vy: (Math.random() - 0.5) * 5,
-                  color: '#38bdf8',
-                  size: 3,
-                  life: 12,
-                  maxLife: 12
+                  x: p.x,
+                  y: p.y,
+                  vx: (Math.random() - 0.5) * 8,
+                  vy: (Math.random() - 0.5) * 8,
+                  color: '#fbbf24',
+                  size: 4,
+                  life: 25,
+                  maxLife: 25
                 });
               }
-            }
-          });
-
-          // Player arrow hitting animals
-          animalsRef.current.forEach(animal => {
-            const d = Math.hypot(animal.x - proj.x, animal.y - proj.y);
-            if (d < 30) {
-              animal.hp -= proj.damage;
+              setHudStats(prev => ({ ...prev, message: '✨ PERFECT PARRY! LASER TERPANTUL!' }));
+            } else if (p.isBlocking) {
+              // Normal block
+              playZeldaSfx('parry');
+              p.stamina = Math.max(0, p.stamina - 20);
               proj.life = 0;
-              playSfx('hit');
-            }
-          });
-        } else {
-          // Enemy projectile hitting player
-          const d = Math.hypot(p.x - proj.x, p.y - proj.y);
-          if (d < 30 && p.invulnerableTimer === 0) {
-            if (p.isBlocking) {
-              // PARRY REFLECT!
-              playSfx('parry');
-              proj.fromPlayer = true;
-              proj.vx = -proj.vx * 1.3;
-              proj.vy = -proj.vy * 1.3;
-              proj.damage *= 2;
-              p.stamina = Math.max(0, p.stamina - 10);
-            } else {
-              p.hearts -= proj.isLaser ? 2 : 1;
+            } else if (p.invulnerableTimer <= 0) {
+              p.hearts -= proj.damage;
               p.invulnerableTimer = 35;
+              playZeldaSfx('hit');
               proj.life = 0;
-              playSfx('hit');
-              if (p.hearts <= 0) {
-                setGameState('gameover');
-              }
             }
           }
-        }
-
-        if (proj.life <= 0) {
-          projectilesRef.current.splice(pIdx, 1);
-        }
-      });
-
-      // 5. Update Dropped Items (Pickups)
-      dropsRef.current.forEach((drop, dIdx) => {
-        const d = Math.hypot(p.x - drop.x, p.y - drop.y);
-        if (d < 40) {
-          if (drop.type === 'apple') p.apples++;
-          if (drop.type === 'meat') p.meat++;
-          if (drop.type === 'arrow') p.arrows += 5;
-          if (drop.type === 'rupee') p.rupees += 10;
-          if (drop.type === 'heart') p.hearts = Math.min(p.maxHearts, p.hearts + 1);
-
-          playSound?.('coin');
-          dropsRef.current.splice(dIdx, 1);
         } else {
-          drop.life--;
-          if (drop.life <= 0) dropsRef.current.splice(dIdx, 1);
+          // Player's projectile hits enemies
+          enemiesRef.current.forEach(e => {
+            const distE = Math.hypot(proj.x - e.x, proj.y - e.y);
+            if (distE < (e.type === 'guardian_stalker' ? 50 : 25)) {
+              e.hp -= proj.damage;
+              playZeldaSfx('hit');
+              proj.life = 0;
+
+              // If deflected laser hits Guardian eye => STUN GUARDIAN!
+              if (proj.isLaser && e.type === 'guardian_stalker') {
+                e.stunTimer = 180; // 3 seconds stun
+                setHudStats(prev => ({ ...prev, message: '💥 MATA GUARDIAN HANCUR! GUARDIAN TERLUMPUHKAN!' }));
+              }
+            }
+          });
         }
       });
 
-      // 6. Update Particles
-      particlesRef.current.forEach((part, idx) => {
-        part.x += part.vx;
-        part.y += part.vy;
-        part.life--;
-        if (part.life <= 0) particlesRef.current.splice(idx, 1);
+      projectilesRef.current = projectilesRef.current.filter(p => p.life > 0);
+
+      // --- DROPPED ITEMS PICKUP ---
+      dropsRef.current.forEach(item => {
+        item.life--;
+        const dist = Math.hypot(item.x - p.x, item.y - p.y);
+        if (dist < 32) {
+          if (item.type === 'green_rupee') {
+            p.rupees += 1;
+            playZeldaSfx('rupee_get');
+          } else if (item.type === 'blue_rupee') {
+            p.rupees += 5;
+            playZeldaSfx('rupee_get');
+          } else if (item.type === 'red_rupee') {
+            p.rupees += 20;
+            playZeldaSfx('rupee_get');
+          } else if (item.type === 'apple') {
+            p.apples += 1;
+            playZeldaSfx('rupee_get');
+          } else if (item.type === 'meat') {
+            p.meat += 1;
+            playZeldaSfx('rupee_get');
+          } else if (item.type === 'arrow') {
+            p.arrows += 5;
+            playZeldaSfx('rupee_get');
+          } else if (item.type === 'ancient_core') {
+            p.rupees += 500;
+            playZeldaSfx('cook_success');
+          } else if (item.type === 'fairy') {
+            p.hearts = Math.min(p.maxHearts, p.hearts + 12); // Heal 3 hearts
+            playZeldaSfx('fairy_heal');
+          }
+          item.life = 0;
+        }
       });
 
-      // Campfire proximity (at 500, 500)
-      const distToCampfire = Math.hypot(p.x - 500, p.y - 500);
-      const isNearCampfire = distToCampfire < 90;
+      dropsRef.current = dropsRef.current.filter(i => i.life > 0);
 
-      // Update React HUD stats
+      // Check Game Over
+      if (p.hearts <= 0) {
+        setGameState('gameover');
+        playZeldaSfx('hit');
+      }
+
+      // Check Proximity to Campfire & Korok
+      const distToCampfire = Math.hypot(p.x - 500, p.y - 500);
+      const nearCamp = distToCampfire < 90;
+      const nearPot = distToCampfire < 75;
+
+      const nearKorokSpot = koroksRef.current.find(k => !k.found && Math.hypot(k.x - p.x, k.y - p.y) < 65) || null;
+
+      // Update HUD stats
       setHudStats({
         hearts: p.hearts,
         maxHearts: p.maxHearts,
+        bonusHearts: p.bonusHearts,
         stamina: Math.round(p.stamina),
         apples: p.apples,
-        cookedMeat: p.cookedMeat,
+        meat: p.meat,
+        mealsCount: p.cookedMeals.length,
         arrows: p.arrows,
         rupees: p.rupees,
-        bossHp: bossCurrentHp,
-        bossMaxHp: bossMaxHp,
-        nearCampfire: isNearCampfire,
-        message: isNearCampfire ? 'Tekan [E] / [Masak] untuk memanggang daging!' : null
+        korokSeeds: p.korokSeeds,
+        bossHp: currentBossHp,
+        bossMaxHp: currentBossMaxHp,
+        nearCampfire: nearCamp,
+        nearCookingPot: nearPot,
+        nearKorok: nearKorokSpot,
+        hasBombActive: activeBombRef.current !== null,
+        message: null
       });
 
-      // 7. RENDER TO CANVAS
+      // --- RENDER CANVAS SCENE ---
       const canvas = canvasRef.current;
       if (canvas) {
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          const viewW = canvas.width;
-          const viewH = canvas.height;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          // Camera follow player
-          const camX = Math.max(0, Math.min(WORLD_W - viewW, p.x - viewW / 2));
-          const camY = Math.max(0, Math.min(WORLD_H - viewH, p.y - viewH / 2));
+          // Camera tracking centered on player
+          const camX = Math.max(0, Math.min(WORLD_W - canvas.width, p.x - canvas.width / 2));
+          const camY = Math.max(0, Math.min(WORLD_H - canvas.height, p.y - canvas.height / 2));
 
           ctx.save();
           ctx.translate(-camX, -camY);
 
-          // Render Ground Biomes
-          // Biome 1: Plains (Green)
-          ctx.fillStyle = '#1e3a1e';
+          // 1. BIOME TERRAIN TILES
+          // Biome 1: Hyrule Central Plains (Vibrant Green)
+          ctx.fillStyle = '#1e3e1e';
           ctx.fillRect(0, 0, 1200, 1200);
 
-          // Biome 2: Forest (Darker Green)
+          // Biome 2: Faron Woods / Deep Forest (Dark Emerald)
           ctx.fillStyle = '#0f2918';
           ctx.fillRect(1200, 0, 1200, 1200);
 
-          // Biome 3: Water Lake (Blue)
-          ctx.fillStyle = '#0b2942';
+          // Biome 3: Lake Klaten & Springs (Azure Blue)
+          ctx.fillStyle = '#0c3559';
           ctx.fillRect(0, 1200, 1200, 1200);
 
-          // Biome 4: Canyon & Temple (Orange/Stone)
+          // Biome 4: Eldin Canyon (Warm Terracotta Stone)
           ctx.fillStyle = '#2c1b18';
           ctx.fillRect(1200, 1200, 1200, 1200);
 
-          // Ancient Shrine Floor at 2000..2400
-          ctx.fillStyle = '#1e293b';
+          // Ancient Shrine Floor & Ancient Sheikah Runes (2000..2400)
+          ctx.fillStyle = '#131b2e';
           ctx.fillRect(2000, 2000, 400, 400);
           ctx.strokeStyle = '#06b6d4';
           ctx.lineWidth = 4;
           ctx.strokeRect(2000, 2000, 400, 400);
 
-          // Campfire at (500, 500)
+          // Glowing Sheikah eye symbol at center of Shrine
+          ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(2200, 2200, 80, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // 2. TALL GRASS TUFTS (Rumput Ilalang)
+          grassRef.current.forEach(g => {
+            if (!g.cut) {
+              ctx.fillStyle = '#4ade80';
+              ctx.beginPath();
+              ctx.moveTo(g.x - 6, g.y + 4);
+              ctx.lineTo(g.x - 2, g.y - 8);
+              ctx.lineTo(g.x + 2, g.y + 4);
+              ctx.lineTo(g.x + 6, g.y - 7);
+              ctx.lineTo(g.x + 8, g.y + 4);
+              ctx.fill();
+            }
+          });
+
+          // 3. CLAY POTS (Kendi Tanah Liat)
+          potsRef.current.forEach(pot => {
+            if (!pot.broken) {
+              ctx.fillStyle = '#b45309';
+              ctx.beginPath();
+              ctx.arc(pot.x, pot.y, 8, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#f59e0b';
+              ctx.fillRect(pot.x - 4, pot.y - 11, 8, 3);
+            }
+          });
+
+          // 4. KOROK PUZZLES
+          koroksRef.current.forEach(k => {
+            if (!k.found) {
+              // Sparkling rock or flower
+              ctx.fillStyle = '#e2e8f0';
+              ctx.beginPath();
+              ctx.arc(k.x, k.y, 9, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = '#22c55e';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            } else if (k.popupTimer > 0) {
+              k.popupTimer--;
+              // Korok with cute leaf face!
+              ctx.fillStyle = '#84cc16';
+              ctx.beginPath();
+              ctx.arc(k.x, k.y - 15, 12, 0, Math.PI * 2);
+              ctx.fill();
+              // Leaf face mask
+              ctx.fillStyle = '#15803d';
+              ctx.beginPath();
+              ctx.arc(k.x, k.y - 15, 8, 0, Math.PI * 2);
+              ctx.fill();
+              // Text "Yahaha!"
+              ctx.fillStyle = '#ffffff';
+              ctx.font = 'bold 11px sans-serif';
+              ctx.fillText('Yahaha!', k.x - 18, k.y - 32);
+            }
+          });
+
+          // 5. CAMPFIRE & COOKING POT (at 500, 500)
+          // Fire pit stones
+          ctx.fillStyle = '#475569';
+          for (let s = 0; s < 8; s++) {
+            const sang = (s / 8) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(500 + Math.cos(sang) * 18, 500 + Math.sin(sang) * 18, 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          // Flames
           ctx.fillStyle = '#f97316';
           ctx.beginPath();
-          ctx.arc(500, 500, 14, 0, Math.PI * 2);
+          ctx.arc(500, 500, 14 + Math.sin(Date.now() * 0.01) * 2, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = '#fef08a';
           ctx.beginPath();
           ctx.arc(500, 500, 7, 0, Math.PI * 2);
           ctx.fill();
 
-          // Trees
+          // Black Iron Cooking Pot tripod
+          ctx.fillStyle = '#1e293b';
+          ctx.beginPath();
+          ctx.arc(500, 492, 10, 0, Math.PI);
+          ctx.fill();
+
+          // 6. TREES
           treesRef.current.forEach(t => {
+            // Tree shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+            ctx.beginPath();
+            ctx.ellipse(t.x + 8, t.y + 16, 26, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Tree Trunk
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(t.x - 5, t.y - 6, 10, 20);
+
+            // Foliage
             ctx.fillStyle = '#14532d';
             ctx.beginPath();
-            ctx.arc(t.x, t.y, 24, 0, Math.PI * 2);
+            ctx.arc(t.x, t.y - 12, 26, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = '#166534';
             ctx.beginPath();
-            ctx.arc(t.x - 4, t.y - 4, 18, 0, Math.PI * 2);
+            ctx.arc(t.x - 5, t.y - 16, 18, 0, Math.PI * 2);
             ctx.fill();
 
             // Apples on tree
             if (t.hasApples) {
               ctx.fillStyle = '#ef4444';
               ctx.beginPath();
-              ctx.arc(t.x - 8, t.y - 6, 4, 0, Math.PI * 2);
-              ctx.arc(t.x + 8, t.y + 4, 4, 0, Math.PI * 2);
+              ctx.arc(t.x - 9, t.y - 16, 4, 0, Math.PI * 2);
+              ctx.arc(t.x + 9, t.y - 10, 4, 0, Math.PI * 2);
               ctx.fill();
             }
           });
 
-          // Dropped Items
+          // 7. REMOTE BOMB (Sheikah Bomb)
+          if (activeBombRef.current) {
+            const b = activeBombRef.current;
+            const pulse = Math.sin(b.pulseTimer * 0.15) * 3;
+            // Glowing blue orb
+            ctx.fillStyle = '#0284c7';
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, 10 + pulse, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            // Sheikah eye rune on bomb
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // 8. DROPPED ITEMS
           dropsRef.current.forEach(item => {
-            if (item.type === 'apple') {
+            if (item.type === 'green_rupee') {
+              ctx.fillStyle = '#22c55e';
+              drawRupee(ctx, item.x, item.y);
+            } else if (item.type === 'blue_rupee') {
+              ctx.fillStyle = '#3b82f6';
+              drawRupee(ctx, item.x, item.y);
+            } else if (item.type === 'red_rupee') {
+              ctx.fillStyle = '#ef4444';
+              drawRupee(ctx, item.x, item.y);
+            } else if (item.type === 'apple') {
               ctx.fillStyle = '#ef4444';
               ctx.beginPath();
               ctx.arc(item.x, item.y, 6, 0, Math.PI * 2);
@@ -1041,24 +1788,34 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             } else if (item.type === 'meat') {
               ctx.fillStyle = '#f43f5e';
               ctx.fillRect(item.x - 5, item.y - 5, 10, 10);
-            } else if (item.type === 'rupee') {
-              ctx.fillStyle = '#10b981';
+            } else if (item.type === 'arrow') {
+              ctx.strokeStyle = '#e2e8f0';
+              ctx.lineWidth = 2;
               ctx.beginPath();
-              ctx.moveTo(item.x, item.y - 8);
-              ctx.lineTo(item.x + 5, item.y);
-              ctx.lineTo(item.x, item.y + 8);
-              ctx.lineTo(item.x - 5, item.y);
-              ctx.closePath();
+              ctx.moveTo(item.x - 6, item.y);
+              ctx.lineTo(item.x + 6, item.y);
+              ctx.stroke();
+            } else if (item.type === 'fairy') {
+              // Glowing pink fairy with fluttering wings
+              const flap = Math.sin(Date.now() * 0.02) * 5;
+              ctx.fillStyle = 'rgba(244, 114, 182, 0.7)';
+              ctx.beginPath();
+              ctx.arc(item.x, item.y, 8, 0, Math.PI * 2);
               ctx.fill();
-            } else if (item.type === 'heart') {
-              ctx.fillStyle = '#e11d48';
+              ctx.fillStyle = '#ffffff';
               ctx.beginPath();
-              ctx.arc(item.x, item.y, 7, 0, Math.PI * 2);
+              ctx.ellipse(item.x - 6, item.y + flap, 5, 2, -0.4, 0, Math.PI * 2);
+              ctx.ellipse(item.x + 6, item.y + flap, 5, 2, 0.4, 0, Math.PI * 2);
+              ctx.fill();
+            } else if (item.type === 'ancient_core') {
+              ctx.fillStyle = '#06b6d4';
+              ctx.beginPath();
+              ctx.arc(item.x, item.y, 10, 0, Math.PI * 2);
               ctx.fill();
             }
           });
 
-          // Animals
+          // 9. ANIMALS
           animalsRef.current.forEach(a => {
             ctx.fillStyle = a.type === 'rabbit' ? '#f8fafc' : '#b45309';
             ctx.beginPath();
@@ -1066,17 +1823,104 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             ctx.fill();
           });
 
-          // Enemies
+          // 10. ENEMIES & AUTHENTIC GUARDIAN STALKER
           enemiesRef.current.forEach(e => {
-            if (e.type === 'slime') {
+            if (e.type === 'guardian_stalker') {
+              // GUARDIAN LEGS (6 segmented ancient mechanical legs)
+              const legAngStep = (Math.PI * 2) / 6;
+              ctx.strokeStyle = '#475569';
+              ctx.lineWidth = 4;
+              for (let l = 0; l < 6; l++) {
+                const baseAng = l * legAngStep;
+                const legWiggle = Math.sin((e.legCycle || 0) + l) * 12;
+                const jointX = e.x + Math.cos(baseAng) * 32;
+                const jointY = e.y + Math.sin(baseAng) * 32;
+                const footX = e.x + Math.cos(baseAng) * (52 + legWiggle);
+                const footY = e.y + Math.sin(baseAng) * (52 + legWiggle);
+
+                ctx.beginPath();
+                ctx.moveTo(e.x, e.y);
+                ctx.lineTo(jointX, jointY);
+                ctx.lineTo(footX, footY);
+                ctx.stroke();
+              }
+
+              // Ancient Body Dome (Sheikah Ancient Armor)
+              ctx.fillStyle = e.hp < 300 ? '#7f1d1d' : '#1e293b';
+              ctx.strokeStyle = '#06b6d4';
+              ctx.lineWidth = 4;
+              ctx.beginPath();
+              ctx.arc(e.x, e.y, 38, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+
+              // Ancient Head Dome (Rotates towards player)
+              const headX = e.x + Math.cos(e.targetAngle || 0) * 10;
+              const headY = e.y + Math.sin(e.targetAngle || 0) * 10;
+              ctx.fillStyle = '#0f172a';
+              ctx.beginPath();
+              ctx.arc(headX, headY, 20, 0, Math.PI * 2);
+              ctx.fill();
+
+              // EYE: GLOWING RED WHEN TARGETING!
+              const isTargeting = (e.laserChargeTimer || 0) > 0;
+              ctx.fillStyle = isTargeting ? '#ef4444' : '#06b6d4';
+              ctx.beginPath();
+              ctx.arc(headX, headY, 9, 0, Math.PI * 2);
+              ctx.fill();
+
+              // RED LASER BEAM TARGETING LINE & LOCK-ON CROSSHAIR!
+              if (isTargeting) {
+                // Laser line to player
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.85)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 6]);
+                ctx.beginPath();
+                ctx.moveTo(headX, headY);
+                ctx.lineTo(p.x, p.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Target lock-on crosshair on player
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
+                ctx.moveTo(p.x - 24, p.y);
+                ctx.lineTo(p.x + 24, p.y);
+                ctx.moveTo(p.x, p.y - 24);
+                ctx.lineTo(p.x, p.y + 24);
+                ctx.stroke();
+              }
+            } else if (e.type === 'chuchu') {
+              // Bouncy jelly slime with big cartoon eyes
               ctx.fillStyle = '#22c55e';
               ctx.beginPath();
-              ctx.arc(e.x, e.y, 14, 0, Math.PI * 2);
+              ctx.arc(e.x, e.y, 13, 0, Math.PI * 2);
+              ctx.fill();
+              // Eyes
+              ctx.fillStyle = '#ffffff';
+              ctx.beginPath();
+              ctx.arc(e.x - 4, e.y - 3, 3.5, 0, Math.PI * 2);
+              ctx.arc(e.x + 4, e.y - 3, 3.5, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#000000';
+              ctx.beginPath();
+              ctx.arc(e.x - 4, e.y - 3, 1.5, 0, Math.PI * 2);
+              ctx.arc(e.x + 4, e.y - 3, 1.5, 0, Math.PI * 2);
               ctx.fill();
             } else if (e.type === 'bokoblin') {
+              // Red Bokoblin with pointy horn
               ctx.fillStyle = '#dc2626';
               ctx.beginPath();
               ctx.arc(e.x, e.y, 16, 0, Math.PI * 2);
+              ctx.fill();
+              // Horn
+              ctx.fillStyle = '#fef08a';
+              ctx.beginPath();
+              ctx.moveTo(e.x - 3, e.y - 14);
+              ctx.lineTo(e.x, e.y - 24);
+              ctx.lineTo(e.x + 3, e.y - 14);
               ctx.fill();
             } else if (e.type === 'archer') {
               ctx.fillStyle = '#94a3b8';
@@ -1086,54 +1930,28 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             } else if (e.type === 'moblin') {
               ctx.fillStyle = '#7c2d12';
               ctx.beginPath();
-              ctx.arc(e.x, e.y, 22, 0, Math.PI * 2);
+              ctx.arc(e.x, e.y, 24, 0, Math.PI * 2);
               ctx.fill();
-            } else if (e.type === 'guardian_boss') {
-              // Boss Body
-              ctx.fillStyle = e.hp < 400 ? '#b91c1c' : '#0f172a';
-              ctx.strokeStyle = '#06b6d4';
-              ctx.lineWidth = 5;
-              ctx.beginPath();
-              ctx.arc(e.x, e.y, 45, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.stroke();
-
-              // Glowing Eye
-              ctx.fillStyle = '#ef4444';
-              ctx.beginPath();
-              ctx.arc(e.x, e.y, 14, 0, Math.PI * 2);
-              ctx.fill();
-
-              // Laser targeting line
-              if (e.laserChargeTimer && e.laserChargeTimer > 0) {
-                ctx.strokeStyle = 'rgba(239, 68, 68, 0.7)';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([8, 8]);
-                ctx.beginPath();
-                ctx.moveTo(e.x, e.y);
-                ctx.lineTo(p.x, p.y);
-                ctx.stroke();
-                ctx.setLineDash([]);
-              }
             }
 
-            // Enemy HP Bar
-            if (e.type !== 'guardian_boss') {
+            // Enemy HP bar (except Boss which has big HUD bar)
+            if (e.type !== 'guardian_stalker') {
               ctx.fillStyle = '#000000';
-              ctx.fillRect(e.x - 15, e.y - 25, 30, 4);
+              ctx.fillRect(e.x - 15, e.y - 26, 30, 4);
               ctx.fillStyle = '#22c55e';
-              ctx.fillRect(e.x - 15, e.y - 25, (e.hp / e.maxHp) * 30, 4);
+              ctx.fillRect(e.x - 15, e.y - 26, (e.hp / e.maxHp) * 30, 4);
             }
           });
 
-          // Projectiles
+          // 11. PROJECTILES
           projectilesRef.current.forEach(proj => {
             if (proj.isLaser) {
-              ctx.strokeStyle = '#ef4444';
-              ctx.lineWidth = 8;
+              // Blinding blue/red laser beam
+              ctx.strokeStyle = proj.fromPlayer ? '#38bdf8' : '#ef4444';
+              ctx.lineWidth = 9;
               ctx.beginPath();
               ctx.moveTo(proj.x, proj.y);
-              ctx.lineTo(proj.x - proj.vx * 2, proj.y - proj.vy * 2);
+              ctx.lineTo(proj.x - proj.vx * 3, proj.y - proj.vy * 3);
               ctx.stroke();
             } else {
               ctx.strokeStyle = proj.fromPlayer ? '#38bdf8' : '#e2e8f0';
@@ -1145,7 +1963,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             }
           });
 
-          // Particles
+          // 12. PARTICLES
           particlesRef.current.forEach(part => {
             ctx.fillStyle = part.color;
             ctx.beginPath();
@@ -1153,56 +1971,128 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             ctx.fill();
           });
 
-          // PLAYER
+          // 13. PLAYER (LINK / MAS BUMI - CHAMPION'S TUNIC & MASTER SWORD)
           if (p.invulnerableTimer % 4 < 2) {
-            // Player Body (Champion's Tunic Blue)
+            // Shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y + 12, 14, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // PARAGLIDER (Parasut Layang)
+            if (p.isGliding) {
+              ctx.fillStyle = '#78350f'; // Wooden struts
+              ctx.fillRect(p.x - 30, p.y - 35, 60, 4);
+              ctx.fillStyle = '#d97706'; // Sail cloth
+              ctx.beginPath();
+              ctx.moveTo(p.x - 30, p.y - 35);
+              ctx.lineTo(p.x, p.y - 48);
+              ctx.lineTo(p.x + 30, p.y - 35);
+              ctx.closePath();
+              ctx.fill();
+            }
+
+            // Champion's Tunic Body (Iconic Azure Blue)
             ctx.fillStyle = '#0284c7';
             ctx.beginPath();
             ctx.arc(p.x, p.y, 16, 0, Math.PI * 2);
             ctx.fill();
 
-            // Head & Hair
-            ctx.fillStyle = '#f59e0b'; // golden hair
+            // White Champion embroidery cross on chest
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2.5;
             ctx.beginPath();
-            ctx.arc(p.x, p.y - 4, 10, 0, Math.PI * 2);
+            ctx.moveTo(p.x - 6, p.y - 4);
+            ctx.lineTo(p.x + 6, p.y + 4);
+            ctx.moveTo(p.x + 6, p.y - 4);
+            ctx.lineTo(p.x - 6, p.y + 4);
+            ctx.stroke();
+
+            // Blonde / Light Brown Link Hair
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(p.x, p.y - 5, 10, 0, Math.PI * 2);
             ctx.fill();
 
-            // Sword or Shield in hand
+            // HYLIAN SHIELD (Blue with Golden Triforce & Red Crest)
             if (p.isBlocking) {
-              // Shield
-              ctx.fillStyle = '#3b82f6';
-              ctx.strokeStyle = '#f59e0b';
+              const shX = p.x + Math.cos(p.facing) * 19;
+              const shY = p.y + Math.sin(p.facing) * 19;
+
+              // Shield base
+              ctx.fillStyle = '#1d4ed8';
+              ctx.strokeStyle = '#94a3b8';
               ctx.lineWidth = 3;
-              const shX = p.x + Math.cos(p.facing) * 18;
-              const shY = p.y + Math.sin(p.facing) * 18;
               ctx.beginPath();
-              ctx.arc(shX, shY, 12, 0, Math.PI * 2);
+              ctx.arc(shX, shY, 13, 0, Math.PI * 2);
               ctx.fill();
               ctx.stroke();
+
+              // Gold Triforce at top of shield
+              ctx.fillStyle = '#facc15';
+              ctx.beginPath();
+              ctx.moveTo(shX, shY - 8);
+              ctx.lineTo(shX + 5, shY - 1);
+              ctx.lineTo(shX - 5, shY - 1);
+              ctx.closePath();
+              ctx.fill();
+            } else if (p.isSpinAttacking) {
+              // 360 SPIN ATTACK CYCLONE!
+              ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+              ctx.lineWidth = 6;
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, 55, 0, Math.PI * 2);
+              ctx.stroke();
             } else if (p.isAttacking) {
-              // Sword Slash Visual
+              // Normal Sword Slash arc
               ctx.strokeStyle = '#38bdf8';
               ctx.lineWidth = 4;
               ctx.beginPath();
-              ctx.arc(p.x, p.y, 35, p.facing - 1, p.facing + 1);
+              ctx.arc(p.x, p.y, 40, p.facing - 1.1, p.facing + 1.1);
               ctx.stroke();
             }
 
-            // Stamina Wheel (Circular green gauge beside player)
+            // ZELDA CIRCULAR STAMINA WHEEL (Next to Link)
             if (p.stamina < p.maxStamina) {
               const rad = 14;
               const pct = p.stamina / p.maxStamina;
-              ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+              ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
               ctx.lineWidth = 4;
               ctx.beginPath();
-              ctx.arc(p.x + 22, p.y - 18, rad, 0, Math.PI * 2);
+              ctx.arc(p.x + 24, p.y - 20, rad, 0, Math.PI * 2);
               ctx.stroke();
 
-              ctx.strokeStyle = '#10b981';
+              // Green wheel turning flashing red when low
+              const isLow = pct < 0.25;
+              ctx.strokeStyle = isLow ? (Date.now() % 300 < 150 ? '#ef4444' : '#f59e0b') : '#10b981';
               ctx.beginPath();
-              ctx.arc(p.x + 22, p.y - 18, rad, -Math.PI / 2, -Math.PI / 2 + pct * Math.PI * 2);
+              ctx.arc(p.x + 24, p.y - 20, rad, -Math.PI / 2, -Math.PI / 2 + pct * Math.PI * 2);
               ctx.stroke();
             }
+          }
+
+          // 14. DAY / NIGHT LIGHTING OVERLAY
+          const nightTint = Math.sin(timeOfDayRef.current * Math.PI * 2);
+          if (nightTint > 0.2) {
+            // Night Darkness
+            ctx.fillStyle = `rgba(10, 15, 35, ${Math.min(0.65, (nightTint - 0.2) * 1.1)})`;
+            ctx.fillRect(camX, camY, canvas.width, canvas.height);
+
+            // Light circle around Player (Torch / Sheikah Glow)
+            const gradient = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, 140);
+            gradient.addColorStop(0, 'rgba(255, 237, 213, 0.35)');
+            gradient.addColorStop(1, 'rgba(10, 15, 35, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 140, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // 15. FLURRY RUSH BULLET TIME CYAN VIGNETTE
+          if (isBulletTime) {
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
+            ctx.lineWidth = 14;
+            ctx.strokeRect(camX, camY, canvas.width, canvas.height);
           }
 
           ctx.restore();
@@ -1214,7 +2104,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
     animId = requestAnimationFrame(update);
     return () => cancelAnimationFrame(animId);
-  }, [gameState, playSfx, playSound]);
+  }, [gameState, playZeldaSfx]);
 
   // Keyboard Event Listeners
   useEffect(() => {
@@ -1226,16 +2116,22 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
           handleAttack();
         } else if (e.key === 'k' || e.key === 'K') {
           handleShootArrow();
-        } else if (e.key === 'l' || e.key === 'L' || e.key === 'Shift') {
-          playerRef.current.isBlocking = true;
-        } else if (e.key === ' ') {
+        } else if (e.key === 'l' || e.key === 'L') {
+          handleShieldDown();
+        } else if (e.key === ' ' || e.key === 'Shift') {
           e.preventDefault();
           handleDash();
+        } else if (e.key === 'q' || e.key === 'Q') {
+          handleRemoteBomb();
+        } else if (e.key === 'g' || e.key === 'G') {
+          toggleParaglider();
         } else if (e.key === 'e' || e.key === 'E') {
-          if (hudStats.nearCampfire) {
-            handleCook();
+          if (hudStats.nearCookingPot) {
+            handleOpenCooking();
+          } else if (hudStats.nearKorok) {
+            handleInteractKorok();
           } else {
-            handleEat();
+            handleEatMeal();
           }
         }
       }
@@ -1243,8 +2139,8 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
     const handleKeyUp = (e: KeyboardEvent) => {
       keysRef.current[e.key] = false;
-      if (e.key === 'l' || e.key === 'L' || e.key === 'Shift') {
-        playerRef.current.isBlocking = false;
+      if (e.key === 'l' || e.key === 'L') {
+        handleShieldUp();
       }
     };
 
@@ -1254,101 +2150,115 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [gameState, handleAttack, handleShootArrow, handleDash, handleEat, handleCook, hudStats.nearCampfire]);
+  });
+
+  // Helper function to draw rupee polygon
+  const drawRupee = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x, y - 8);
+    ctx.lineTo(x + 5, y - 2);
+    ctx.lineTo(x + 5, y + 2);
+    ctx.lineTo(x, y + 8);
+    ctx.lineTo(x - 5, y + 2);
+    ctx.lineTo(x - 5, y - 2);
+    ctx.closePath();
+    ctx.fill();
+  };
+
+  // Render Zelda Hearts (Quarters logic)
+  const renderZeldaHearts = () => {
+    const totalHearts = Math.ceil(hudStats.maxHearts / 4);
+    const hearts = [];
+
+    for (let i = 0; i < totalHearts; i++) {
+      const remainingQuarters = Math.max(0, Math.min(4, hudStats.hearts - i * 4));
+      const fillPct = remainingQuarters / 4;
+
+      hearts.push(
+        <div key={i} className="relative w-5 h-5 flex items-center justify-center">
+          {/* Heart Container Outline */}
+          <Heart className="w-5 h-5 text-slate-700 dark:text-slate-800 fill-slate-800/80" />
+          {/* Filled Heart */}
+          <div 
+            className="absolute inset-0 overflow-hidden flex items-center"
+            style={{ width: `${fillPct * 100}%` }}
+          >
+            <Heart className="w-5 h-5 text-rose-500 fill-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)]" />
+          </div>
+        </div>
+      );
+    }
+    return hearts;
+  };
 
   return (
-    <div className={`rounded-3xl p-4 sm:p-7 border transition-all ${
+    <div className={`rounded-3xl p-4 sm:p-6 border transition-all ${
       isDarkMode 
-        ? 'bg-[#061426] border-cyan-900/60 shadow-2xl text-white' 
-        : 'bg-white border-cyan-200 shadow-xl text-slate-800'
+        ? 'bg-[#040d1a] border-cyan-800/80 shadow-2xl text-slate-100' 
+        : 'bg-gradient-to-br from-slate-50 via-sky-50 to-blue-50 border-sky-300 shadow-xl text-slate-800'
     }`}>
-      {/* Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-cyan-500/20">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono-tech flex items-center gap-1.5">
-              <Compass className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
-              <span>ZELDA OPEN-WORLD RPG</span>
-            </span>
-            <span className="text-xs font-mono-tech font-bold text-slate-400">
-              Peta Luas (2400 x 2400 px)
-            </span>
-          </div>
-          <h3 className="text-2xl sm:text-3xl font-black font-fun mt-1 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300">
-            🗡️ Legenda Mas Bumi: Nafas Samudra
-          </h3>
-          <p className={`text-xs sm:text-sm mt-0.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-            Jelajahi padang rumput, berburu, masak di api unggun, dan kalahkan monster hingga Boss Guardian!
-          </p>
-        </div>
-
-        {/* Sound & Controls */}
-        <div className="flex items-center gap-2 font-mono-tech">
-          <button
-            onClick={() => setSoundEnabled(s => !s)}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer"
-            title="Toggle Suara"
-          >
-            {soundEnabled ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Main Game Stage Container */}
-      <div className="py-4 relative select-none">
-        {/* Top HUD Display */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3 font-mono-tech">
-          {/* Hearts & Stamina */}
-          <div className="flex items-center gap-4 bg-slate-950/80 p-2.5 px-4 rounded-2xl border border-cyan-500/30 shadow-md">
-            {/* Hearts */}
+      <div className="space-y-4">
+        {/* TOP BAR: SHEIKAH SLATE HUD */}
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-slate-900/90 border border-cyan-500/40 text-xs font-mono-tech shadow-lg">
+          {/* Left: Hearts & Time */}
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
-              {Array.from({ length: hudStats.maxHearts }).map((_, i) => (
-                <Heart
-                  key={i}
-                  className={`w-5 h-5 ${
-                    i < hudStats.hearts
-                      ? 'text-rose-500 fill-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.7)]'
-                      : 'text-slate-700'
-                  }`}
-                />
-              ))}
+              {renderZeldaHearts()}
             </div>
 
-            {/* Stamina Pill */}
-            <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold">
-              <Zap className="w-4 h-4 fill-emerald-400" />
-              <span>{hudStats.stamina}%</span>
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-800/90 border border-cyan-400/30 text-cyan-300">
+              {currentTimePhase === 'Malam' ? <Moon className="w-3.5 h-3.5 text-indigo-400" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
+              <span>{currentTimePhase}</span>
             </div>
           </div>
 
-          {/* Inventory Counters */}
-          <div className="flex items-center gap-3 bg-slate-950/80 p-2.5 px-4 rounded-2xl border border-cyan-500/30 text-xs shadow-md">
-            <span className="flex items-center gap-1 text-rose-300">
-              <span>🍎</span> {hudStats.apples}
-            </span>
-            <span className="flex items-center gap-1 text-amber-300">
-              <span>🥩</span> {hudStats.cookedMeat}
-            </span>
-            <span className="flex items-center gap-1 text-cyan-300">
-              <span>🏹</span> {hudStats.arrows}
-            </span>
-            <span className="flex items-center gap-1 text-emerald-300 font-bold">
-              <span>💎</span> {hudStats.rupees}
-            </span>
+          {/* Right: Rupees, Korok, Arrows, Meals */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-bold">
+              <span>💎</span>
+              <span>{hudStats.rupees}</span>
+            </div>
+
+            <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-amber-950/80 border border-amber-500/40 text-amber-300 font-bold">
+              <span>🍃</span>
+              <span>{hudStats.korokSeeds}</span>
+            </div>
+
+            <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-sky-950/80 border border-sky-500/40 text-sky-300 font-bold">
+              <span>🏹</span>
+              <span>{hudStats.arrows}</span>
+            </div>
+
+            <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-300 font-bold">
+              <span>🍱</span>
+              <span>{hudStats.mealsCount}</span>
+            </div>
+
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
+                soundEnabled 
+                  ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-300' 
+                  : 'bg-rose-500/20 border-rose-400/50 text-rose-300'
+              }`}
+              title={soundEnabled ? 'Matikan Suara Zelda' : 'Nyalakan Suara Zelda'}
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 
-        {/* Boss HP Bar (Visible when near Ancient Temple) */}
+        {/* BOSS HEALTH BAR (Ancient Guardian Leviathan) */}
         {hudStats.bossHp > 0 && (
-          <div className="mb-3 max-w-xl mx-auto bg-slate-950/90 p-3 rounded-2xl border-2 border-rose-500/50 shadow-xl shadow-rose-950/50 font-mono-tech animate-fade-in">
-            <div className="flex justify-between items-center text-xs mb-1">
-              <span className="font-bold text-rose-400 uppercase flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" />
-                <span>Ancient Guardian Leviathan (BOSS)</span>
+          <div className="p-3 rounded-2xl bg-slate-950/90 border-2 border-rose-500/70 shadow-lg space-y-1 animate-pulse">
+            <div className="flex items-center justify-between text-xs font-mono-tech font-bold text-rose-300">
+              <span className="flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-rose-500" />
+                <span>ANCIENT GUARDIAN LEVIATHAN (KUIL KUNO)</span>
               </span>
-              <span className="text-white font-black">{hudStats.bossHp} / {hudStats.bossMaxHp} HP</span>
+              <span>{Math.round((hudStats.bossHp / hudStats.bossMaxHp) * 100)}%</span>
             </div>
-            <div className="w-full h-3.5 bg-slate-800 rounded-full overflow-hidden border border-rose-500/40">
+            <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden border border-rose-500/40">
               <div
                 className="h-full bg-gradient-to-r from-rose-600 via-red-500 to-amber-500 transition-all duration-200"
                 style={{ width: `${(hudStats.bossHp / hudStats.bossMaxHp) * 100}%` }}
@@ -1357,20 +2267,13 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
           </div>
         )}
 
-        {/* Interactive Canvas */}
+        {/* INTERACTIVE CANVAS */}
         <div className="relative rounded-3xl overflow-hidden border-2 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.15)] bg-slate-950">
           <canvas
             ref={canvasRef}
             width={850}
             height={520}
             className="w-full h-auto block cursor-crosshair"
-            onMouseMove={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              mousePosRef.current = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-              };
-            }}
           />
 
           {/* Mini-Radar Map (Top Right of Canvas) */}
@@ -1378,7 +2281,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             <div className="relative w-full h-full rounded-xl overflow-hidden bg-slate-900 border border-slate-700">
               {/* Player Dot */}
               <div
-                className="absolute w-2 h-2 rounded-full bg-cyan-400 -translate-x-1/2 -translate-y-1/2 shadow-[0_0_6px_#38bdf8]"
+                className="absolute w-2.5 h-2.5 rounded-full bg-cyan-400 -translate-x-1/2 -translate-y-1/2 shadow-[0_0_6px_#38bdf8]"
                 style={{
                   left: `${(playerRef.current.x / WORLD_W) * 100}%`,
                   top: `${(playerRef.current.y / WORLD_H) * 100}%`
@@ -1386,12 +2289,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               />
               {/* Boss Temple Marker */}
               <div
-                className="absolute w-2.5 h-2.5 rounded-xs bg-rose-500 -translate-x-1/2 -translate-y-1/2 animate-pulse"
+                className="absolute w-3 h-3 rounded-xs bg-rose-500 -translate-x-1/2 -translate-y-1/2 animate-pulse"
                 style={{
-                  left: `${(2150 / WORLD_W) * 100}%`,
-                  top: `${(2150 / WORLD_H) * 100}%`
+                  left: `${(2180 / WORLD_W) * 100}%`,
+                  top: `${(2180 / WORLD_H) * 100}%`
                 }}
-                title="Kuil Boss"
               />
               {/* Campfire Marker */}
               <div
@@ -1403,37 +2305,98 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               />
             </div>
             <span className="text-[9px] font-mono-tech font-bold text-cyan-300 block text-center mt-0.5">
-              RADAR DUNIA
+              RADAR HYRULE
             </span>
           </div>
 
+          {/* Flurry Rush Bullet Time Banner */}
+          {flurryActive && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 px-6 py-1.5 rounded-full bg-cyan-500/90 text-slate-950 font-black text-xs font-mono-tech shadow-xl animate-pulse pointer-events-none flex items-center gap-2">
+              <Zap className="w-4 h-4" />
+              <span>FLURRY RUSH! TEKAN TEBAS SECEPATNYA!</span>
+            </div>
+          )}
+
           {/* Screen Notifications / Prompts */}
           {hudStats.message && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-amber-500/90 text-slate-950 font-bold text-xs font-mono-tech shadow-lg animate-bounce pointer-events-none">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-amber-500/95 text-slate-950 font-bold text-xs font-mono-tech shadow-lg animate-bounce pointer-events-none">
               {hudStats.message}
             </div>
           )}
 
-          {/* Overlays: Intro / GameOver / Victory */}
+          {/* Context Action Prompt (Masak / Angkat Batu) */}
+          {hudStats.nearCookingPot && (
+            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-slate-900/90 border border-amber-400 text-amber-300 font-bold text-xs font-mono-tech shadow-lg animate-pulse flex items-center gap-2">
+              <Flame className="w-4 h-4 text-orange-400" />
+              <span>Tekan [E] untuk Memasak di Panci!</span>
+            </div>
+          )}
+          {hudStats.nearKorok && (
+            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-slate-900/90 border border-emerald-400 text-emerald-300 font-bold text-xs font-mono-tech shadow-lg animate-pulse flex items-center gap-2">
+              <span>🍃</span>
+              <span>{hudStats.nearKorok.prompt} [E]</span>
+            </div>
+          )}
+
+          {/* COOKING MODAL (Authentic Zelda Cooking Animation) */}
+          {cookingModal && (
+            <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md z-40 flex flex-col items-center justify-center p-6 text-center">
+              {cookingModal.stage === 'cooking' ? (
+                <div className="space-y-4 animate-bounce">
+                  <div className="w-20 h-20 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-4xl shadow-[0_0_30px_rgba(251,191,36,0.6)]">
+                    🍲
+                  </div>
+                  <h4 className="text-xl font-black font-fun text-amber-300">
+                    Memasak di Panci Kuno...
+                  </h4>
+                  <p className="text-xs text-slate-300 font-mono-tech">
+                    Bahan-bahan melompat gembira di dalam panci!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4 max-w-sm p-6 rounded-3xl bg-slate-900 border-2 border-amber-400 shadow-2xl animate-scale-in">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center text-3xl shadow-lg">
+                    {cookingModal.icon}
+                  </div>
+                  <h4 className="text-2xl font-black font-fun text-amber-300">
+                    {cookingModal.dishName}
+                  </h4>
+                  <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                    {cookingModal.dishDesc}
+                  </p>
+                  <button
+                    onClick={() => setCookingModal(null)}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs font-mono-tech cursor-pointer hover:scale-105 transition-all"
+                  >
+                    SIMPAN KE TAS MAKANAN 🎒
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* OVERLAYS: INTRO / GAMEOVER / VICTORY */}
           {gameState === 'intro' && (
             <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center">
               <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-600 text-slate-950 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.6)] mb-3 animate-pulse">
                 <Sword className="w-8 h-8" />
               </div>
               <h4 className="text-3xl sm:text-4xl font-black font-fun text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300">
-                LEGENDA MAS BUMI: NAFAS SAMUDRA
+                LEGENDA MAS BUMI: BREATH OF KLATEN
               </h4>
               <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-md font-sans leading-relaxed">
-                Jelajahi peta dunia terbuka yang luas! Berburu hewan untuk makanan, masak di api unggun, kalahkan monster bertingkat, dan tantang Boss Kuno di kuil reruntuhan!
+                Petualangan open-world otentik ala The Legend of Zelda! Jelajahi padang savana, tebas rumput untuk menemukan Rupee & Peri, gunakan Paraglider, ledakkan Bom Sheikah, tangkis laser Guardian dengan Perfect Parry, dan temukan Korok rahasia!
               </p>
 
-              <div className="grid grid-cols-2 gap-3 my-5 text-xs text-left max-w-sm font-mono-tech bg-slate-900/80 p-3.5 rounded-2xl border border-cyan-500/30 text-slate-300">
-                <div>⚔️ <strong>[J]</strong> Tebas Pedang</div>
-                <div>🏹 <strong>[K]</strong> Panah</div>
-                <div>🛡️ <strong>[L / Shift]</strong> Tangkis / Parry</div>
-                <div>⚡ <strong>[Spasi]</strong> Dash Roll</div>
-                <div>🍎 <strong>[E]</strong> Makan / Masak</div>
-                <div>🧭 <strong>[WASD]</strong> Jalan</div>
+              <div className="grid grid-cols-2 gap-2.5 my-5 text-xs text-left max-w-md font-mono-tech bg-slate-900/80 p-4 rounded-2xl border border-cyan-500/30 text-slate-300">
+                <div>⚔️ <strong>[J]</strong> Tebas / Spin Attack</div>
+                <div>🏹 <strong>[K]</strong> Busur & Panah</div>
+                <div>🛡️ <strong>[L]</strong> Perisai / Perfect Parry</div>
+                <div>⚡ <strong>[Spasi]</strong> Dash & Flurry Rush</div>
+                <div>💣 <strong>[Q]</strong> Bom Biru Sheikah</div>
+                <div>🪂 <strong>[G]</strong> Paraglider Layang</div>
+                <div>🍲 <strong>[E]</strong> Masak / Makan / Korok</div>
+                <div>🧭 <strong>[WASD]</strong> Jalan Eksplorasi</div>
               </div>
 
               <button
@@ -1455,7 +2418,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 KAMU GUGUR DALAM TUGAS!
               </h4>
               <p className="text-xs text-slate-300 mt-1 max-w-xs font-sans">
-                Jangan menyerah, pahlawan! Gunakan perisai untuk menangkis laser dan bawa banyak makanan daging panggang!
+                Gunakan perisai untuk memantulkan laser Guardian dan bawa banyak makanan daging panggang!
               </p>
               <button
                 onClick={handleStartGame}
@@ -1476,7 +2439,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 SELAMAT MAS BUMI! 🏆👑
               </h4>
               <p className="text-sm text-slate-200 mt-2 max-w-md font-sans leading-relaxed">
-                Ancient Guardian Leviathan berhasil dikalahkan! Mas Bumi telah membuktikan keberanian dan ketangguhan sebagai Pahlawan Samudra sejati!
+                Ancient Guardian Leviathan berhasil dikalahkan! Mas Bumi telah membuktikan keberanian dan ketangguhan sebagai Pahlawan sejati!
               </p>
               <button
                 onClick={handleStartGame}
@@ -1489,45 +2452,137 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
           )}
         </div>
 
-        {/* Mobile Virtual Controls */}
-        <div className="pt-4 max-w-md mx-auto space-y-2 select-none font-mono-tech">
-          <div className="grid grid-cols-5 gap-2 text-center text-xs">
+        {/* MOBILE VIRTUAL CONTROLS */}
+        <div className="pt-2 max-w-xl mx-auto space-y-3 select-none font-mono-tech">
+          {/* Action Buttons Row */}
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 text-center text-xs">
             <button
               onClick={handleAttack}
-              className="p-3 rounded-2xl bg-cyan-600/90 active:bg-cyan-500 border border-cyan-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-cyan-600/30 cursor-pointer"
+              className="p-2.5 rounded-2xl bg-cyan-600/90 active:bg-cyan-500 border border-cyan-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-cyan-600/30 cursor-pointer"
             >
-              <Sword className="w-5 h-5" />
+              <Sword className="w-4 h-4" />
               <span>TEBAS</span>
             </button>
+
+            <button
+              onClick={handleSpinAttack}
+              className="p-2.5 rounded-2xl bg-teal-600/90 active:bg-teal-500 border border-teal-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-teal-600/30 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>SPIN</span>
+            </button>
+
             <button
               onClick={handleShootArrow}
-              className="p-3 rounded-2xl bg-indigo-600/90 active:bg-indigo-500 border border-indigo-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-indigo-600/30 cursor-pointer"
+              className="p-2.5 rounded-2xl bg-indigo-600/90 active:bg-indigo-500 border border-indigo-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-indigo-600/30 cursor-pointer"
             >
-              <Crosshair className="w-5 h-5" />
+              <Crosshair className="w-4 h-4" />
               <span>PANAH</span>
             </button>
+
             <button
-              onPointerDown={() => { playerRef.current.isBlocking = true; }}
-              onPointerUp={() => { playerRef.current.isBlocking = false; }}
-              className="p-3 rounded-2xl bg-blue-600/90 active:bg-blue-500 border border-blue-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-blue-600/30 cursor-pointer"
+              onPointerDown={handleShieldDown}
+              onPointerUp={handleShieldUp}
+              className="p-2.5 rounded-2xl bg-blue-600/90 active:bg-blue-500 border border-blue-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-blue-600/30 cursor-pointer"
             >
-              <Shield className="w-5 h-5" />
-              <span>TANGKIS</span>
+              <Shield className="w-4 h-4" />
+              <span>PARRY</span>
             </button>
+
             <button
               onClick={handleDash}
-              className="p-3 rounded-2xl bg-emerald-600/90 active:bg-emerald-500 border border-emerald-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-emerald-600/30 cursor-pointer"
+              className="p-2.5 rounded-2xl bg-emerald-600/90 active:bg-emerald-500 border border-emerald-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-emerald-600/30 cursor-pointer"
             >
-              <Zap className="w-5 h-5" />
+              <Zap className="w-4 h-4" />
               <span>DASH</span>
             </button>
+
             <button
-              onClick={hudStats.nearCampfire ? handleCook : handleEat}
-              className="p-3 rounded-2xl bg-amber-600/90 active:bg-amber-500 border border-amber-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-amber-600/30 cursor-pointer"
+              onClick={handleRemoteBomb}
+              className={`p-2.5 rounded-2xl border text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md cursor-pointer transition-all ${
+                hudStats.hasBombActive 
+                  ? 'bg-rose-600 border-rose-400 shadow-rose-600/40 animate-pulse' 
+                  : 'bg-sky-600 border-sky-400 shadow-sky-600/30'
+              }`}
             >
-              {hudStats.nearCampfire ? <Flame className="w-5 h-5" /> : <span>🍎</span>}
-              <span>{hudStats.nearCampfire ? 'MASAK' : 'MAKAN'}</span>
+              <Bomb className="w-4 h-4" />
+              <span>{hudStats.hasBombActive ? 'LEDAKKAN' : 'BOM'}</span>
             </button>
+
+            <button
+              onClick={toggleParaglider}
+              className="p-2.5 rounded-2xl bg-amber-600/90 active:bg-amber-500 border border-amber-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-amber-600/30 cursor-pointer"
+            >
+              <Wind className="w-4 h-4" />
+              <span>LAYANG</span>
+            </button>
+          </div>
+
+          {/* D-Pad Navigation & Contextual Button */}
+          <div className="flex items-center justify-between gap-4 pt-1">
+            {/* Virtual D-Pad */}
+            <div className="grid grid-cols-3 gap-1.5 w-36">
+              <div />
+              <button
+                onPointerDown={() => { touchDpadRef.current = { dx: 0, dy: -1 }; }}
+                onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                className="p-3 rounded-xl bg-slate-800 active:bg-slate-700 border border-slate-600 text-white flex items-center justify-center"
+              >
+                ▲
+              </button>
+              <div />
+              <button
+                onPointerDown={() => { touchDpadRef.current = { dx: -1, dy: 0 }; }}
+                onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                className="p-3 rounded-xl bg-slate-800 active:bg-slate-700 border border-slate-600 text-white flex items-center justify-center"
+              >
+                ◀
+              </button>
+              <div className="flex items-center justify-center text-[10px] text-slate-500">
+                <Compass className="w-4 h-4" />
+              </div>
+              <button
+                onPointerDown={() => { touchDpadRef.current = { dx: 1, dy: 0 }; }}
+                onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                className="p-3 rounded-xl bg-slate-800 active:bg-slate-700 border border-slate-600 text-white flex items-center justify-center"
+              >
+                ▶
+              </button>
+              <div />
+              <button
+                onPointerDown={() => { touchDpadRef.current = { dx: 0, dy: 1 }; }}
+                onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                className="p-3 rounded-xl bg-slate-800 active:bg-slate-700 border border-slate-600 text-white flex items-center justify-center"
+              >
+                ▼
+              </button>
+              <div />
+            </div>
+
+            {/* Contextual Action Button (Masak / Angkat Batu / Makan) */}
+            <div className="flex-1 max-w-xs">
+              <button
+                onClick={hudStats.nearCookingPot ? handleOpenCooking : hudStats.nearKorok ? handleInteractKorok : handleEatMeal}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer hover:scale-102 active:scale-98 transition-all"
+              >
+                {hudStats.nearCookingPot ? (
+                  <>
+                    <Flame className="w-4 h-4 text-orange-950" />
+                    <span>MASAK DI PANCI 🍲</span>
+                  </>
+                ) : hudStats.nearKorok ? (
+                  <>
+                    <span>🍃</span>
+                    <span>PERIKSA RAHASIA KOROK</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🍱</span>
+                    <span>MAKAN BEKAL 🍎</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
