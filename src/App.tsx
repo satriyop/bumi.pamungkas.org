@@ -1534,9 +1534,28 @@ export default function App() {
                     <span className="text-slate-400">Berat & Postur:</span>
                     <span className="text-cyan-300 font-bold">47 kg (KU-12 Tangguh)</span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Target Musim Ini:</span>
-                    <span className="text-emerald-400 font-bold">50m Sprint Sub-45s</span>
+                  <div className="space-y-1.5 pt-1 pb-1">
+                    <div className="flex justify-between text-xs items-center">
+                      <span className="text-slate-400">Target 50m Musim Ini:</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                      <div className="bg-cyan-950/60 border border-cyan-500/30 px-2 py-1 rounded-lg flex justify-between items-center">
+                        <span className="text-slate-300">Bebas:</span>
+                        <span className="text-emerald-400 font-bold">31s</span>
+                      </div>
+                      <div className="bg-cyan-950/60 border border-cyan-500/30 px-2 py-1 rounded-lg flex justify-between items-center">
+                        <span className="text-slate-300">Dada:</span>
+                        <span className="text-emerald-400 font-bold">43s</span>
+                      </div>
+                      <div className="bg-cyan-950/60 border border-cyan-500/30 px-2 py-1 rounded-lg flex justify-between items-center">
+                        <span className="text-slate-300">Punggung:</span>
+                        <span className="text-cyan-300 font-bold">36s</span>
+                      </div>
+                      <div className="bg-cyan-950/60 border border-cyan-500/30 px-2 py-1 rounded-lg flex justify-between items-center">
+                        <span className="text-slate-300">Kupu-kupu:</span>
+                        <span className="text-emerald-400 font-bold">34s</span>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-400">Kumon Level Status:</span>
@@ -2837,6 +2856,26 @@ export default function App() {
                 </div>
                 <div className="text-xs text-cyan-200 mt-2 font-semibold">
                   Gaya Aktif: <span className="font-bold text-white bg-cyan-500/30 px-2 py-0.5 rounded-md font-mono-tech">{selectedStroke}</span>
+                </div>
+              </div>
+
+              {/* Target 50m Quick Reference */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono-tech max-w-md mx-auto">
+                <div className="p-2 rounded-xl bg-white/5 border border-white/10 text-center">
+                  <span className="text-[10px] text-slate-400 block">Target Bebas</span>
+                  <span className="text-emerald-400 font-bold">31s</span>
+                </div>
+                <div className="p-2 rounded-xl bg-white/5 border border-white/10 text-center">
+                  <span className="text-[10px] text-slate-400 block">Target Dada</span>
+                  <span className="text-emerald-400 font-bold">43s</span>
+                </div>
+                <div className="p-2 rounded-xl bg-white/5 border border-cyan-500/30 bg-cyan-950/30 text-center">
+                  <span className="text-[10px] text-cyan-300 block font-bold">Punggung ⭐</span>
+                  <span className="text-cyan-300 font-bold">36s</span>
+                </div>
+                <div className="p-2 rounded-xl bg-white/5 border border-white/10 text-center">
+                  <span className="text-[10px] text-slate-400 block">Target Kupu</span>
+                  <span className="text-emerald-400 font-bold">34s</span>
                 </div>
               </div>
 
