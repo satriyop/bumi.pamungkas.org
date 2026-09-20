@@ -17,7 +17,9 @@ import {
   Bomb,
   Wind,
   Sun,
-  Moon
+  Moon,
+  CloudRain,
+  Mountain
 } from 'lucide-react';
 
 interface ZeldaAdventureArenaProps {
@@ -36,18 +38,25 @@ function getTerrainHeight(x: number, z: number): number {
     h -= (1 - distToLake / 45) * 6;
   }
 
-  // Canyon crags (x > 30 && z > 30)
+  // Canyon steep crags & cliffs (x > 30 && z > 30)
   if (x > 30 && z > 30) {
-    h += Math.sin(x * 0.1) * Math.cos(z * 0.1) * 5 + 3;
+    h += Math.sin(x * 0.1) * Math.cos(z * 0.1) * 6 + 4.5;
   }
 
   // Ancient Shrine plateau (x: 60..90, z: -90..-60)
   const distToShrine = Math.hypot(x - 75, z - (-75));
   if (distToShrine < 25) {
-    h = 4.5 + Math.sin(distToShrine * 0.2) * 0.5;
+    h = 5.5 + Math.sin(distToShrine * 0.2) * 0.5;
   }
 
   return h;
+}
+
+interface UpdraftZone {
+  x: number;
+  z: number;
+  radius: number;
+  timer: number;
 }
 
 export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDarkMode = true, playSound }) => {
@@ -55,13 +64,18 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
   const [gameState, setGameState] = useState<'intro' | 'playing' | 'gameover' | 'victory'>('intro');
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Time of Day (Pagi, Siang, Senja, Malam)
+  // Time & Weather
   const timeOfDayRef = useRef(0.25); // 0.25 = noon
   const [currentTimePhase, setCurrentTimePhase] = useState<'Pagi' | 'Siang' | 'Senja' | 'Malam'>('Siang');
+  const [currentWeather, setCurrentWeather] = useState<'Cerah' | 'Hujan' | 'Badai Petir'>('Cerah');
+  const weatherTimerRef = useRef(0);
 
   // Flurry Rush (Bullet Time)
   const flurryRushTimerRef = useRef(0);
   const [flurryActive, setFlurryActive] = useState(false);
+
+  // Updraft zones (from fire / bombs)
+  const updraftsRef = useRef<UpdraftZone[]>([]);
 
   // Cooking Modal State
   const [cookingModal, setCookingModal] = useState<{
@@ -78,6 +92,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     y: 0,
     z: 0,
     vx: 0,
+    vy: 0,
     vz: 0,
     rotY: 0,
     hearts: 20, // 5 hearts * 4 quarters
@@ -94,6 +109,8 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     isDashing: false,
     dashTimer: 0,
     isGliding: false,
+    isClimbing: false,
+    isSurfing: false,
     invulnerableTimer: 0,
     runCycle: 0,
     apples: 5,
@@ -103,6 +120,9 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     rupees: 100,
     korokSeeds: 0
   });
+
+  // Guardian Legs HP (6 legs, 60 HP each)
+  const guardianLegsHpRef = useRef<number[]>([60, 60, 60, 60, 60, 60]);
 
   // UI Mirror
   const [hudStats, setHudStats] = useState({
@@ -118,9 +138,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     korokSeeds: 0,
     bossHp: 800,
     bossMaxHp: 800,
+    legsRemaining: 6,
     nearCampfire: false,
     nearCookingPot: false,
-    hasBombActive: false,
+    isClimbing: false,
+    isSurfing: false,
     message: null as string | null
   });
 
@@ -151,11 +173,13 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     return audioCtxRef.current;
   }, []);
 
+  // Zelda Web Audio Synthesizer (with BotW Ambient Piano & Guardian Panic Piano)
   const playZeldaSfx = useCallback((type: 
     'slash' | 'spin' | 'arrow' | 'parry' | 'hit' | 'flurry_warp' | 
     'bomb_drop' | 'bomb_explode' | 'guardian_beep' | 'guardian_laser' | 
     'cook_jingle' | 'cook_success' | 'secret_chime' | 'korok_yahaha' | 
-    'rupee_get' | 'fairy_heal' | 'glide_wind' | 'victory'
+    'rupee_get' | 'fairy_heal' | 'glide_wind' | 'victory' | 'botw_piano' | 
+    'guardian_panic' | 'surf_slide' | 'thunder'
   ) => {
     if (!soundEnabled) return;
     try {
@@ -382,6 +406,65 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         gain.connect(ctx.destination);
         osc.start(now);
         osc.stop(now + 0.2);
+      } else if (type === 'botw_piano') {
+        // Iconic gentle, sparse Breath of the Wild piano chords
+        const pianoChords = [
+          [370, 440, 554], // F#m
+          [392, 493, 587], // G
+          [440, 554, 659], // A
+          [293, 370, 440]  // D
+        ];
+        const chord = pianoChords[Math.floor(Math.random() * pianoChords.length)];
+        chord.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.18);
+          gain.gain.setValueAtTime(0.15, now + idx * 0.18);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.18 + 1.8);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.18);
+          osc.stop(now + idx * 0.18 + 1.8);
+        });
+      } else if (type === 'guardian_panic') {
+        // Frantic high-tempo Guardian battle piano notes
+        [1046, 1174, 1318, 1568, 1760].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+          gain.gain.setValueAtTime(0.12, now + idx * 0.06);
+          gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.06 + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.06);
+          osc.stop(now + idx * 0.06 + 0.08);
+        });
+      } else if (type === 'surf_slide') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.linearRampToValueAtTime(140, now + 0.2);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      } else if (type === 'thunder') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(90, now);
+        osc.frequency.exponentialRampToValueAtTime(25, now + 1.2);
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 1.2);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 1.2);
       } else if (type === 'victory') {
         [523, 659, 783, 1046, 1318].forEach((f, idx) => {
           const o = ctx.createOscillator();
@@ -409,6 +492,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       y: getTerrainHeight(0, 0),
       z: 0,
       vx: 0,
+      vy: 0,
       vz: 0,
       rotY: 0,
       hearts: 20,
@@ -425,6 +509,8 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       isDashing: false,
       dashTimer: 0,
       isGliding: false,
+      isClimbing: false,
+      isSurfing: false,
       invulnerableTimer: 0,
       runCycle: 0,
       apples: 5,
@@ -434,6 +520,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       rupees: 100,
       korokSeeds: 0
     };
+    guardianLegsHpRef.current = [60, 60, 60, 60, 60, 60];
     setGameState('playing');
     playZeldaSfx('secret_chime');
   };
@@ -441,7 +528,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
   // Player Actions
   const handleAttack = () => {
     const p = playerStatsRef.current;
-    if (p.isAttacking || p.isDashing || p.isGliding) return;
+    if (p.isAttacking || p.isDashing || p.isGliding || p.isClimbing) return;
     p.isAttacking = true;
     p.attackTimer = 16;
     playZeldaSfx('slash');
@@ -449,7 +536,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
   const handleSpinAttack = () => {
     const p = playerStatsRef.current;
-    if (p.stamina < 25) return;
+    if (p.stamina < 25 || p.isClimbing) return;
     p.stamina = Math.max(0, p.stamina - 25);
     p.isSpinAttacking = true;
     p.spinTimer = 22;
@@ -458,7 +545,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
   const handleShootArrow = () => {
     const p = playerStatsRef.current;
-    if (p.arrows <= 0 || p.isGliding) return;
+    if (p.arrows <= 0 || p.isClimbing) return;
     p.arrows--;
     playZeldaSfx('arrow');
   };
@@ -477,7 +564,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
   const handleDash = () => {
     const p = playerStatsRef.current;
-    if (p.isDashing || p.stamina < 15 || p.isGliding) return;
+    if (p.isDashing || p.stamina < 15 || p.isGliding || p.isClimbing) return;
     p.stamina = Math.max(0, p.stamina - 15);
     p.isDashing = true;
     p.dashTimer = 16;
@@ -490,19 +577,53 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     playZeldaSfx('flurry_warp');
   };
 
+  // Shield Surfing (Seluncur Perisai di Lereng)
+  const toggleShieldSurfing = () => {
+    const p = playerStatsRef.current;
+    if (p.isSurfing) {
+      p.isSurfing = false;
+    } else if (p.stamina > 15 && !p.isClimbing) {
+      p.isSurfing = true;
+      playZeldaSfx('surf_slide');
+      setHudStats(prev => ({ ...prev, message: '🏂 SHIELD SURFING! Meluncur di perisai Hylian!' }));
+    }
+  };
+
+  // Paraglider & Updraft Launch
   const toggleParaglider = () => {
     const p = playerStatsRef.current;
     if (p.isGliding) {
       p.isGliding = false;
     } else if (p.stamina > 15) {
       p.isGliding = true;
+      p.isClimbing = false;
+      p.isSurfing = false;
       playZeldaSfx('glide_wind');
+
+      // Check if near any fire updraft => SUPER LAUNCH!
+      const inUpdraft = updraftsRef.current.some(u => Math.hypot(p.x - u.x, p.z - u.z) < u.radius);
+      if (inUpdraft) {
+        p.vy = 16; // Propel high into the sky!
+        playZeldaSfx('flurry_warp');
+        setHudStats(prev => ({ ...prev, message: '🔥 ANGIN PANAS UPDRAFT! TERBANG MEMBUBUNG TINGGI!' }));
+      }
     }
   };
 
+  // Remote Bomb with Updraft creation
   const handleRemoteBomb = () => {
+    const p = playerStatsRef.current;
     playZeldaSfx('bomb_explode');
-    setHudStats(prev => ({ ...prev, message: '💥 Bom Sheikah Meledak!' }));
+
+    // Create an updraft zone at bomb location!
+    updraftsRef.current.push({
+      x: p.x,
+      z: p.z,
+      radius: 8,
+      timer: 450 // 7.5 seconds
+    });
+
+    setHudStats(prev => ({ ...prev, message: '💥 BOM SHEIKAH! Membakar rumput & ciptakan Updraft angin panas!' }));
   };
 
   const handleOpenCooking = () => {
@@ -590,7 +711,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     // 1. Scene & Fog
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#38bdf8');
-    scene.fog = new THREE.FogExp2('#38bdf8', 0.008);
+    scene.fog = new THREE.FogExp2('#38bdf8', 0.007);
 
     // 2. Camera
     const camera = new THREE.PerspectiveCamera(55, container.clientWidth / container.clientHeight, 0.1, 800);
@@ -635,18 +756,13 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       const vy = getTerrainHeight(vx, vz);
       posAttr.setY(i, vy);
 
-      // Vertex color blending based on biome & height
       if (vy < -1.0) {
-        // Sand near water
         colors.push(0.85, 0.8, 0.6);
       } else if (vx > 30 && vz > 30) {
-        // Canyon terracotta
         colors.push(0.65, 0.35, 0.25);
       } else if (Math.hypot(vx - 75, vz - (-75)) < 25) {
-        // Shrine dark slate
         colors.push(0.12, 0.16, 0.24);
       } else {
-        // Vibrant Hyrule Green Plains & Hills
         const g = 0.55 + Math.sin(vx * 0.1) * 0.1;
         colors.push(0.18, g, 0.22);
       }
@@ -663,7 +779,45 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     terrainMesh.receiveShadow = true;
     scene.add(terrainMesh);
 
-    // 6. 3D Water Surface (Lake Klaten)
+    // 6. 3D Instanced Swaying Grass (Ratusan Bilah Rumput Bergoyang)
+    const grassCount = 180;
+    const grassBladeGeo = new THREE.ConeGeometry(0.15, 0.9, 4);
+    const grassBladeMat = new THREE.MeshStandardMaterial({ color: '#4ade80', roughness: 0.7 });
+    const instancedGrass = new THREE.InstancedMesh(grassBladeGeo, grassBladeMat, grassCount);
+
+    const dummy = new THREE.Object3D();
+    for (let g = 0; g < grassCount; g++) {
+      const gx = (Math.random() - 0.5) * 200;
+      const gz = (Math.random() - 0.5) * 200;
+      const gy = getTerrainHeight(gx, gz);
+      dummy.position.set(gx, gy + 0.45, gz);
+      dummy.rotation.y = Math.random() * Math.PI;
+      dummy.updateMatrix();
+      instancedGrass.setMatrixAt(g, dummy.matrix);
+    }
+    scene.add(instancedGrass);
+
+    // 7. 3D Rain Particle System
+    const rainCount = 600;
+    const rainGeo = new THREE.BufferGeometry();
+    const rainPositions = new Float32Array(rainCount * 3);
+    for (let r = 0; r < rainCount * 3; r += 3) {
+      rainPositions[r] = (Math.random() - 0.5) * 160;
+      rainPositions[r + 1] = Math.random() * 40;
+      rainPositions[r + 2] = (Math.random() - 0.5) * 160;
+    }
+    rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
+    const rainMat = new THREE.PointsMaterial({
+      color: '#93c5fd',
+      size: 0.35,
+      transparent: true,
+      opacity: 0.7
+    });
+    const rainParticles = new THREE.Points(rainGeo, rainMat);
+    rainParticles.visible = false;
+    scene.add(rainParticles);
+
+    // 8. 3D Water Surface (Lake Klaten)
     const waterGeo = new THREE.CircleGeometry(42, 32);
     waterGeo.rotateX(-Math.PI / 2);
     const waterMat = new THREE.MeshStandardMaterial({
@@ -677,11 +831,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     waterMesh.position.set(-50, -1.2, 50);
     scene.add(waterMesh);
 
-    // 7. 3D Ancient Shrine (Reruntuhan Kuil Kuno)
+    // 9. 3D Ancient Shrine (Reruntuhan Kuil Kuno)
     const shrineGroup = new THREE.Group();
-    shrineGroup.position.set(75, 4.5, -75);
+    shrineGroup.position.set(75, 5.5, -75);
 
-    // Stone pillars
     const pillarMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.7 });
     const runeMat = new THREE.MeshStandardMaterial({ color: '#06b6d4', emissive: '#06b6d4', emissiveIntensity: 0.8 });
 
@@ -692,14 +845,13 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       pilMesh.castShadow = true;
       shrineGroup.add(pilMesh);
 
-      // Glowing rune stripe
       const runeMesh = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1, 2.1), runeMat);
       runeMesh.position.set(Math.cos(pAng) * 16, 6.5, Math.sin(pAng) * 16);
       shrineGroup.add(runeMesh);
     }
     scene.add(shrineGroup);
 
-    // 8. 3D Trees with Apples
+    // 10. 3D Trees
     const treeTrunkGeo = new THREE.CylinderGeometry(0.4, 0.6, 3.5, 8);
     const treeTrunkMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.9 });
     const treeFoliageGeo = new THREE.DodecahedronGeometry(2.5);
@@ -729,7 +881,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       foliage.castShadow = true;
       tree.add(foliage);
 
-      // Hanging apples
       const app1 = new THREE.Mesh(appleGeo, appleMat);
       app1.position.set(1.2, 3.8, 1.2);
       tree.add(app1);
@@ -741,11 +892,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       scene.add(tree);
     });
 
-    // 9. 3D Campfire & Tripod Cooking Pot
+    // 11. 3D Campfire & Tripod Cooking Pot
     const campGroup = new THREE.Group();
     campGroup.position.set(8, getTerrainHeight(8, 8), 8);
 
-    // Stone ring
     const stoneGeo = new THREE.DodecahedronGeometry(0.35);
     const stoneMat = new THREE.MeshStandardMaterial({ color: '#64748b' });
     for (let s = 0; s < 8; s++) {
@@ -755,12 +905,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       campGroup.add(st);
     }
 
-    // Fire light
     const fireLight = new THREE.PointLight('#f97316', 3.5, 18);
     fireLight.position.set(0, 1.2, 0);
     campGroup.add(fireLight);
 
-    // Flame cone
     const flameGeo = new THREE.ConeGeometry(0.5, 1.4, 8);
     const flameMat = new THREE.MeshStandardMaterial({
       color: '#f97316',
@@ -772,7 +920,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     flameMesh.position.y = 0.7;
     campGroup.add(flameMesh);
 
-    // Cast-iron Cooking Pot on tripod
     const potGeo = new THREE.CylinderGeometry(0.7, 0.5, 0.6, 12);
     const potMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.4, metalness: 0.8 });
     const potMesh = new THREE.Mesh(potGeo, potMat);
@@ -780,18 +927,16 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     campGroup.add(potMesh);
     scene.add(campGroup);
 
-    // 10. 3D PLAYER MODEL (Link / Mas Bumi in Champion's Tunic)
+    // 12. 3D PLAYER MODEL (Link / Mas Bumi)
     const playerGroup = new THREE.Group();
     playerGroup.position.set(0, getTerrainHeight(0, 0), 0);
 
-    // Torso (Champion's Tunic Blue)
     const tunicMat = new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.6 });
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.9, 0.45), tunicMat);
     torso.position.y = 1.15;
     torso.castShadow = true;
     playerGroup.add(torso);
 
-    // Head & Hair
     const skinMat = new THREE.MeshStandardMaterial({ color: '#fed7aa', roughness: 0.6 });
     const hairMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', roughness: 0.5 });
 
@@ -804,7 +949,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     hair.position.y = 1.95;
     playerGroup.add(hair);
 
-    // Legs & Boots
     const pantsMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.8 });
     const bootMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.7 });
 
@@ -828,7 +972,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     bootRight.castShadow = true;
     playerGroup.add(bootRight);
 
-    // MASTER SWORD 3D (Right Hand)
+    // MASTER SWORD 3D
     const swordGroup = new THREE.Group();
     swordGroup.position.set(0.45, 1.1, 0.2);
 
@@ -857,7 +1001,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
     playerGroup.add(swordGroup);
 
-    // HYLIAN SHIELD 3D (Left Hand / Back)
+    // HYLIAN SHIELD 3D
     const shieldGroup = new THREE.Group();
     shieldGroup.position.set(-0.45, 1.1, 0.1);
 
@@ -875,7 +1019,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
     playerGroup.add(shieldGroup);
 
-    // PARAGLIDER 3D (Mounted to Link)
+    // PARAGLIDER 3D
     const paragliderGroup = new THREE.Group();
     paragliderGroup.position.set(0, 2.3, 0);
 
@@ -894,11 +1038,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
     scene.add(playerGroup);
 
-    // 11. 3D ANCIENT GUARDIAN STALKER BOSS
+    // 13. 3D ANCIENT GUARDIAN STALKER (with 6 Destructible Legs)
     const guardianGroup = new THREE.Group();
-    guardianGroup.position.set(75, 4.5, -75);
+    guardianGroup.position.set(75, 5.5, -75);
 
-    // Guardian Dome Chassis
     const guardianChassisMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.7, metalness: 0.4 });
     const eyeMat = new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#ef4444', emissiveIntensity: 1.2 });
 
@@ -907,7 +1050,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     guardianDome.castShadow = true;
     guardianGroup.add(guardianDome);
 
-    // Rotating Guardian Eye Turret
     const eyeTurret = new THREE.Group();
     eyeTurret.position.set(0, 2.2, 0);
 
@@ -920,7 +1062,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
     guardianGroup.add(eyeTurret);
 
-    // 3D Laser Targeting Line
     const laserLineGeo = new THREE.CylinderGeometry(0.08, 0.08, 1, 8);
     laserLineGeo.rotateX(Math.PI / 2);
     const laserLineMat = new THREE.MeshStandardMaterial({
@@ -934,7 +1075,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     laserBeamMesh.visible = false;
     scene.add(laserBeamMesh);
 
-    // 6 Segmented Guardian Legs
+    // 6 Segmented Destructible Legs
     const legPoles: THREE.Mesh[] = [];
     const legPoleGeo = new THREE.CylinderGeometry(0.18, 0.25, 4.2, 6);
     const legPoleMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.8 });
@@ -951,16 +1092,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     }
 
     scene.add(guardianGroup);
-
-    // 12. 3D BOKOBLIN & CHUCHU ENEMIES
-    const bokoGroup = new THREE.Group();
-    bokoGroup.position.set(25, getTerrainHeight(25, -25), -25);
-    const bokoMat = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.7 });
-    const bokoBody = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.6), bokoMat);
-    bokoBody.position.y = 0.6;
-    bokoBody.castShadow = true;
-    bokoGroup.add(bokoBody);
-    scene.add(bokoGroup);
 
     // Mouse / Touch Drag Orbit Listeners
     const onPointerDown = (e: PointerEvent) => {
@@ -988,7 +1119,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
 
-    // Handle Resize
     const handleResize = () => {
       if (!container) return;
       camera.aspect = container.clientWidth / container.clientHeight;
@@ -997,9 +1127,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     };
     window.addEventListener('resize', handleResize);
 
-    // 13. MAIN 3D ANIMATION & GAME LOOP
+    // 14. MAIN 3D ANIMATION & GAME LOOP
     let animId: number;
     let guardianTimer = 0;
+    let botwPianoTimer = 0;
 
     const animate = () => {
       const p = playerStatsRef.current;
@@ -1007,12 +1138,52 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       const timeScale = isBulletTime ? 0.2 : 1.0;
 
       // Update time of day
-      timeOfDayRef.current = (timeOfDayRef.current + 0.0001) % 1;
+      timeOfDayRef.current = (timeOfDayRef.current + 0.00008) % 1;
       const tod = timeOfDayRef.current;
       if (tod < 0.2) setCurrentTimePhase('Pagi');
       else if (tod < 0.5) setCurrentTimePhase('Siang');
       else if (tod < 0.75) setCurrentTimePhase('Senja');
       else setCurrentTimePhase('Malam');
+
+      // Update Weather Cycle
+      weatherTimerRef.current += 1;
+      if (weatherTimerRef.current % 1800 === 0) {
+        // Change weather every 30 seconds
+        const roll = Math.random();
+        if (roll < 0.6) {
+          setCurrentWeather('Cerah');
+          rainParticles.visible = false;
+          scene.background = new THREE.Color('#38bdf8');
+          scene.fog = new THREE.FogExp2('#38bdf8', 0.007);
+        } else if (roll < 0.85) {
+          setCurrentWeather('Hujan');
+          rainParticles.visible = true;
+          scene.background = new THREE.Color('#64748b');
+          scene.fog = new THREE.FogExp2('#64748b', 0.012);
+        } else {
+          setCurrentWeather('Badai Petir');
+          rainParticles.visible = true;
+          scene.background = new THREE.Color('#334155');
+          scene.fog = new THREE.FogExp2('#334155', 0.015);
+        }
+      }
+
+      // Rain animation
+      if (rainParticles.visible) {
+        const positions = rainParticles.geometry.attributes.position.array as Float32Array;
+        for (let i = 1; i < positions.length; i += 3) {
+          positions[i] -= 0.8;
+          if (positions[i] < 0) positions[i] = 40;
+        }
+        rainParticles.geometry.attributes.position.needsUpdate = true;
+
+        // Random Lightning Flash in Thunderstorm
+        if (currentWeather === 'Badai Petir' && Math.random() < 0.006) {
+          ambientLight.intensity = 3.5;
+          playZeldaSfx('thunder');
+          setTimeout(() => { ambientLight.intensity = 0.65; }, 80);
+        }
+      }
 
       // Update Flurry Rush Timer
       if (flurryRushTimerRef.current > 0) {
@@ -1021,6 +1192,17 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
           setFlurryActive(false);
         }
       }
+
+      // Ambient BOTW Piano melody
+      botwPianoTimer++;
+      if (botwPianoTimer > 400 && Math.random() < 0.008) {
+        botwPianoTimer = 0;
+        playZeldaSfx('botw_piano');
+      }
+
+      // Update Updraft zones
+      updraftsRef.current.forEach(u => { u.timer -= timeScale; });
+      updraftsRef.current = updraftsRef.current.filter(u => u.timer > 0);
 
       // Input directions
       let moveForward = 0;
@@ -1036,8 +1218,40 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         moveForward = -touchDpadRef.current.dy;
       }
 
+      // Climbing Detection: Check slope steepness ahead
+      const nextX = p.x + Math.sin(p.rotY) * 1.5;
+      const nextZ = p.z + Math.cos(p.rotY) * 1.5;
+      const heightDiff = getTerrainHeight(nextX, nextZ) - p.y;
+
+      if (heightDiff > 2.0 && moveForward > 0 && p.stamina > 5) {
+        p.isClimbing = true;
+        p.isGliding = false;
+        p.isSurfing = false;
+        p.stamina -= 0.35;
+        p.y += 0.12 * timeScale;
+      } else if (p.isClimbing) {
+        if (p.stamina <= 0 || moveForward === 0) {
+          p.isClimbing = false;
+        }
+      }
+
+      // Shield Surfing Downhill
+      if (p.isSurfing) {
+        p.stamina -= 0.2;
+        if (p.stamina <= 0) p.isSurfing = false;
+
+        // Accelerate forward & tilt shield under Link
+        shieldGroup.position.set(0, 0.05, 0);
+        shieldGroup.rotation.x = Math.PI / 2;
+        p.vx = Math.sin(p.rotY) * 0.55;
+        p.vz = Math.cos(p.rotY) * 0.55;
+      } else if (!p.isBlocking) {
+        shieldGroup.position.set(-0.45, 1.1, 0.1);
+        shieldGroup.rotation.set(0, 0, 0);
+      }
+
       // Move player relative to camera yaw
-      if (moveForward !== 0 || moveRight !== 0) {
+      if ((moveForward !== 0 || moveRight !== 0) && !p.isClimbing && !p.isSurfing) {
         const inputAngle = Math.atan2(moveRight, moveForward);
         const moveAngle = camOrbitRef.current.yaw + inputAngle;
 
@@ -1049,29 +1263,37 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         p.runCycle += 0.25 * timeScale;
         legLeft.rotation.x = Math.sin(p.runCycle) * 0.7;
         legRight.rotation.x = -Math.sin(p.runCycle) * 0.7;
-      } else {
+      } else if (!p.isSurfing) {
         p.vx *= 0.8;
         p.vz *= 0.8;
         legLeft.rotation.x = 0;
         legRight.rotation.x = 0;
       }
 
-      // Paragliding stamina consumption
+      // Paragliding mechanics
       if (p.isGliding) {
         p.stamina -= 0.35;
         if (p.stamina <= 0) p.isGliding = false;
         paragliderGroup.visible = true;
       } else {
         paragliderGroup.visible = false;
-        if (!p.isDashing && !p.isSpinAttacking && p.stamina < p.maxStamina) {
+        if (!p.isDashing && !p.isSpinAttacking && !p.isClimbing && !p.isSurfing && p.stamina < p.maxStamina) {
           p.stamina = Math.min(p.maxStamina, p.stamina + 0.4);
         }
       }
 
-      // Update Player Position
+      // Update Player Position & Gravity/Updraft
       p.x += p.vx;
       p.z += p.vz;
-      p.y = getTerrainHeight(p.x, p.z) + (p.isGliding ? 2.5 : 0);
+      p.y += p.vy * timeScale;
+
+      const groundY = getTerrainHeight(p.x, p.z) + (p.isGliding ? 2.5 : 0);
+      if (p.y < groundY && !p.isClimbing) {
+        p.y = groundY;
+        p.vy = 0;
+      } else if (p.y > groundY) {
+        p.vy -= 0.5 * timeScale; // Gravity
+      }
 
       playerGroup.position.set(p.x, p.y, p.z);
       playerGroup.rotation.y = p.rotY;
@@ -1081,6 +1303,27 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         p.attackTimer--;
         swordGroup.rotation.z = Math.sin((16 - p.attackTimer) * 0.4) * 1.8;
         swordGroup.rotation.x = Math.cos((16 - p.attackTimer) * 0.4) * 1.2;
+
+        // Check melee hit against Guardian legs!
+        const distToG = Math.hypot(p.x - guardianGroup.position.x, p.z - guardianGroup.position.z);
+        if (distToG < 6.5) {
+          // Damage a leg!
+          const legIdx = Math.floor(Math.random() * 6);
+          if (guardianLegsHpRef.current[legIdx] > 0) {
+            guardianLegsHpRef.current[legIdx] -= 25;
+            playZeldaSfx('hit');
+            if (guardianLegsHpRef.current[legIdx] <= 0) {
+              legPoles[legIdx].visible = false;
+              playZeldaSfx('bomb_explode');
+              p.rupees += 35;
+              setHudStats(prev => ({
+                ...prev,
+                message: '💥 KAKI GUARDIAN PUTUS! Robot kuno melambat! (+35 Rupee)'
+              }));
+            }
+          }
+        }
+
         if (p.attackTimer <= 0) {
           p.isAttacking = false;
           swordGroup.rotation.set(0, 0, 0);
@@ -1096,27 +1339,24 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       }
 
       // Shield Guard Pose
-      if (p.isBlocking) {
+      if (p.isBlocking && !p.isSurfing) {
         shieldGroup.position.set(-0.2, 1.1, 0.45);
         shieldGroup.rotation.y = 0.5;
-      } else {
-        shieldGroup.position.set(-0.45, 1.1, 0.1);
-        shieldGroup.rotation.y = 0;
       }
 
       // --- GUARDIAN AI & 3D LASER LOCK-ON ---
       guardianTimer += 0.05 * timeScale;
       legPoles.forEach((leg, idx) => {
-        leg.rotation.x = Math.sin(guardianTimer + idx) * 0.35;
+        if (leg.visible) {
+          leg.rotation.x = Math.sin(guardianTimer + idx) * 0.35;
+        }
       });
 
       const distToGuardian = Math.hypot(p.x - guardianGroup.position.x, p.z - guardianGroup.position.z);
-      if (distToGuardian < 70) {
-        // Aim head at player
+      if (distToGuardian < 75) {
         eyeTurret.lookAt(p.x, p.y + 1.2, p.z);
-
-        // Laser Beam Active
         laserBeamMesh.visible = true;
+
         const gPos = new THREE.Vector3();
         eyeLens.getWorldPosition(gPos);
         const pPos = new THREE.Vector3(p.x, p.y + 1.2, p.z);
@@ -1126,7 +1366,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         laserBeamMesh.lookAt(pPos);
         laserBeamMesh.scale.set(1, 1, gPos.distanceTo(pPos));
 
-        // Periodic Beep
+        // Guardian Panic Piano & Beeps
+        if (Math.random() < 0.05) {
+          playZeldaSfx('guardian_panic');
+        }
         if (Math.random() < 0.04) {
           playZeldaSfx('guardian_beep');
         }
@@ -1146,10 +1389,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       camera.position.lerp(new THREE.Vector3(targetCamX, targetCamY, targetCamZ), 0.12);
       camera.lookAt(p.x, p.y + 1.4, p.z);
 
-      // Flickering campfire light
       fireLight.intensity = 3.0 + Math.sin(Date.now() * 0.02) * 0.8;
 
       // Update HUD Mirror
+      const remainingLegs = guardianLegsHpRef.current.filter(hp => hp > 0).length;
       setHudStats(prev => ({
         ...prev,
         hearts: p.hearts,
@@ -1160,6 +1403,9 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         arrows: p.arrows,
         rupees: p.rupees,
         korokSeeds: p.korokSeeds,
+        legsRemaining: remainingLegs,
+        isClimbing: p.isClimbing,
+        isSurfing: p.isSurfing,
         nearCookingPot: Math.hypot(p.x - 8, p.z - 8) < 4.5
       }));
 
@@ -1202,6 +1448,8 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
           handleRemoteBomb();
         } else if (e.key === 'g' || e.key === 'G') {
           toggleParaglider();
+        } else if (e.key === 'r' || e.key === 'R') {
+          toggleShieldSurfing();
         } else if (e.key === 'e' || e.key === 'E') {
           if (hudStats.nearCookingPot) {
             handleOpenCooking();
@@ -1227,7 +1475,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     };
   });
 
-  // Render Zelda Hearts
   const renderZeldaHearts = () => {
     const totalHearts = Math.ceil(hudStats.maxHearts / 4);
     const hearts = [];
@@ -1267,7 +1514,12 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-800/90 border border-cyan-400/30 text-cyan-300">
               {currentTimePhase === 'Malam' ? <Moon className="w-3.5 h-3.5 text-indigo-400" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
-              <span>{currentTimePhase} (3D)</span>
+              <span>{currentTimePhase}</span>
+            </div>
+
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-800/90 border border-sky-400/30 text-sky-300">
+              <CloudRain className="w-3.5 h-3.5 text-sky-400" />
+              <span>{currentWeather}</span>
             </div>
           </div>
 
@@ -1282,14 +1534,12 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               <span>{hudStats.korokSeeds}</span>
             </div>
 
-            <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-sky-950/80 border border-sky-500/40 text-sky-300 font-bold">
-              <span>🏹</span>
-              <span>{hudStats.arrows}</span>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-300 font-bold">
+              <span>🤖 Kaki: {hudStats.legsRemaining}/6</span>
             </div>
 
-            <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-300 font-bold">
-              <span>🍱</span>
-              <span>{hudStats.mealsCount}</span>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-sky-950/80 border border-sky-500/40 text-sky-300 font-bold">
+              <span>🏹 {hudStats.arrows}</span>
             </div>
 
             <button
@@ -1322,6 +1572,20 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               KOMPAS 3D
             </span>
           </div>
+
+          {/* Status Badges: Climbing & Surfing */}
+          {hudStats.isClimbing && (
+            <div className="absolute top-4 left-4 px-4 py-1.5 rounded-xl bg-emerald-600/90 text-white font-black text-xs font-mono-tech shadow-xl animate-pulse flex items-center gap-2">
+              <Mountain className="w-4 h-4" />
+              <span>MEMANJAT TEBING / POHON!</span>
+            </div>
+          )}
+          {hudStats.isSurfing && (
+            <div className="absolute top-4 left-4 px-4 py-1.5 rounded-xl bg-blue-600/90 text-white font-black text-xs font-mono-tech shadow-xl animate-pulse flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              <span>SHIELD SURFING!</span>
+            </div>
+          )}
 
           {/* Flurry Rush Bullet Time Banner */}
           {flurryActive && (
@@ -1390,21 +1654,21 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 <Sword className="w-8 h-8" />
               </div>
               <h4 className="text-3xl sm:text-4xl font-black font-fun text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300">
-                LEGENDA MAS BUMI 3D: NAFAS SAMUDRA
+                LEGENDA MAS BUMI 3D: NEXT-GEN EDITION
               </h4>
               <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-md font-sans leading-relaxed">
-                Dunia 3D nyata orang ketiga (*Third-Person 3D*) ala Zelda: Breath of the Wild! Geser mouse/layar untuk memutar kamera 3D, berlari di perbukitan, tebas pedang Master 3D, gunakan Paraglider melayang, dan tantang Ancient Guardian Stalker 3D dengan laser lock-on!
+                Pengalaman Zelda: Breath of the Wild paling lengkap! Memanjat tebing & pohon, meluncur di perisai (*Shield Surfing*), terbang tinggi dengan Updraft angin panas, tebas putus 6 kaki robot Guardian, nikmati musik piano ambient BOTW dan cuaca dinamis!
               </p>
 
               <div className="grid grid-cols-2 gap-2.5 my-5 text-xs text-left max-w-md font-mono-tech bg-slate-900/80 p-4 rounded-2xl border border-cyan-500/30 text-slate-300">
-                <div>⚔️ <strong>[J]</strong> Tebas / Spin 3D</div>
+                <div>⚔️ <strong>[J]</strong> Tebas / Potong Kaki</div>
                 <div>🏹 <strong>[K]</strong> Panah 3D</div>
                 <div>🛡️ <strong>[L]</strong> Perisai / Parry 3D</div>
                 <div>⚡ <strong>[Spasi]</strong> Dash & Flurry 3D</div>
+                <div>🧗 <strong>[W di Tebing]</strong> Panjat Tebing</div>
+                <div>🏂 <strong>[R]</strong> Shield Surfing</div>
+                <div>🪂 <strong>[G]</strong> Paraglider / Updraft</div>
                 <div>💣 <strong>[Q]</strong> Bom Sheikah 3D</div>
-                <div>🪂 <strong>[G]</strong> Paraglider Layang</div>
-                <div>🍲 <strong>[E]</strong> Masak / Makan</div>
-                <div>🖱️ <strong>[Geser Layar]</strong> Kamera 360°</div>
               </div>
 
               <button
@@ -1412,7 +1676,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-sm shadow-xl shadow-emerald-500/40 transition-all hover:scale-105 cursor-pointer font-mono-tech flex items-center gap-2"
               >
                 <Play className="w-5 h-5 fill-current" />
-                <span>MULAI PETUALANGAN 3D! 🚀</span>
+                <span>MULAI PETUALANGAN NEXT-GEN! 🚀</span>
               </button>
             </div>
           )}
@@ -1447,7 +1711,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 SELAMAT MAS BUMI! 🏆👑
               </h4>
               <p className="text-sm text-slate-200 mt-2 max-w-md font-sans leading-relaxed">
-                Ancient Guardian Stalker 3D berhasil dikalahkan! Mas Bumi telah membuktikan keberanian dan ketangguhan sebagai Pahlawan sejati!
+                Ancient Guardian Stalker 3D berhasil dilumpuhkan dan dikalahkan! Mas Bumi telah membuktikan diri sebagai Pahlawan Hyrule sejati!
               </p>
               <button
                 onClick={handleStartGame}
@@ -1463,10 +1727,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         {/* MOBILE TOUCH CONTROLS */}
         <div className="pt-2 max-w-xl mx-auto space-y-3 select-none font-mono-tech">
           {/* Action Buttons Row */}
-          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 text-center text-xs">
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 text-center text-xs">
             <button
               onClick={handleAttack}
-              className="p-2.5 rounded-2xl bg-cyan-600/90 active:bg-cyan-500 border border-cyan-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-cyan-600/30 cursor-pointer"
+              className="p-2 rounded-2xl bg-cyan-600/90 active:bg-cyan-500 border border-cyan-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-cyan-600/30 cursor-pointer"
             >
               <Sword className="w-4 h-4" />
               <span>TEBAS</span>
@@ -1474,7 +1738,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
             <button
               onClick={handleSpinAttack}
-              className="p-2.5 rounded-2xl bg-teal-600/90 active:bg-teal-500 border border-teal-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-teal-600/30 cursor-pointer"
+              className="p-2 rounded-2xl bg-teal-600/90 active:bg-teal-500 border border-teal-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-teal-600/30 cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
               <span>SPIN</span>
@@ -1482,7 +1746,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
             <button
               onClick={handleShootArrow}
-              className="p-2.5 rounded-2xl bg-indigo-600/90 active:bg-indigo-500 border border-indigo-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-indigo-600/30 cursor-pointer"
+              className="p-2 rounded-2xl bg-indigo-600/90 active:bg-indigo-500 border border-indigo-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-indigo-600/30 cursor-pointer"
             >
               <Crosshair className="w-4 h-4" />
               <span>PANAH</span>
@@ -1491,7 +1755,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             <button
               onPointerDown={handleShieldDown}
               onPointerUp={handleShieldUp}
-              className="p-2.5 rounded-2xl bg-blue-600/90 active:bg-blue-500 border border-blue-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-blue-600/30 cursor-pointer"
+              className="p-2 rounded-2xl bg-blue-600/90 active:bg-blue-500 border border-blue-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-blue-600/30 cursor-pointer"
             >
               <Shield className="w-4 h-4" />
               <span>PARRY</span>
@@ -1499,15 +1763,23 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
             <button
               onClick={handleDash}
-              className="p-2.5 rounded-2xl bg-emerald-600/90 active:bg-emerald-500 border border-emerald-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-emerald-600/30 cursor-pointer"
+              className="p-2 rounded-2xl bg-emerald-600/90 active:bg-emerald-500 border border-emerald-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-emerald-600/30 cursor-pointer"
             >
               <Zap className="w-4 h-4" />
               <span>DASH</span>
             </button>
 
             <button
+              onClick={toggleShieldSurfing}
+              className="p-2 rounded-2xl bg-sky-600 active:bg-sky-500 border border-sky-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-sky-600/30 cursor-pointer"
+            >
+              <Mountain className="w-4 h-4" />
+              <span>SURF</span>
+            </button>
+
+            <button
               onClick={handleRemoteBomb}
-              className="p-2.5 rounded-2xl bg-sky-600 active:bg-sky-500 border border-sky-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-sky-600/30 cursor-pointer"
+              className="p-2 rounded-2xl bg-rose-600 active:bg-rose-500 border border-rose-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-rose-600/30 cursor-pointer"
             >
               <Bomb className="w-4 h-4" />
               <span>BOM 3D</span>
@@ -1515,7 +1787,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
             <button
               onClick={toggleParaglider}
-              className="p-2.5 rounded-2xl bg-amber-600/90 active:bg-amber-500 border border-amber-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-amber-600/30 cursor-pointer"
+              className="p-2 rounded-2xl bg-amber-600/90 active:bg-amber-500 border border-amber-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-amber-600/30 cursor-pointer"
             >
               <Wind className="w-4 h-4" />
               <span>LAYANG</span>
