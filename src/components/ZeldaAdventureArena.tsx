@@ -19,7 +19,8 @@ import {
   Sun,
   Moon,
   CloudRain,
-  Mountain
+  Mountain,
+  RotateCw
 } from 'lucide-react';
 
 interface ZeldaAdventureArenaProps {
@@ -29,7 +30,6 @@ interface ZeldaAdventureArenaProps {
 
 // Procedural 3D Terrain Height Function
 function getTerrainHeight(x: number, z: number): number {
-  // Center plains
   let h = Math.sin(x * 0.04) * Math.cos(z * 0.04) * 3 + Math.sin(x * 0.08) * 1.2;
 
   // Lake depression (x < -30 && z > 20)
@@ -59,13 +59,21 @@ interface UpdraftZone {
   timer: number;
 }
 
+interface Arrow3D {
+  mesh: THREE.Group;
+  vx: number;
+  vy: number;
+  vz: number;
+  life: number;
+}
+
 export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDarkMode = true, playSound }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [gameState, setGameState] = useState<'intro' | 'playing' | 'gameover' | 'victory'>('intro');
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Time & Weather
-  const timeOfDayRef = useRef(0.25); // 0.25 = noon
+  const timeOfDayRef = useRef(0.25);
   const [currentTimePhase, setCurrentTimePhase] = useState<'Pagi' | 'Siang' | 'Senja' | 'Malam'>('Siang');
   const [currentWeather, setCurrentWeather] = useState<'Cerah' | 'Hujan' | 'Badai Petir'>('Cerah');
   const weatherTimerRef = useRef(0);
@@ -74,8 +82,13 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
   const flurryRushTimerRef = useRef(0);
   const [flurryActive, setFlurryActive] = useState(false);
 
-  // Updraft zones (from fire / bombs)
+  // Updraft zones
   const updraftsRef = useRef<UpdraftZone[]>([]);
+
+  // 3D Arrows & 3D Bomb references in scene
+  const arrows3DRef = useRef<Arrow3D[]>([]);
+  const activeBomb3DRef = useRef<{ mesh: THREE.Mesh; vx: number; vz: number; timer: number } | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
 
   // Cooking Modal State
   const [cookingModal, setCookingModal] = useState<{
@@ -95,7 +108,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     vy: 0,
     vz: 0,
     rotY: 0,
-    hearts: 20, // 5 hearts * 4 quarters
+    hearts: 20,
     maxHearts: 20,
     bonusHearts: 0,
     stamina: 100,
@@ -121,7 +134,19 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     korokSeeds: 0
   });
 
-  // Guardian Legs HP (6 legs, 60 HP each)
+  // Bokoblin Enemy 3D State
+  const bokoStatsRef = useRef({
+    x: 25,
+    y: getTerrainHeight(25, -25),
+    z: -25,
+    hp: 60,
+    maxHp: 60,
+    attackCooldown: 0,
+    isAttacking: false,
+    mesh: null as THREE.Group | null
+  });
+
+  // Guardian Legs HP (6 legs)
   const guardianLegsHpRef = useRef<number[]>([60, 60, 60, 60, 60, 60]);
 
   // UI Mirror
@@ -138,11 +163,13 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     korokSeeds: 0,
     bossHp: 800,
     bossMaxHp: 800,
+    bokoHp: 60,
     legsRemaining: 6,
     nearCampfire: false,
     nearCookingPot: false,
     isClimbing: false,
     isSurfing: false,
+    hasBombActive: false,
     message: null as string | null
   });
 
@@ -156,11 +183,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     lastMouseY: 0
   });
 
-  // Keys & Input
+  // Input states
   const keysRef = useRef<{ [key: string]: boolean }>({});
   const touchDpadRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
 
-  // Web Audio Synthesizer
+  // Audio Synthesizer
   const audioCtxRef = useRef<AudioContext | null>(null);
   const getAudioCtx = useCallback(() => {
     if (!audioCtxRef.current) {
@@ -173,7 +200,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     return audioCtxRef.current;
   }, []);
 
-  // Zelda Web Audio Synthesizer (with BotW Ambient Piano & Guardian Panic Piano)
   const playZeldaSfx = useCallback((type: 
     'slash' | 'spin' | 'arrow' | 'parry' | 'hit' | 'flurry_warp' | 
     'bomb_drop' | 'bomb_explode' | 'guardian_beep' | 'guardian_laser' | 
@@ -407,12 +433,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         osc.start(now);
         osc.stop(now + 0.2);
       } else if (type === 'botw_piano') {
-        // Iconic gentle, sparse Breath of the Wild piano chords
         const pianoChords = [
-          [370, 440, 554], // F#m
-          [392, 493, 587], // G
-          [440, 554, 659], // A
-          [293, 370, 440]  // D
+          [370, 440, 554],
+          [392, 493, 587],
+          [440, 554, 659],
+          [293, 370, 440]
         ];
         const chord = pianoChords[Math.floor(Math.random() * pianoChords.length)];
         chord.forEach((freq, idx) => {
@@ -428,7 +453,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
           osc.stop(now + idx * 0.18 + 1.8);
         });
       } else if (type === 'guardian_panic') {
-        // Frantic high-tempo Guardian battle piano notes
         [1046, 1174, 1318, 1568, 1760].forEach((freq, idx) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -520,6 +544,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       rupees: 100,
       korokSeeds: 0
     };
+    bokoStatsRef.current.hp = 60;
     guardianLegsHpRef.current = [60, 60, 60, 60, 60, 60];
     setGameState('playing');
     playZeldaSfx('secret_chime');
@@ -532,6 +557,26 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     p.isAttacking = true;
     p.attackTimer = 16;
     playZeldaSfx('slash');
+
+    // Check hit on Bokoblin
+    const b = bokoStatsRef.current;
+    if (b.hp > 0) {
+      const distToBoko = Math.hypot(p.x - b.x, p.z - b.z);
+      if (distToBoko < 3.2) {
+        b.hp = Math.max(0, b.hp - 25);
+        playZeldaSfx('hit');
+        // Knockback Bokoblin
+        const ang = Math.atan2(b.x - p.x, b.z - p.z);
+        b.x += Math.sin(ang) * 2;
+        b.z += Math.cos(ang) * 2;
+        if (b.hp <= 0) {
+          p.rupees += 20;
+          p.meat += 1;
+          playZeldaSfx('rupee_get');
+          setHudStats(prev => ({ ...prev, message: '🎉 BOKOBLIN KALAH! (+20 Rupee & Daging Segar)' }));
+        }
+      }
+    }
   };
 
   const handleSpinAttack = () => {
@@ -541,13 +586,58 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     p.isSpinAttacking = true;
     p.spinTimer = 22;
     playZeldaSfx('spin');
+
+    const b = bokoStatsRef.current;
+    if (b.hp > 0 && Math.hypot(p.x - b.x, p.z - b.z) < 4.5) {
+      b.hp = Math.max(0, b.hp - 45);
+      playZeldaSfx('hit');
+      if (b.hp <= 0) {
+        p.rupees += 20;
+        p.meat += 1;
+        playZeldaSfx('rupee_get');
+      }
+    }
   };
 
+  // Real 3D Arrow Shooting
   const handleShootArrow = () => {
     const p = playerStatsRef.current;
     if (p.arrows <= 0 || p.isClimbing) return;
     p.arrows--;
     playZeldaSfx('arrow');
+
+    // Spawn 3D Arrow mesh in scene
+    if (sceneRef.current) {
+      const arrowGroup = new THREE.Group();
+      arrowGroup.position.set(p.x, p.y + 1.2, p.z);
+
+      const shaftMat = new THREE.MeshStandardMaterial({ color: '#78350f' });
+      const tipMat = new THREE.MeshStandardMaterial({ color: '#38bdf8', emissive: '#38bdf8', emissiveIntensity: 0.8 });
+
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2, 6), shaftMat);
+      shaft.rotateX(Math.PI / 2);
+      arrowGroup.add(shaft);
+
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.3, 6), tipMat);
+      tip.position.z = 0.65;
+      tip.rotateX(Math.PI / 2);
+      arrowGroup.add(tip);
+
+      const arrowSpeed = 1.6;
+      const arrowVx = Math.sin(p.rotY) * arrowSpeed;
+      const arrowVz = Math.cos(p.rotY) * arrowSpeed;
+
+      arrowGroup.rotation.y = p.rotY;
+      sceneRef.current.add(arrowGroup);
+
+      arrows3DRef.current.push({
+        mesh: arrowGroup,
+        vx: arrowVx,
+        vy: 0.1,
+        vz: arrowVz,
+        life: 120
+      });
+    }
   };
 
   const handleShieldDown = () => {
@@ -571,13 +661,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     p.invulnerableTimer = 16;
     playZeldaSfx('slash');
 
-    // Trigger Flurry Rush
     flurryRushTimerRef.current = 90;
     setFlurryActive(true);
     playZeldaSfx('flurry_warp');
   };
 
-  // Shield Surfing (Seluncur Perisai di Lereng)
   const toggleShieldSurfing = () => {
     const p = playerStatsRef.current;
     if (p.isSurfing) {
@@ -589,7 +677,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     }
   };
 
-  // Paraglider & Updraft Launch
   const toggleParaglider = () => {
     const p = playerStatsRef.current;
     if (p.isGliding) {
@@ -600,30 +687,73 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       p.isSurfing = false;
       playZeldaSfx('glide_wind');
 
-      // Check if near any fire updraft => SUPER LAUNCH!
       const inUpdraft = updraftsRef.current.some(u => Math.hypot(p.x - u.x, p.z - u.z) < u.radius);
       if (inUpdraft) {
-        p.vy = 16; // Propel high into the sky!
+        p.vy = 16;
         playZeldaSfx('flurry_warp');
         setHudStats(prev => ({ ...prev, message: '🔥 ANGIN PANAS UPDRAFT! TERBANG MEMBUBUNG TINGGI!' }));
       }
     }
   };
 
-  // Remote Bomb with Updraft creation
+  // Real 3D Sheikah Bomb Drop & Detonate
   const handleRemoteBomb = () => {
     const p = playerStatsRef.current;
-    playZeldaSfx('bomb_explode');
+    if (activeBomb3DRef.current) {
+      // Detonate active bomb!
+      playZeldaSfx('bomb_explode');
+      const b = activeBomb3DRef.current;
 
-    // Create an updraft zone at bomb location!
-    updraftsRef.current.push({
-      x: p.x,
-      z: p.z,
-      radius: 8,
-      timer: 450 // 7.5 seconds
-    });
+      if (sceneRef.current) {
+        sceneRef.current.remove(b.mesh);
+      }
 
-    setHudStats(prev => ({ ...prev, message: '💥 BOM SHEIKAH! Membakar rumput & ciptakan Updraft angin panas!' }));
+      // Check damage to Bokoblin & Guardian
+      const bokoDist = Math.hypot(b.mesh.position.x - bokoStatsRef.current.x, b.mesh.position.z - bokoStatsRef.current.z);
+      if (bokoDist < 8) {
+        bokoStatsRef.current.hp = Math.max(0, bokoStatsRef.current.hp - 50);
+        playZeldaSfx('hit');
+      }
+
+      // Create updraft zone
+      updraftsRef.current.push({
+        x: b.mesh.position.x,
+        z: b.mesh.position.z,
+        radius: 8,
+        timer: 450
+      });
+
+      activeBomb3DRef.current = null;
+      setHudStats(prev => ({ ...prev, hasBombActive: false, message: '💥 BOM MELEDAK! Updraft angin panas tercipta!' }));
+    } else {
+      // Spawn new 3D Sheikah Bomb
+      playZeldaSfx('bomb_drop');
+      if (sceneRef.current) {
+        const bombGeo = new THREE.SphereGeometry(0.65, 16, 16);
+        const bombMat = new THREE.MeshStandardMaterial({
+          color: '#0284c7',
+          emissive: '#38bdf8',
+          emissiveIntensity: 0.9,
+          roughness: 0.2
+        });
+        const bombMesh = new THREE.Mesh(bombGeo, bombMat);
+        bombMesh.position.set(p.x, p.y + 0.6, p.z);
+        sceneRef.current.add(bombMesh);
+
+        activeBomb3DRef.current = {
+          mesh: bombMesh,
+          vx: Math.sin(p.rotY) * 0.4,
+          vz: Math.cos(p.rotY) * 0.4,
+          timer: 0
+        };
+        setHudStats(prev => ({ ...prev, hasBombActive: true, message: '💣 Bom diletakkan! Tekan lagi untuk meledakkan!' }));
+      }
+    }
+  };
+
+  // Turn Camera Left / Right (For touch users)
+  const turnCamera = (dir: number) => {
+    camOrbitRef.current.yaw += dir * 0.35;
   };
 
   const handleOpenCooking = () => {
@@ -710,6 +840,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
     // 1. Scene & Fog
     const scene = new THREE.Scene();
+    sceneRef.current = scene;
     scene.background = new THREE.Color('#38bdf8');
     scene.fog = new THREE.FogExp2('#38bdf8', 0.007);
 
@@ -779,7 +910,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     terrainMesh.receiveShadow = true;
     scene.add(terrainMesh);
 
-    // 6. 3D Instanced Swaying Grass (Ratusan Bilah Rumput Bergoyang)
+    // 6. 3D Instanced Swaying Grass
     const grassCount = 180;
     const grassBladeGeo = new THREE.ConeGeometry(0.15, 0.9, 4);
     const grassBladeMat = new THREE.MeshStandardMaterial({ color: '#4ade80', roughness: 0.7 });
@@ -851,7 +982,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     }
     scene.add(shrineGroup);
 
-    // 10. 3D Trees
+    // 10. 3D Trees with Apples
     const treeTrunkGeo = new THREE.CylinderGeometry(0.4, 0.6, 3.5, 8);
     const treeTrunkMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.9 });
     const treeFoliageGeo = new THREE.DodecahedronGeometry(2.5);
@@ -1038,7 +1169,24 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
     scene.add(playerGroup);
 
-    // 13. 3D ANCIENT GUARDIAN STALKER (with 6 Destructible Legs)
+    // 13. 3D BOKOBLIN ENEMY
+    const bokoGroup = new THREE.Group();
+    bokoGroup.position.set(25, getTerrainHeight(25, -25), -25);
+    const bokoMat = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.7 });
+    const bokoBody = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.1, 0.65), bokoMat);
+    bokoBody.position.y = 0.55;
+    bokoBody.castShadow = true;
+    bokoGroup.add(bokoBody);
+
+    const hornMat = new THREE.MeshStandardMaterial({ color: '#fef08a' });
+    const bokoHorn = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.5, 4), hornMat);
+    bokoHorn.position.y = 1.3;
+    bokoGroup.add(bokoHorn);
+
+    scene.add(bokoGroup);
+    bokoStatsRef.current.mesh = bokoGroup;
+
+    // 14. 3D ANCIENT GUARDIAN STALKER
     const guardianGroup = new THREE.Group();
     guardianGroup.position.set(75, 5.5, -75);
 
@@ -1075,7 +1223,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     laserBeamMesh.visible = false;
     scene.add(laserBeamMesh);
 
-    // 6 Segmented Destructible Legs
     const legPoles: THREE.Mesh[] = [];
     const legPoleGeo = new THREE.CylinderGeometry(0.18, 0.25, 4.2, 6);
     const legPoleMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.8 });
@@ -1093,7 +1240,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
     scene.add(guardianGroup);
 
-    // Mouse / Touch Drag Orbit Listeners
+    // Pointer Events for 3D Camera Orbit
     const onPointerDown = (e: PointerEvent) => {
       camOrbitRef.current.isDragging = true;
       camOrbitRef.current.lastMouseX = e.clientX;
@@ -1127,7 +1274,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     };
     window.addEventListener('resize', handleResize);
 
-    // 14. MAIN 3D ANIMATION & GAME LOOP
+    // 15. MAIN 3D ANIMATION & GAME LOOP
     let animId: number;
     let guardianTimer = 0;
     let botwPianoTimer = 0;
@@ -1148,7 +1295,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       // Update Weather Cycle
       weatherTimerRef.current += 1;
       if (weatherTimerRef.current % 1800 === 0) {
-        // Change weather every 30 seconds
         const roll = Math.random();
         if (roll < 0.6) {
           setCurrentWeather('Cerah');
@@ -1177,7 +1323,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         }
         rainParticles.geometry.attributes.position.needsUpdate = true;
 
-        // Random Lightning Flash in Thunderstorm
         if (currentWeather === 'Badai Petir' && Math.random() < 0.006) {
           ambientLight.intensity = 3.5;
           playZeldaSfx('thunder');
@@ -1185,7 +1330,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         }
       }
 
-      // Update Flurry Rush Timer
+      // Flurry Rush Timer
       if (flurryRushTimerRef.current > 0) {
         flurryRushTimerRef.current--;
         if (flurryRushTimerRef.current <= 0) {
@@ -1218,7 +1363,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         moveForward = -touchDpadRef.current.dy;
       }
 
-      // Climbing Detection: Check slope steepness ahead
+      // Climbing Detection
       const nextX = p.x + Math.sin(p.rotY) * 1.5;
       const nextZ = p.z + Math.cos(p.rotY) * 1.5;
       const heightDiff = getTerrainHeight(nextX, nextZ) - p.y;
@@ -1235,12 +1380,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         }
       }
 
-      // Shield Surfing Downhill
+      // Shield Surfing
       if (p.isSurfing) {
         p.stamina -= 0.2;
         if (p.stamina <= 0) p.isSurfing = false;
 
-        // Accelerate forward & tilt shield under Link
         shieldGroup.position.set(0, 0.05, 0);
         shieldGroup.rotation.x = Math.PI / 2;
         p.vx = Math.sin(p.rotY) * 0.55;
@@ -1270,7 +1414,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         legRight.rotation.x = 0;
       }
 
-      // Paragliding mechanics
+      // Paraglider
       if (p.isGliding) {
         p.stamina -= 0.35;
         if (p.stamina <= 0) p.isGliding = false;
@@ -1282,7 +1426,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         }
       }
 
-      // Update Player Position & Gravity/Updraft
+      // Player Position & Gravity
       p.x += p.vx;
       p.z += p.vz;
       p.y += p.vy * timeScale;
@@ -1292,11 +1436,91 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         p.y = groundY;
         p.vy = 0;
       } else if (p.y > groundY) {
-        p.vy -= 0.5 * timeScale; // Gravity
+        p.vy -= 0.5 * timeScale;
       }
 
       playerGroup.position.set(p.x, p.y, p.z);
       playerGroup.rotation.y = p.rotY;
+
+      // 3D Arrows Update & Collision
+      arrows3DRef.current.forEach(arrow => {
+        arrow.mesh.position.x += arrow.vx * timeScale;
+        arrow.mesh.position.y += arrow.vy * timeScale;
+        arrow.mesh.position.z += arrow.vz * timeScale;
+        arrow.vy -= 0.015 * timeScale; // Ballistic gravity
+        arrow.life -= timeScale;
+
+        // Collision with Bokoblin
+        const b = bokoStatsRef.current;
+        if (b.hp > 0 && Math.hypot(arrow.mesh.position.x - b.x, arrow.mesh.position.z - b.z) < 1.8) {
+          b.hp = Math.max(0, b.hp - 35);
+          playZeldaSfx('hit');
+          arrow.life = 0;
+          if (b.hp <= 0) {
+            p.rupees += 20;
+            p.meat += 1;
+            playZeldaSfx('rupee_get');
+          }
+        }
+
+        // Collision with Guardian
+        const gDist = Math.hypot(arrow.mesh.position.x - guardianGroup.position.x, arrow.mesh.position.z - guardianGroup.position.z);
+        if (gDist < 3.5) {
+          playZeldaSfx('hit');
+          arrow.life = 0;
+        }
+
+        if (arrow.life <= 0) {
+          scene.remove(arrow.mesh);
+        }
+      });
+      arrows3DRef.current = arrows3DRef.current.filter(a => a.life > 0);
+
+      // 3D Bomb Update
+      if (activeBomb3DRef.current) {
+        const bomb = activeBomb3DRef.current;
+        bomb.mesh.position.x += bomb.vx * timeScale;
+        bomb.mesh.position.z += bomb.vz * timeScale;
+        bomb.mesh.position.y = getTerrainHeight(bomb.mesh.position.x, bomb.mesh.position.z) + 0.6;
+        bomb.vx *= 0.96;
+        bomb.vz *= 0.96;
+        bomb.timer++;
+
+        const s = 1.0 + Math.sin(bomb.timer * 0.2) * 0.15;
+        bomb.mesh.scale.set(s, s, s);
+      }
+
+      // 3D Bokoblin AI (Chases Link in 3D)
+      const b = bokoStatsRef.current;
+      if (b.hp > 0 && b.mesh) {
+        b.mesh.visible = true;
+        const distToPlayer = Math.hypot(p.x - b.x, p.z - b.z);
+        if (distToPlayer < 28 && distToPlayer > 1.8) {
+          const ang = Math.atan2(p.x - b.x, p.z - b.z);
+          b.x += Math.sin(ang) * 0.14 * timeScale;
+          b.z += Math.cos(ang) * 0.14 * timeScale;
+          b.y = getTerrainHeight(b.x, b.z);
+          b.mesh.position.set(b.x, b.y, b.z);
+          b.mesh.rotation.y = ang;
+        } else if (distToPlayer <= 1.8) {
+          // Bokoblin attacks Link
+          b.attackCooldown -= timeScale;
+          if (b.attackCooldown <= 0) {
+            b.attackCooldown = 75;
+            if (p.isBlocking) {
+              playZeldaSfx('parry');
+              p.stamina = Math.max(0, p.stamina - 15);
+            } else if (p.invulnerableTimer <= 0) {
+              p.hearts = Math.max(0, p.hearts - 4);
+              p.invulnerableTimer = 35;
+              playZeldaSfx('hit');
+              if (p.hearts <= 0) setGameState('gameover');
+            }
+          }
+        }
+      } else if (b.mesh) {
+        b.mesh.visible = false;
+      }
 
       // Sword Attack Animation
       if (p.isAttacking) {
@@ -1304,10 +1528,8 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         swordGroup.rotation.z = Math.sin((16 - p.attackTimer) * 0.4) * 1.8;
         swordGroup.rotation.x = Math.cos((16 - p.attackTimer) * 0.4) * 1.2;
 
-        // Check melee hit against Guardian legs!
         const distToG = Math.hypot(p.x - guardianGroup.position.x, p.z - guardianGroup.position.z);
         if (distToG < 6.5) {
-          // Damage a leg!
           const legIdx = Math.floor(Math.random() * 6);
           if (guardianLegsHpRef.current[legIdx] > 0) {
             guardianLegsHpRef.current[legIdx] -= 25;
@@ -1344,7 +1566,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         shieldGroup.rotation.y = 0.5;
       }
 
-      // --- GUARDIAN AI & 3D LASER LOCK-ON ---
+      // Guardian AI & Laser
       guardianTimer += 0.05 * timeScale;
       legPoles.forEach((leg, idx) => {
         if (leg.visible) {
@@ -1366,7 +1588,6 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         laserBeamMesh.lookAt(pPos);
         laserBeamMesh.scale.set(1, 1, gPos.distanceTo(pPos));
 
-        // Guardian Panic Piano & Beeps
         if (Math.random() < 0.05) {
           playZeldaSfx('guardian_panic');
         }
@@ -1377,7 +1598,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         laserBeamMesh.visible = false;
       }
 
-      // --- 3D THIRD-PERSON CAMERA FOLLOW ---
+      // 3D Third-Person Camera Follow
       const camYaw = camOrbitRef.current.yaw;
       const camPitch = camOrbitRef.current.pitch;
       const camDist = camOrbitRef.current.dist;
@@ -1391,7 +1612,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
       fireLight.intensity = 3.0 + Math.sin(Date.now() * 0.02) * 0.8;
 
-      // Update HUD Mirror
+      // Update HUD
       const remainingLegs = guardianLegsHpRef.current.filter(hp => hp > 0).length;
       setHudStats(prev => ({
         ...prev,
@@ -1403,6 +1624,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         arrows: p.arrows,
         rupees: p.rupees,
         korokSeeds: p.korokSeeds,
+        bokoHp: bokoStatsRef.current.hp,
         legsRemaining: remainingLegs,
         isClimbing: p.isClimbing,
         isSurfing: p.isSurfing,
@@ -1429,33 +1651,31 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     };
   }, [playZeldaSfx]);
 
-  // Keyboard Event Listeners
+  // Keyboard Event Listeners (Bound once cleanly with zero lag)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current[e.key] = true;
 
-      if (gameState === 'playing') {
-        if (e.key === 'j' || e.key === 'J') {
-          handleAttack();
-        } else if (e.key === 'k' || e.key === 'K') {
-          handleShootArrow();
-        } else if (e.key === 'l' || e.key === 'L') {
-          handleShieldDown();
-        } else if (e.key === ' ' || e.key === 'Shift') {
-          e.preventDefault();
-          handleDash();
-        } else if (e.key === 'q' || e.key === 'Q') {
-          handleRemoteBomb();
-        } else if (e.key === 'g' || e.key === 'G') {
-          toggleParaglider();
-        } else if (e.key === 'r' || e.key === 'R') {
-          toggleShieldSurfing();
-        } else if (e.key === 'e' || e.key === 'E') {
-          if (hudStats.nearCookingPot) {
-            handleOpenCooking();
-          } else {
-            handleEatMeal();
-          }
+      if (e.key === 'j' || e.key === 'J') {
+        handleAttack();
+      } else if (e.key === 'k' || e.key === 'K') {
+        handleShootArrow();
+      } else if (e.key === 'l' || e.key === 'L') {
+        handleShieldDown();
+      } else if (e.key === ' ' || e.key === 'Shift') {
+        e.preventDefault();
+        handleDash();
+      } else if (e.key === 'q' || e.key === 'Q') {
+        handleRemoteBomb();
+      } else if (e.key === 'g' || e.key === 'G') {
+        toggleParaglider();
+      } else if (e.key === 'r' || e.key === 'R') {
+        toggleShieldSurfing();
+      } else if (e.key === 'e' || e.key === 'E') {
+        if (hudStats.nearCookingPot) {
+          handleOpenCooking();
+        } else {
+          handleEatMeal();
         }
       }
     };
@@ -1473,7 +1693,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  });
+  }, [hudStats.nearCookingPot]);
 
   const renderZeldaHearts = () => {
     const totalHearts = Math.ceil(hudStats.maxHearts / 4);
@@ -1499,7 +1719,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
   };
 
   return (
-    <div className={`rounded-3xl p-4 sm:p-6 border transition-all ${
+    <div className={`rounded-3xl p-4 sm:p-6 border transition-all select-none touch-none ${
       isDarkMode 
         ? 'bg-[#040d1a] border-cyan-800/80 shadow-2xl text-slate-100' 
         : 'bg-gradient-to-br from-slate-50 via-sky-50 to-blue-50 border-sky-300 shadow-xl text-slate-800'
@@ -1543,7 +1763,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             </div>
 
             <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
+              onPointerDown={() => setSoundEnabled(!soundEnabled)}
               className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
                 soundEnabled 
                   ? 'bg-cyan-500/20 border-cyan-400/50 text-cyan-300' 
@@ -1557,10 +1777,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         </div>
 
         {/* 3D WEBGL CANVAS CONTAINER */}
-        <div className="relative rounded-3xl overflow-hidden border-2 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.2)] bg-slate-950">
+        <div className="relative rounded-3xl overflow-hidden border-2 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.2)] bg-slate-950 touch-none">
           <div 
             ref={mountRef} 
-            className="w-full h-[520px] block cursor-grab active:cursor-grabbing select-none"
+            className="w-full h-[520px] block cursor-grab active:cursor-grabbing select-none touch-none"
           />
 
           {/* 3D Mini-Compass / Radar (Top Right) */}
@@ -1575,13 +1795,13 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
           {/* Status Badges: Climbing & Surfing */}
           {hudStats.isClimbing && (
-            <div className="absolute top-4 left-4 px-4 py-1.5 rounded-xl bg-emerald-600/90 text-white font-black text-xs font-mono-tech shadow-xl animate-pulse flex items-center gap-2">
+            <div className="absolute top-4 left-4 px-4 py-1.5 rounded-xl bg-emerald-600/90 text-white font-black text-xs font-mono-tech shadow-xl animate-pulse flex items-center gap-2 pointer-events-none">
               <Mountain className="w-4 h-4" />
               <span>MEMANJAT TEBING / POHON!</span>
             </div>
           )}
           {hudStats.isSurfing && (
-            <div className="absolute top-4 left-4 px-4 py-1.5 rounded-xl bg-blue-600/90 text-white font-black text-xs font-mono-tech shadow-xl animate-pulse flex items-center gap-2">
+            <div className="absolute top-4 left-4 px-4 py-1.5 rounded-xl bg-blue-600/90 text-white font-black text-xs font-mono-tech shadow-xl animate-pulse flex items-center gap-2 pointer-events-none">
               <Shield className="w-4 h-4" />
               <span>SHIELD SURFING!</span>
             </div>
@@ -1604,11 +1824,31 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
           {/* Context Action Prompt (Masak) */}
           {hudStats.nearCookingPot && (
-            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-slate-900/90 border border-amber-400 text-amber-300 font-bold text-xs font-mono-tech shadow-lg animate-pulse flex items-center gap-2">
+            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-slate-900/90 border border-amber-400 text-amber-300 font-bold text-xs font-mono-tech shadow-lg animate-pulse flex items-center gap-2 pointer-events-none">
               <Flame className="w-4 h-4 text-orange-400" />
               <span>Tekan [E] untuk Memasak di Panci 3D!</span>
             </div>
           )}
+
+          {/* Quick Camera Rotate Buttons on Canvas (Left & Right) */}
+          <div className="absolute bottom-4 left-4 flex items-center gap-2">
+            <button
+              onPointerDown={(e) => { e.preventDefault(); turnCamera(1); }}
+              className="p-3 rounded-2xl bg-slate-900/80 active:bg-cyan-600 border border-cyan-400/50 text-cyan-300 active:text-white shadow-lg active:scale-90 transition-all flex items-center gap-1 text-xs font-mono-tech cursor-pointer touch-none"
+              title="Putar Kamera Kiri"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Putar ◀</span>
+            </button>
+            <button
+              onPointerDown={(e) => { e.preventDefault(); turnCamera(-1); }}
+              className="p-3 rounded-2xl bg-slate-900/80 active:bg-cyan-600 border border-cyan-400/50 text-cyan-300 active:text-white shadow-lg active:scale-90 transition-all flex items-center gap-1 text-xs font-mono-tech cursor-pointer touch-none"
+              title="Putar Kamera Kanan"
+            >
+              <span>Putar ▶</span>
+              <RotateCw className="w-4 h-4" />
+            </button>
+          </div>
 
           {/* COOKING MODAL */}
           {cookingModal && (
@@ -1637,8 +1877,8 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                     {cookingModal.dishDesc}
                   </p>
                   <button
-                    onClick={() => setCookingModal(null)}
-                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs font-mono-tech cursor-pointer hover:scale-105 transition-all"
+                    onPointerDown={() => setCookingModal(null)}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs font-mono-tech cursor-pointer hover:scale-105 transition-all active:scale-95"
                   >
                     SIMPAN KE TAS MAKANAN 🎒
                   </button>
@@ -1657,12 +1897,12 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 LEGENDA MAS BUMI 3D: NEXT-GEN EDITION
               </h4>
               <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-md font-sans leading-relaxed">
-                Pengalaman Zelda: Breath of the Wild paling lengkap! Memanjat tebing & pohon, meluncur di perisai (*Shield Surfing*), terbang tinggi dengan Updraft angin panas, tebas putus 6 kaki robot Guardian, nikmati musik piano ambient BOTW dan cuaca dinamis!
+                Pengalaman Zelda: Breath of the Wild paling nyata dengan tombol responsif! Memanjat tebing & pohon, meluncur di perisai (*Shield Surfing*), tembak panah 3D nyata, ledakkan bom Sheikah 3D, potong 6 kaki robot Guardian, nikmati musik piano ambient BOTW dan cuaca dinamis!
               </p>
 
               <div className="grid grid-cols-2 gap-2.5 my-5 text-xs text-left max-w-md font-mono-tech bg-slate-900/80 p-4 rounded-2xl border border-cyan-500/30 text-slate-300">
                 <div>⚔️ <strong>[J]</strong> Tebas / Potong Kaki</div>
-                <div>🏹 <strong>[K]</strong> Panah 3D</div>
+                <div>🏹 <strong>[K]</strong> Panah 3D Nyata</div>
                 <div>🛡️ <strong>[L]</strong> Perisai / Parry 3D</div>
                 <div>⚡ <strong>[Spasi]</strong> Dash & Flurry 3D</div>
                 <div>🧗 <strong>[W di Tebing]</strong> Panjat Tebing</div>
@@ -1672,8 +1912,8 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               </div>
 
               <button
-                onClick={handleStartGame}
-                className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-sm shadow-xl shadow-emerald-500/40 transition-all hover:scale-105 cursor-pointer font-mono-tech flex items-center gap-2"
+                onPointerDown={handleStartGame}
+                className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-sm shadow-xl shadow-emerald-500/40 transition-all hover:scale-105 active:scale-95 cursor-pointer font-mono-tech flex items-center gap-2"
               >
                 <Play className="w-5 h-5 fill-current" />
                 <span>MULAI PETUALANGAN NEXT-GEN! 🚀</span>
@@ -1690,11 +1930,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 KAMU GUGUR DALAM TUGAS!
               </h4>
               <p className="text-xs text-slate-300 mt-1 max-w-xs font-sans">
-                Gunakan perisai untuk memantulkan laser Guardian dan bawa banyak makanan daging panggang!
+                Gunakan perisai untuk memantulkan laser Guardian dan bawa banyak bekal makanan daging panggang!
               </p>
               <button
-                onClick={handleStartGame}
-                className="mt-5 px-6 py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-orange-500 text-white font-black text-xs shadow-xl cursor-pointer font-mono-tech flex items-center gap-2 hover:scale-105 transition-all"
+                onPointerDown={handleStartGame}
+                className="mt-5 px-6 py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-orange-500 text-white font-black text-xs shadow-xl cursor-pointer font-mono-tech flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>BANGKIT KEMBALI 🔄</span>
@@ -1711,11 +1951,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 SELAMAT MAS BUMI! 🏆👑
               </h4>
               <p className="text-sm text-slate-200 mt-2 max-w-md font-sans leading-relaxed">
-                Ancient Guardian Stalker 3D berhasil dilumpuhkan dan dikalahkan! Mas Bumi telah membuktikan diri sebagai Pahlawan Hyrule sejati!
+                Ancient Guardian Stalker 3D berhasil dilumpuhkan dan dikalahkan! Mas Bumi telah membuktikan diri sebagai Pahlawan sejati!
               </p>
               <button
-                onClick={handleStartGame}
-                className="mt-6 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs shadow-xl cursor-pointer font-mono-tech flex items-center gap-2 hover:scale-105 transition-all"
+                onPointerDown={handleStartGame}
+                className="mt-6 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs shadow-xl cursor-pointer font-mono-tech flex items-center gap-2 hover:scale-105 active:scale-95 transition-all"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>JELAJAHI DUNIA LAGI 🗺️</span>
@@ -1724,129 +1964,149 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
           )}
         </div>
 
-        {/* MOBILE TOUCH CONTROLS */}
-        <div className="pt-2 max-w-xl mx-auto space-y-3 select-none font-mono-tech">
+        {/* MOBILE TOUCH CONTROLS - ZERO LATENCY POINTER DOWN */}
+        <div className="pt-2 max-w-xl mx-auto space-y-3 select-none touch-none font-mono-tech">
           {/* Action Buttons Row */}
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 text-center text-xs">
             <button
-              onClick={handleAttack}
-              className="p-2 rounded-2xl bg-cyan-600/90 active:bg-cyan-500 border border-cyan-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-cyan-600/30 cursor-pointer"
+              onPointerDown={(e) => { e.preventDefault(); handleAttack(); }}
+              className="p-2.5 rounded-2xl bg-cyan-600 active:bg-cyan-400 border border-cyan-300 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-cyan-600/40 cursor-pointer active:scale-90 transition-all touch-none"
             >
-              <Sword className="w-4 h-4" />
+              <Sword className="w-5 h-5" />
               <span>TEBAS</span>
             </button>
 
             <button
-              onClick={handleSpinAttack}
-              className="p-2 rounded-2xl bg-teal-600/90 active:bg-teal-500 border border-teal-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-teal-600/30 cursor-pointer"
+              onPointerDown={(e) => { e.preventDefault(); handleSpinAttack(); }}
+              className="p-2.5 rounded-2xl bg-teal-600 active:bg-teal-400 border border-teal-300 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-teal-600/40 cursor-pointer active:scale-90 transition-all touch-none"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-5 h-5" />
               <span>SPIN</span>
             </button>
 
             <button
-              onClick={handleShootArrow}
-              className="p-2 rounded-2xl bg-indigo-600/90 active:bg-indigo-500 border border-indigo-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-indigo-600/30 cursor-pointer"
+              onPointerDown={(e) => { e.preventDefault(); handleShootArrow(); }}
+              className="p-2.5 rounded-2xl bg-indigo-600 active:bg-indigo-400 border border-indigo-300 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-indigo-600/40 cursor-pointer active:scale-90 transition-all touch-none"
             >
-              <Crosshair className="w-4 h-4" />
+              <Crosshair className="w-5 h-5" />
               <span>PANAH</span>
             </button>
 
             <button
-              onPointerDown={handleShieldDown}
-              onPointerUp={handleShieldUp}
-              className="p-2 rounded-2xl bg-blue-600/90 active:bg-blue-500 border border-blue-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-blue-600/30 cursor-pointer"
+              onPointerDown={(e) => { e.preventDefault(); handleShieldDown(); }}
+              onPointerUp={(e) => { e.preventDefault(); handleShieldUp(); }}
+              onPointerLeave={handleShieldUp}
+              onPointerCancel={handleShieldUp}
+              className="p-2.5 rounded-2xl bg-blue-600 active:bg-blue-400 border border-blue-300 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-blue-600/40 cursor-pointer active:scale-90 transition-all touch-none"
             >
-              <Shield className="w-4 h-4" />
+              <Shield className="w-5 h-5" />
               <span>PARRY</span>
             </button>
 
             <button
-              onClick={handleDash}
-              className="p-2 rounded-2xl bg-emerald-600/90 active:bg-emerald-500 border border-emerald-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-emerald-600/30 cursor-pointer"
+              onPointerDown={(e) => { e.preventDefault(); handleDash(); }}
+              className="p-2.5 rounded-2xl bg-emerald-600 active:bg-emerald-400 border border-emerald-300 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-emerald-600/40 cursor-pointer active:scale-90 transition-all touch-none"
             >
-              <Zap className="w-4 h-4" />
+              <Zap className="w-5 h-5" />
               <span>DASH</span>
             </button>
 
             <button
-              onClick={toggleShieldSurfing}
-              className="p-2 rounded-2xl bg-sky-600 active:bg-sky-500 border border-sky-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-sky-600/30 cursor-pointer"
+              onPointerDown={(e) => { e.preventDefault(); toggleShieldSurfing(); }}
+              className="p-2.5 rounded-2xl bg-sky-600 active:bg-sky-400 border border-sky-300 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-sky-600/40 cursor-pointer active:scale-90 transition-all touch-none"
             >
-              <Mountain className="w-4 h-4" />
+              <Mountain className="w-5 h-5" />
               <span>SURF</span>
             </button>
 
             <button
-              onClick={handleRemoteBomb}
-              className="p-2 rounded-2xl bg-rose-600 active:bg-rose-500 border border-rose-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-rose-600/30 cursor-pointer"
+              onPointerDown={(e) => { e.preventDefault(); handleRemoteBomb(); }}
+              className={`p-2.5 rounded-2xl border text-white font-black flex flex-col items-center justify-center gap-1 shadow-md cursor-pointer active:scale-90 transition-all touch-none ${
+                hudStats.hasBombActive 
+                  ? 'bg-rose-600 active:bg-rose-400 border-rose-300 shadow-rose-600/50 animate-pulse' 
+                  : 'bg-rose-600 active:bg-rose-400 border-rose-300 shadow-rose-600/40'
+              }`}
             >
-              <Bomb className="w-4 h-4" />
-              <span>BOM 3D</span>
+              <Bomb className="w-5 h-5" />
+              <span>{hudStats.hasBombActive ? 'LEDAK' : 'BOM 3D'}</span>
             </button>
 
             <button
-              onClick={toggleParaglider}
-              className="p-2 rounded-2xl bg-amber-600/90 active:bg-amber-500 border border-amber-400 text-white font-bold flex flex-col items-center justify-center gap-1 shadow-md shadow-amber-600/30 cursor-pointer"
+              onPointerDown={(e) => { e.preventDefault(); toggleParaglider(); }}
+              className="p-2.5 rounded-2xl bg-amber-600 active:bg-amber-400 border border-amber-300 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-amber-600/40 cursor-pointer active:scale-90 transition-all touch-none"
             >
-              <Wind className="w-4 h-4" />
+              <Wind className="w-5 h-5" />
               <span>LAYANG</span>
             </button>
           </div>
 
           {/* D-Pad Navigation & Contextual Button */}
           <div className="flex items-center justify-between gap-4 pt-1">
-            <div className="grid grid-cols-3 gap-1.5 w-36">
+            {/* D-Pad with Complete Pointer Safety */}
+            <div className="grid grid-cols-3 gap-1.5 w-36 touch-none">
               <div />
               <button
-                onPointerDown={() => { touchDpadRef.current = { dx: 0, dy: -1 }; }}
+                onPointerDown={(e) => { e.preventDefault(); touchDpadRef.current = { dx: 0, dy: -1 }; }}
                 onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
-                className="p-3 rounded-xl bg-slate-800 active:bg-slate-700 border border-slate-600 text-white flex items-center justify-center"
+                onPointerLeave={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                onPointerCancel={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                className="p-3.5 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex items-center justify-center shadow-md active:scale-90 transition-all touch-none"
               >
                 ▲
               </button>
               <div />
               <button
-                onPointerDown={() => { touchDpadRef.current = { dx: -1, dy: 0 }; }}
+                onPointerDown={(e) => { e.preventDefault(); touchDpadRef.current = { dx: -1, dy: 0 }; }}
                 onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
-                className="p-3 rounded-xl bg-slate-800 active:bg-slate-700 border border-slate-600 text-white flex items-center justify-center"
+                onPointerLeave={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                onPointerCancel={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                className="p-3.5 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex items-center justify-center shadow-md active:scale-90 transition-all touch-none"
               >
                 ◀
               </button>
               <div className="flex items-center justify-center text-[10px] text-slate-500">
-                <Compass className="w-4 h-4" />
+                <Compass className="w-5 h-5 text-cyan-400" />
               </div>
               <button
-                onPointerDown={() => { touchDpadRef.current = { dx: 1, dy: 0 }; }}
+                onPointerDown={(e) => { e.preventDefault(); touchDpadRef.current = { dx: 1, dy: 0 }; }}
                 onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
-                className="p-3 rounded-xl bg-slate-800 active:bg-slate-700 border border-slate-600 text-white flex items-center justify-center"
+                onPointerLeave={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                onPointerCancel={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                className="p-3.5 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex items-center justify-center shadow-md active:scale-90 transition-all touch-none"
               >
                 ▶
               </button>
               <div />
               <button
-                onPointerDown={() => { touchDpadRef.current = { dx: 0, dy: 1 }; }}
+                onPointerDown={(e) => { e.preventDefault(); touchDpadRef.current = { dx: 0, dy: 1 }; }}
                 onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
-                className="p-3 rounded-xl bg-slate-800 active:bg-slate-700 border border-slate-600 text-white flex items-center justify-center"
+                onPointerLeave={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                onPointerCancel={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
+                className="p-3.5 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex items-center justify-center shadow-md active:scale-90 transition-all touch-none"
               >
                 ▼
               </button>
               <div />
             </div>
 
+            {/* Contextual Action Button (Masak di Panci / Makan Bekal) */}
             <div className="flex-1 max-w-xs">
               <button
-                onClick={hudStats.nearCookingPot ? handleOpenCooking : handleEatMeal}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer hover:scale-102 active:scale-98 transition-all"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  if (hudStats.nearCookingPot) handleOpenCooking();
+                  else handleEatMeal();
+                }}
+                className="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 active:from-amber-400 active:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/40 flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all touch-none"
               >
                 {hudStats.nearCookingPot ? (
                   <>
-                    <Flame className="w-4 h-4 text-orange-950" />
+                    <Flame className="w-5 h-5 text-orange-950" />
                     <span>MASAK DI PANCI 3D 🍲</span>
                   </>
                 ) : (
                   <>
-                    <span>🍱</span>
+                    <span className="text-base">🍱</span>
                     <span>MAKAN BEKAL 🍎</span>
                   </>
                 )}
