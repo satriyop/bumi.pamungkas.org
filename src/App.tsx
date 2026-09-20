@@ -1525,14 +1525,20 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/30 inline-block font-mono-tech">
                       DIVISI: KU-12 RENANG
                     </span>
                     <h3 className="font-black text-xl font-fun">Mas Bumi</h3>
-                    <p className="text-xs text-slate-300">
-                      Spesialisasi: <strong className="text-cyan-300">Gaya Punggung (Backstroke 🌊)</strong>
-                    </p>
+                    <div className="p-2 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/10 border-2 border-cyan-400 shadow-md shadow-cyan-500/20">
+                      <div className="text-[10px] text-cyan-300 font-mono-tech uppercase font-bold flex items-center gap-1">
+                        <Waves className="w-3 h-3 text-cyan-300 animate-pulse" />
+                        <span>SPESIALISASI ATLET:</span>
+                      </div>
+                      <div className="text-sm font-black text-white font-fun mt-0.5">
+                        🌊 GAYA PUNGGUNG (BACKSTROKE)
+                      </div>
+                    </div>
                     <div className="flex items-center gap-1 text-[11px] text-cyan-400 font-mono-tech">
                       <MapPin className="w-3 h-3" />
                       <span>Klaten, Jawa Tengah</span>
@@ -1545,6 +1551,10 @@ export default function App() {
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-400">Berat & Postur:</span>
                     <span className="text-cyan-300 font-bold">47 kg (KU-12 Tangguh)</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-slate-400">Gaya Andalan:</span>
+                    <span className="text-cyan-300 font-bold">Gaya Punggung ⭐</span>
                   </div>
                   <div className="space-y-1.5 pt-1 pb-1">
                     <div className="flex justify-between text-xs items-center">
