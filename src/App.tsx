@@ -1489,7 +1489,7 @@ export default function App() {
             </div>
 
             {/* Right Hero Card: 3D Holographic Swimmer Passport ID */}
-            <div className="lg:col-span-5 flex flex-col">
+            <div id="kartu-atlet" className="lg:col-span-5 flex flex-col">
               <div className={`h-full rounded-3xl p-6 border transition-all relative overflow-hidden backdrop-blur-xl scanline-effect flex flex-col justify-between ${
                 isDarkMode 
                   ? 'bg-gradient-to-br from-slate-900/95 via-[#0c182b] to-slate-900 border-cyan-500/40 shadow-2xl shadow-cyan-950/70' 
@@ -1501,7 +1501,7 @@ export default function App() {
                     <Scan className="w-5 h-5 text-cyan-400 animate-pulse" />
                     <div>
                       <span className="font-mono-tech font-black text-xs tracking-widest text-cyan-300 block">
-                        ATHLETE DIGITAL PASS
+                        KARTU ATLET DIGITAL (ATHLETE PASS)
                       </span>
                       <span className="text-[9px] text-slate-400 font-mono-tech">ID: BMP-2014-KLATEN</span>
                     </div>
