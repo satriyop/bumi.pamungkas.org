@@ -398,6 +398,155 @@ export const NUSANTARA_WEAPONS: Record<TraditionalWeapon, WeaponInfo> = {
   }
 };
 
+export interface TribalNpc {
+  id: string;
+  name: string;
+  title: string;
+  tribe: string;
+  x: number;
+  z: number;
+  color: string;
+  icon: string;
+  weaponTaught: string;
+  greeting: string;
+  dialogue: string;
+  giftType: 'rupees' | 'arrows' | 'meat' | 'apples' | 'heal';
+  giftAmount: number;
+  giftText: string;
+}
+
+export const NUSANTARA_NPCS: TribalNpc[] = [
+  {
+    id: 'empu_supo',
+    name: 'Empu Supo',
+    title: 'Begawan Keris Mataram Kuno',
+    tribe: 'Wangsa Mataram Kuno',
+    x: 70,
+    z: -68,
+    color: '#fbbf24',
+    icon: '⚡',
+    weaponTaught: 'Keris Kyai Surya Luk 7',
+    greeting: 'Sugeng rawuh, Mas Bumi sang Ksatria Agung!',
+    dialogue: 'Keris Kyai Surya Luk 7 kutempa dengan bilah lekuk 7 berpamor emas sakral. Percikan petir spiritualnya mampu menembus perisai dan merontokkan kegelapan musuh!',
+    giftType: 'rupees',
+    giftAmount: 50,
+    giftText: '+50 Rupee Emas Mataram'
+  },
+  {
+    id: 'panglima_burung',
+    name: 'Panglima Burung',
+    title: 'Ksatria Agung Penjaga Rimba',
+    tribe: 'Suku Dayak',
+    x: -42,
+    z: -52,
+    color: '#22c55e',
+    icon: '🦅',
+    weaponTaught: 'Mandau Taring Rimba',
+    greeting: 'Adil Ka\' Talino, Bacuramin Ka\' Saruga! Selamat datang di Rimba, Mas Bumi!',
+    dialogue: 'Mandau Taring Rimba ini bersemayam roh pelindung rimba Kalimantan. Ayunkan tebasannya dengan ketegasan elang Enggang untuk membelah pertahanan lawan!',
+    giftType: 'arrows',
+    giftAmount: 15,
+    giftText: '+15 Anak Panah Rotan Rimba'
+  },
+  {
+    id: 'pak_sakera',
+    name: 'Pak Sakera',
+    title: 'Pendekar Ksatria Madura',
+    tribe: 'Suku Ksatria Madura',
+    x: 42,
+    z: -17,
+    color: '#ef4444',
+    icon: '🌙',
+    weaponTaught: 'Celurit Sakera Bulan Sabit',
+    greeting: 'Salam settong dhere! Berani sekali kau menjelajah savana ini, Mas Bumi!',
+    dialogue: 'Bilah Celurit Bulan Sabit ini kutempa dari baja pilihan. Jika kau berhadapan dengan robot Guardian Stalker, gunakan sabit ini untuk mengait dan memutus kaki-kaki bajanya!',
+    giftType: 'meat',
+    giftAmount: 3,
+    giftText: '+3 Daging Segar Karapan'
+  },
+  {
+    id: 'daeng_matowa',
+    name: 'Daeng Matowa',
+    title: 'Nahkoda Ulung Phinisi',
+    tribe: 'Suku Bahari Bugis-Bajo',
+    x: -44,
+    z: 39,
+    color: '#38bdf8',
+    icon: '🌊',
+    weaponTaught: 'Badik Gecong Naga Laut',
+    greeting: 'Kurru sumange! Selamat berlabuh di Danau Klaten, Kapten Mas Bumi!',
+    dialogue: 'Pelaut Bugis menaklukkan samudra dengan perahu Phinisi dan Badik Gecong. Senjata tikam ini sangat ringan dan cepat, memungkinkanmu menusuk secepat deburan ombak laut!',
+    giftType: 'apples',
+    giftAmount: 5,
+    giftText: '+5 Buah Apel Manis Pesisir'
+  },
+  {
+    id: 'tuha_balugu',
+    name: 'Tuha Balugu',
+    title: 'Ksatria Megalitikum Nias',
+    tribe: 'Suku Megalitikum Nias',
+    x: 62,
+    z: -44,
+    color: '#eab308',
+    icon: '🗿',
+    weaponTaught: 'Tradisi Lompat Batu Hombo',
+    greeting: 'Ya’ahowu! Gagah perkasa dirimu melangkah di tanah batu leluhur kami, Mas Bumi!',
+    dialogue: 'Batu Hombo setinggi 2.2 meter adalah ujian kehormatan ksatria sejati. Berlarilah kencang dan lompati batu keramat ini ke langit Hyrule tanpa rasa gentar!',
+    giftType: 'heal',
+    giftAmount: 20,
+    giftText: 'Pemulihan Hati & Stamina Penuh (Berkah Leluhur)'
+  }
+];
+
+function createNameplateSprite(name: string, title: string, color: string): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 140;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.clearRect(0, 0, 512, 140);
+
+    // Background pill shape
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.beginPath();
+    ctx.roundRect(16, 16, 480, 108, 28);
+    ctx.fill();
+
+    // Border glow
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    // Star icon
+    ctx.fillStyle = color;
+    ctx.font = 'bold 36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⭐', 64, 78);
+
+    // Character Name
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(name, 104, 64);
+
+    // Subtitle / Tribe Title
+    ctx.fillStyle = color;
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText(title, 104, 100);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  const mat = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false
+  });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(3.2, 0.88, 1);
+  return sprite;
+}
+
 export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDarkMode = true, playSound }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [gameState, setGameState] = useState<'intro' | 'playing' | 'gameover' | 'victory'>('intro');
@@ -407,6 +556,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
   const [activeWeapon, setActiveWeapon] = useState<TraditionalWeapon>('master_sword');
   const activeWeaponRef = useRef<TraditionalWeapon>('master_sword');
   const weaponMeshesRef = useRef<{ [key in TraditionalWeapon]?: THREE.Group }>({});
+
+  // Traditional Nusantara Heroes & Dialogue State
+  const [tribalDialogNpc, setTribalDialogNpc] = useState<TribalNpc | null>(null);
+  const [claimedGifts, setClaimedGifts] = useState<{ [npcId: string]: boolean }>({});
+  const nearNpcRef = useRef<TribalNpc | null>(null);
 
   // Time & Weather
   const timeOfDayRef = useRef(0.25);
@@ -529,6 +683,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     isTargetLocked: false,
     lockedTargetName: null as string | null,
     currentZone: 'Dataran Kuil Kuno',
+    nearNpc: null as TribalNpc | null,
     message: null as string | null
   });
 
@@ -1064,6 +1219,46 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     setHudStats(prev => ({
       ...prev,
       message: `⚔️ PUSAKA DIPASANG: ${wInfo.name} (${wInfo.tribe}) | Dmg: ${wInfo.damage}`
+    }));
+  };
+
+  // Talk to Tribal NPC & Claim Friendship Gift
+  const handleTalkToNpc = (npc: TribalNpc) => {
+    setTribalDialogNpc(npc);
+    playZeldaSfx('secret_chime');
+  };
+
+  const handleClaimGift = (npc: TribalNpc) => {
+    if (claimedGifts[npc.id]) return;
+    const p = playerStatsRef.current;
+    if (npc.giftType === 'rupees') {
+      p.rupees += npc.giftAmount;
+      playZeldaSfx('rupee_get');
+    } else if (npc.giftType === 'arrows') {
+      p.arrows += npc.giftAmount;
+      playZeldaSfx('rupee_get');
+    } else if (npc.giftType === 'meat') {
+      p.meat += npc.giftAmount;
+      playZeldaSfx('cook_success');
+    } else if (npc.giftType === 'apples') {
+      p.apples += npc.giftAmount;
+      playZeldaSfx('cook_success');
+    } else if (npc.giftType === 'heal') {
+      p.hearts = p.maxHearts;
+      p.stamina = p.maxStamina;
+      playZeldaSfx('fairy_heal');
+    }
+
+    setClaimedGifts(prev => ({ ...prev, [npc.id]: true }));
+    setHudStats(prev => ({
+      ...prev,
+      rupees: p.rupees,
+      arrows: p.arrows,
+      meat: p.meat,
+      apples: p.apples,
+      hearts: p.hearts,
+      stamina: Math.round(p.stamina),
+      message: `🎁 Menerima ${npc.giftText} dari ${npc.name}!`
     }));
   };
 
@@ -2103,6 +2298,223 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     });
 
     scene.add(niasGroup);
+
+    // 11g. TOKOH ADAT NUSANTARA (5 HEROIC TRIBAL NPCS WITH OVERHEAD 3D NAMEPLATES)
+    const npcsList: { group: THREE.Group; npc: TribalNpc }[] = [];
+
+    NUSANTARA_NPCS.forEach(npc => {
+      const npcY = getTerrainHeight(npc.x, npc.z);
+      const npcGroup = new THREE.Group();
+      npcGroup.position.set(npc.x, npcY, npc.z);
+
+      const skinMatNpc = new THREE.MeshStandardMaterial({ color: '#fed7aa', roughness: 0.55 });
+      const darkHairMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.7 });
+
+      // Torso & Clothing
+      let tunicColor = '#334155';
+      if (npc.id === 'empu_supo') tunicColor = '#0f172a'; // Beskap Hitam
+      else if (npc.id === 'panglima_burung') tunicColor = '#78350f'; // Rompi Kulit Kayu Ta'a
+      else if (npc.id === 'pak_sakera') tunicColor = '#dc2626'; // Kaos Sakera Merah
+      else if (npc.id === 'daeng_matowa') tunicColor = '#1e3a8a'; // Jas Tutu' Bahari
+      else if (npc.id === 'tuha_balugu') tunicColor = '#ca8a04'; // Baju Zirah Emas Baru Oholu
+
+      const npcTorso = new THREE.Mesh(
+        new THREE.BoxGeometry(0.72, 0.9, 0.44),
+        new THREE.MeshStandardMaterial({ color: tunicColor, roughness: 0.7 })
+      );
+      npcTorso.position.y = 1.15;
+      npcTorso.castShadow = true;
+      npcGroup.add(npcTorso);
+
+      // Pants / Lower Wrap
+      let pantsColor = '#1e293b';
+      if (npc.id === 'empu_supo') pantsColor = '#92400e'; // Batik Jarik Cokelat
+      else if (npc.id === 'pak_sakera') pantsColor = '#0f172a'; // Celana Gombor Hitam
+      else if (npc.id === 'daeng_matowa') pantsColor = '#f59e0b'; // Sarung Sutra Lipaq Sabbe
+      else if (npc.id === 'tuha_balugu') pantsColor = '#b45309';
+
+      const legL = new THREE.Mesh(
+        new THREE.BoxGeometry(0.24, 0.75, 0.28),
+        new THREE.MeshStandardMaterial({ color: pantsColor, roughness: 0.8 })
+      );
+      legL.position.set(-0.2, 0.38, 0);
+      legL.castShadow = true;
+      npcGroup.add(legL);
+
+      const legR = new THREE.Mesh(
+        new THREE.BoxGeometry(0.24, 0.75, 0.28),
+        new THREE.MeshStandardMaterial({ color: pantsColor, roughness: 0.8 })
+      );
+      legR.position.set(0.2, 0.38, 0);
+      legR.castShadow = true;
+      npcGroup.add(legR);
+
+      // Arms
+      const armL = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.65, 0.22),
+        new THREE.MeshStandardMaterial({ color: tunicColor, roughness: 0.7 })
+      );
+      armL.position.set(-0.48, 1.1, 0);
+      npcGroup.add(armL);
+
+      const armR = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.65, 0.22),
+        new THREE.MeshStandardMaterial({ color: tunicColor, roughness: 0.7 })
+      );
+      armR.position.set(0.48, 1.1, 0);
+      npcGroup.add(armR);
+
+      // Head
+      const npcHead = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 12), skinMatNpc);
+      npcHead.position.y = 1.82;
+      npcHead.castShadow = true;
+      npcGroup.add(npcHead);
+
+      // Distinctive Headgear & Cultural Accessories
+      if (npc.id === 'empu_supo') {
+        // Blangkon Jawa (Curved cap with mondholan bun behind)
+        const blangkon = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.27, 0.28, 0.16, 12),
+          new THREE.MeshStandardMaterial({ color: '#451a03', roughness: 0.8 })
+        );
+        blangkon.position.set(0, 1.95, 0);
+        npcGroup.add(blangkon);
+
+        const mondholan = new THREE.Mesh(
+          new THREE.SphereGeometry(0.11, 8, 8),
+          new THREE.MeshStandardMaterial({ color: '#451a03', roughness: 0.8 })
+        );
+        mondholan.position.set(0, 1.9, -0.25);
+        npcGroup.add(mondholan);
+
+        // Gold Smithing Tongs in Hand
+        const tongs = new THREE.Mesh(
+          new THREE.BoxGeometry(0.06, 0.7, 0.06),
+          new THREE.MeshStandardMaterial({ color: '#fbbf24', metalness: 0.9, roughness: 0.2 })
+        );
+        tongs.position.set(0.55, 0.9, 0.2);
+        tongs.rotation.x = Math.PI / 4;
+        npcGroup.add(tongs);
+      } else if (npc.id === 'panglima_burung') {
+        // Dayak Lawung Headband
+        const headband = new THREE.Mesh(
+          new THREE.TorusGeometry(0.26, 0.04, 6, 16),
+          new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.6 })
+        );
+        headband.position.set(0, 1.88, 0);
+        headband.rotation.x = Math.PI / 2;
+        npcGroup.add(headband);
+
+        // Enggang Feather Plumes
+        const featherMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.5 });
+        const featherTipMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.7 });
+
+        [-0.08, 0.08].forEach(fx => {
+          const plume = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.65, 4), featherMat);
+          plume.position.set(fx, 2.25, -0.05);
+          plume.rotation.set(-0.2, 0, fx * 1.5);
+          npcGroup.add(plume);
+
+          const tip = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 4), featherTipMat);
+          tip.position.set(fx, 2.5, -0.05);
+          tip.rotation.set(-0.2, 0, fx * 1.5);
+          npcGroup.add(tip);
+        });
+
+        // Dayak Sipet Blowpipe held in hand
+        const sipet = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.03, 0.03, 2.0, 8),
+          new THREE.MeshStandardMaterial({ color: '#3b200b', roughness: 0.85 })
+        );
+        sipet.position.set(-0.55, 1.0, 0.2);
+        npcGroup.add(sipet);
+      } else if (npc.id === 'pak_sakera') {
+        // Madurese Udeng
+        const udeng = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.27, 0.29, 0.14, 10),
+          new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.8 })
+        );
+        udeng.position.set(0, 1.95, 0);
+        npcGroup.add(udeng);
+
+        const udengKnot = new THREE.Mesh(
+          new THREE.ConeGeometry(0.08, 0.25, 4),
+          new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.8 })
+        );
+        udengKnot.position.set(0, 2.05, -0.22);
+        udengKnot.rotation.x = -Math.PI / 3;
+        npcGroup.add(udengKnot);
+
+        // White stripes on red shirt (Pesa'an)
+        for (let st = 0; st < 3; st++) {
+          const stripe = new THREE.Mesh(
+            new THREE.BoxGeometry(0.74, 0.1, 0.46),
+            new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.7 })
+          );
+          stripe.position.set(0, 0.85 + st * 0.26, 0);
+          npcGroup.add(stripe);
+        }
+
+        // Madurese Mustache
+        const mustache = new THREE.Mesh(
+          new THREE.BoxGeometry(0.24, 0.05, 0.06),
+          darkHairMat
+        );
+        mustache.position.set(0, 1.76, 0.25);
+        npcGroup.add(mustache);
+      } else if (npc.id === 'daeng_matowa') {
+        // Bugis Passapu Headgear
+        const passapu = new THREE.Mesh(
+          new THREE.ConeGeometry(0.3, 0.4, 4),
+          new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.6 })
+        );
+        passapu.position.set(0, 2.05, 0.02);
+        passapu.rotation.y = Math.PI / 4;
+        npcGroup.add(passapu);
+
+        const goldTrim = new THREE.Mesh(
+          new THREE.TorusGeometry(0.26, 0.035, 6, 16),
+          new THREE.MeshStandardMaterial({ color: '#fbbf24', metalness: 0.8, roughness: 0.2 })
+        );
+        goldTrim.position.set(0, 1.88, 0);
+        goldTrim.rotation.x = Math.PI / 2;
+        npcGroup.add(goldTrim);
+
+        // Sailor Brass Telescope in Hand
+        const scope = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.04, 0.06, 0.65, 8),
+          new THREE.MeshStandardMaterial({ color: '#eab308', metalness: 0.9, roughness: 0.2 })
+        );
+        scope.position.set(0.55, 1.0, 0.2);
+        scope.rotation.x = Math.PI / 3;
+        npcGroup.add(scope);
+      } else if (npc.id === 'tuha_balugu') {
+        // Nias Golden Warrior Crown
+        const crown = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.28, 0.28, 0.18, 8),
+          new THREE.MeshStandardMaterial({ color: '#fbbf24', metalness: 0.8, roughness: 0.2 })
+        );
+        crown.position.set(0, 1.96, 0);
+        npcGroup.add(crown);
+
+        // Kalabubu Torc Ring around Neck
+        const kalabubu = new THREE.Mesh(
+          new THREE.TorusGeometry(0.24, 0.06, 8, 16),
+          new THREE.MeshStandardMaterial({ color: '#ca8a04', metalness: 0.7, roughness: 0.3 })
+        );
+        kalabubu.position.set(0, 1.58, 0);
+        kalabubu.rotation.x = Math.PI / 2;
+        npcGroup.add(kalabubu);
+      }
+
+      // OVERHEAD 3D BILLBOARD NAMEPLATE (Always facing camera)
+      const nameplate = createNameplateSprite(npc.name, `${npc.icon} ${npc.title}`, npc.color);
+      nameplate.position.set(0, 2.55, 0);
+      npcGroup.add(nameplate);
+
+      scene.add(npcGroup);
+      npcsList.push({ group: npcGroup, npc });
+    });
 
     // 12. 3D PLAYER MODEL (Link / Mas Bumi)
     const playerGroup = new THREE.Group();
@@ -3530,6 +3942,24 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         zoneName = 'Tinggi Megalitikum Batu Hombo Nias';
       }
 
+      // Indonesian Tribal NPCs Animation & Proximity Detection
+      let foundNearNpc: TribalNpc | null = null;
+      let closestNpcDist = 999;
+
+      npcsList.forEach(({ group: nGroup, npc }) => {
+        const d = Math.hypot(p.x - npc.x, p.z - npc.z);
+        if (d < 14) {
+          const lookAng = Math.atan2(p.x - npc.x, p.z - npc.z);
+          nGroup.rotation.y = lookAng;
+        }
+        if (d < 4.0 && d < closestNpcDist) {
+          closestNpcDist = d;
+          foundNearNpc = npc;
+        }
+      });
+
+      nearNpcRef.current = foundNearNpc;
+
       // Update HUD
       const remainingLegs = guardianLegsHpRef.current.filter(hp => hp > 0).length;
       setHudStats(prev => ({
@@ -3547,6 +3977,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         isClimbing: p.isClimbing,
         isSurfing: p.isSurfing,
         currentZone: zoneName,
+        nearNpc: foundNearNpc,
         nearCookingPot: Math.hypot(p.x - 8, p.z - 8) < 4.5
       }));
 
@@ -3603,7 +4034,9 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       } else if (e.key === 'r' || e.key === 'R') {
         toggleShieldSurfing();
       } else if (e.key === 'e' || e.key === 'E') {
-        if (hudStats.nearCookingPot) {
+        if (nearNpcRef.current) {
+          handleTalkToNpc(nearNpcRef.current);
+        } else if (hudStats.nearCookingPot) {
           handleOpenCooking();
         } else {
           handleEatMeal();
@@ -3966,6 +4399,111 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             </div>
           )}
 
+          {/* FLOATING NPC PROMPT WHEN NEAR TRIBAL HERO */}
+          {hudStats.nearNpc && !tribalDialogNpc && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+              <button
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  handleTalkToNpc(hudStats.nearNpc!);
+                }}
+                className="px-4 py-2.5 rounded-2xl bg-slate-950/90 border-2 font-mono-tech text-xs font-bold shadow-2xl flex items-center gap-2 cursor-pointer hover:scale-105 active:scale-95 transition-all animate-bounce select-none"
+                style={{
+                  borderColor: hudStats.nearNpc.color,
+                  boxShadow: `0 0 25px ${hudStats.nearNpc.color}60`,
+                  color: hudStats.nearNpc.color
+                }}
+              >
+                <span className="text-base">{hudStats.nearNpc.icon}</span>
+                <span className="text-white font-black">
+                  [E] BICARA DENGAN {hudStats.nearNpc.name.toUpperCase()}
+                </span>
+                <span className="text-[10px] opacity-80">({hudStats.nearNpc.tribe})</span>
+              </button>
+            </div>
+          )}
+
+          {/* TRIBAL HERO DIALOGUE MODAL */}
+          {tribalDialogNpc && (
+            <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md z-40 flex flex-col items-center justify-center p-4 text-center">
+              <div
+                className="space-y-3.5 max-w-md w-full p-6 rounded-3xl bg-slate-900/95 border-2 shadow-2xl animate-scale-in"
+                style={{
+                  borderColor: tribalDialogNpc.color,
+                  boxShadow: `0 0 35px ${tribalDialogNpc.color}40`
+                }}
+              >
+                <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+                  <div className="flex items-center gap-3 text-left">
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-lg border"
+                      style={{
+                        backgroundColor: `${tribalDialogNpc.color}25`,
+                        borderColor: tribalDialogNpc.color
+                      }}
+                    >
+                      {tribalDialogNpc.icon}
+                    </div>
+                    <div>
+                      <div
+                        className="text-[11px] font-mono-tech font-bold uppercase tracking-wider"
+                        style={{ color: tribalDialogNpc.color }}
+                      >
+                        {tribalDialogNpc.title}
+                      </div>
+                      <h3 className="text-xl sm:text-2xl font-black font-fun text-white">
+                        {tribalDialogNpc.name}
+                      </h3>
+                      <div className="text-[10px] text-slate-400 font-mono-tech">
+                        📍 {tribalDialogNpc.tribe}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-left space-y-2">
+                  <p className="text-xs font-bold italic text-amber-200">
+                    "{tribalDialogNpc.greeting}"
+                  </p>
+                  <p className="text-xs text-slate-200 leading-relaxed font-sans">
+                    {tribalDialogNpc.dialogue}
+                  </p>
+                </div>
+
+                {/* Weapon Lore Box */}
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-800/80 border border-slate-700 text-xs font-mono-tech">
+                  <span className="text-slate-400">Pusaka Kebanggaan:</span>
+                  <span className="font-bold" style={{ color: tribalDialogNpc.color }}>
+                    {tribalDialogNpc.weaponTaught}
+                  </span>
+                </div>
+
+                {/* Gift Claiming Button */}
+                {!claimedGifts[tribalDialogNpc.id] ? (
+                  <button
+                    onPointerDown={() => handleClaimGift(tribalDialogNpc)}
+                    className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black text-xs font-mono-tech cursor-pointer hover:scale-105 transition-all active:scale-95 shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2"
+                  >
+                    <span>🎁</span>
+                    <span>KLAIM HADIAH: {tribalDialogNpc.giftText}</span>
+                  </button>
+                ) : (
+                  <div className="py-2.5 px-3 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono-tech font-bold flex items-center justify-center gap-1.5">
+                    <span>✅</span>
+                    <span>Hadiah Persahabatan Telah Diterima!</span>
+                  </div>
+                )}
+
+                <button
+                  onPointerDown={() => setTribalDialogNpc(null)}
+                  className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs font-mono-tech cursor-pointer transition-all"
+                >
+                  KEMBALI BERTUALANG 🗺️
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* OVERLAYS: INTRO / GAMEOVER / VICTORY */}
           {gameState === 'intro' && (
             <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center">
@@ -4275,17 +4813,27 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               <div />
             </div>
 
-            {/* Contextual Action Button (Masak di Panci / Makan Bekal) */}
+            {/* Contextual Action Button (Bicara Tokoh / Masak di Panci / Makan Bekal) */}
             <div className="flex-1 max-w-xs">
               <button
                 onPointerDown={(e) => {
                   e.preventDefault();
-                  if (hudStats.nearCookingPot) handleOpenCooking();
+                  if (hudStats.nearNpc) handleTalkToNpc(hudStats.nearNpc);
+                  else if (hudStats.nearCookingPot) handleOpenCooking();
                   else handleEatMeal();
                 }}
-                className="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 active:from-amber-400 active:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/40 flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all touch-none"
+                className={`w-full py-4 px-4 rounded-2xl font-black text-xs shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all touch-none ${
+                  hudStats.nearNpc
+                    ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-amber-400/50 animate-pulse'
+                    : 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 active:from-amber-400 active:to-yellow-400 text-slate-950 shadow-amber-500/40'
+                }`}
               >
-                {hudStats.nearCookingPot ? (
+                {hudStats.nearNpc ? (
+                  <>
+                    <span className="text-base">{hudStats.nearNpc.icon}</span>
+                    <span className="truncate">BICARA: {hudStats.nearNpc.name.toUpperCase()} 💬</span>
+                  </>
+                ) : hudStats.nearCookingPot ? (
                   <>
                     <Flame className="w-5 h-5 text-orange-950" />
                     <span>MASAK DI PANCI 3D 🍲</span>
