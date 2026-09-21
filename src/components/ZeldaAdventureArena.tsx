@@ -222,6 +222,71 @@ function createHylianShieldTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(canvas);
 }
 
+// Procedural Canvas Sky Dome Gradient (Hyrule Blue to Warm Atmospheric Horizon)
+function createSkyDomeTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, '#1e3a8a');    // Deep royal azure zenith
+    grad.addColorStop(0.35, '#0284c7'); // Hylian sky cyan
+    grad.addColorStop(0.7, '#38bdf8');  // Soft horizon cyan
+    grad.addColorStop(0.9, '#bae6fd');  // Atmospheric haze
+    grad.addColorStop(1.0, '#fef08a');  // Warm golden sun glow
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 128, 512);
+  }
+  return new THREE.CanvasTexture(canvas);
+}
+
+// Procedural Canvas Radiant Sun Billboard with Golden Corona Glow
+function createSunTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const grad = ctx.createRadialGradient(128, 128, 12, 128, 128, 124);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    grad.addColorStop(0.25, 'rgba(254, 240, 138, 0.95)');
+    grad.addColorStop(0.55, 'rgba(251, 191, 36, 0.45)');
+    grad.addColorStop(1, 'rgba(251, 146, 60, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 256, 256);
+  }
+  return new THREE.CanvasTexture(canvas);
+}
+
+// Procedural 3D Cumulus Cloud Cluster (Zelda Stylized Puffy Clouds)
+function createCloudCluster(): THREE.Group {
+  const group = new THREE.Group();
+  const cloudMat = new THREE.MeshStandardMaterial({
+    color: '#ffffff',
+    roughness: 0.95,
+    metalness: 0.02,
+    transparent: true,
+    opacity: 0.92
+  });
+  const puffGeo = new THREE.DodecahedronGeometry(1, 1);
+  const puffs = [
+    { x: 0, y: 0, z: 0, sx: 7, sy: 3.8, sz: 6 },
+    { x: 4.5, y: -0.6, z: 1.2, sx: 5.2, sy: 3.2, sz: 4.5 },
+    { x: -4.5, y: -0.8, z: -1.2, sx: 5.5, sy: 3.4, sz: 4.8 },
+    { x: 2.2, y: 1.6, z: -0.6, sx: 4.4, sy: 3.0, sz: 4.0 },
+    { x: -2.8, y: 1.4, z: 0.8, sx: 4.6, sy: 3.2, sz: 4.2 },
+    { x: 6.8, y: -1.2, z: 0.6, sx: 3.6, sy: 2.4, sz: 3.2 }
+  ];
+  puffs.forEach(p => {
+    const puff = new THREE.Mesh(puffGeo, cloudMat);
+    puff.position.set(p.x, p.y, p.z);
+    puff.scale.set(p.sx, p.sy, p.sz);
+    group.add(puff);
+  });
+  return group;
+}
+
 // Procedural 3D Terrain Height Function
 function getTerrainHeight(x: number, z: number): number {
   let h = Math.sin(x * 0.04) * Math.cos(z * 0.04) * 3 + Math.sin(x * 0.08) * 1.2;
@@ -283,6 +348,22 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
   const arrows3DRef = useRef<Arrow3D[]>([]);
   const activeBomb3DRef = useRef<{ mesh: THREE.Mesh; vx: number; vz: number; timer: number } | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
+
+  // Master Sword Awakening & Guardian Parry Mechanics
+  const [isSwordAwakened, setIsSwordAwakened] = useState(false);
+  const [noiseDisplay, setNoiseDisplay] = useState(1);
+  const guardianChargeTimerRef = useRef(0);
+  const guardianPlasmaRef = useRef<{ 
+    active: boolean; 
+    mesh: THREE.Group; 
+    vx: number; 
+    vy: number; 
+    vz: number; 
+    isReflected: boolean; 
+    life: number 
+  } | null>(null);
+  const parryFlashTimerRef = useRef(0);
+  const treeFoliageRefs = useRef<THREE.Mesh[]>([]);
 
   // Cooking Modal State
   const [cookingModal, setCookingModal] = useState<{
@@ -859,6 +940,32 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     }
   };
 
+  // Time of Day Fast-Switch
+  const setDayPhase = (phase: 'Pagi' | 'Siang' | 'Senja' | 'Malam') => {
+    setCurrentTimePhase(phase);
+    if (phase === 'Siang') {
+      timeOfDayRef.current = 0.35;
+      if (sceneRef.current) {
+        sceneRef.current.background = new THREE.Color('#38bdf8');
+        sceneRef.current.fog = new THREE.FogExp2('#38bdf8', 0.007);
+      }
+    } else if (phase === 'Senja') {
+      timeOfDayRef.current = 0.68;
+      if (sceneRef.current) {
+        sceneRef.current.background = new THREE.Color('#ea580c');
+        sceneRef.current.fog = new THREE.FogExp2('#ea580c', 0.009);
+      }
+    } else if (phase === 'Malam') {
+      timeOfDayRef.current = 0.88;
+      if (sceneRef.current) {
+        sceneRef.current.background = new THREE.Color('#0f172a');
+        sceneRef.current.fog = new THREE.FogExp2('#0f172a', 0.012);
+      }
+    } else {
+      timeOfDayRef.current = 0.15;
+    }
+  };
+
   // Player Actions
   const handleAttack = () => {
     const p = playerStatsRef.current;
@@ -867,12 +974,14 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     p.attackTimer = 16;
     playZeldaSfx('slash');
 
+    const swordDmg = isSwordAwakened ? 55 : 25;
+
     // Check hit on Bokoblin
     const b = bokoStatsRef.current;
     if (b.hp > 0) {
       const distToBoko = Math.hypot(p.x - b.x, p.z - b.z);
       if (distToBoko < 3.2) {
-        b.hp = Math.max(0, b.hp - 25);
+        b.hp = Math.max(0, b.hp - swordDmg);
         playZeldaSfx('hit');
         // Knockback Bokoblin
         const ang = Math.atan2(b.x - p.x, b.z - p.z);
@@ -883,6 +992,21 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
           p.meat += 1;
           playZeldaSfx('rupee_get');
           setHudStats(prev => ({ ...prev, message: '🎉 BOKOBLIN KALAH! (+20 Rupee & Daging Segar)' }));
+        }
+      }
+    }
+
+    // Check melee strike on Guardian Stalker
+    const distToG = Math.hypot(p.x - 75, p.z - (-75));
+    if (distToG < 6.5) {
+      const legIdx = guardianLegsHpRef.current.findIndex(hp => hp > 0);
+      if (legIdx !== -1) {
+        guardianLegsHpRef.current[legIdx] = Math.max(0, guardianLegsHpRef.current[legIdx] - swordDmg);
+        playZeldaSfx('hit');
+        if (guardianLegsHpRef.current[legIdx] <= 0) {
+          playZeldaSfx('bomb_explode');
+          p.rupees += 30;
+          setHudStats(prev => ({ ...prev, message: '⚔️ KAKI GUARDIAN PUTUS DITEBAS! (+30 Rupee)' }));
         }
       }
     }
@@ -1183,6 +1307,59 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     sunLight.shadow.camera.bottom = -100;
     scene.add(sunLight);
 
+    // 4b. Procedural Hyrule Sky Dome & Radiant Sun Billboard
+    const skyGeo = new THREE.SphereGeometry(340, 32, 16);
+    const skyTex = createSkyDomeTexture();
+    const skyMat = new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, depthWrite: false });
+    const skyDomeMesh = new THREE.Mesh(skyGeo, skyMat);
+    scene.add(skyDomeMesh);
+
+    const sunBillboardTex = createSunTexture();
+    const sunBillboardGeo = new THREE.PlaneGeometry(54, 54);
+    const sunBillboardMat = new THREE.MeshBasicMaterial({
+      map: sunBillboardTex,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+    const sunBillboardMesh = new THREE.Mesh(sunBillboardGeo, sunBillboardMat);
+    sunBillboardMesh.position.set(75, 145, 65);
+    sunBillboardMesh.lookAt(0, 0, 0);
+    scene.add(sunBillboardMesh);
+
+    // 4c. 12 3D Cumulus Clouds Drifting Across Hyrule
+    const cloudsList: THREE.Group[] = [];
+    for (let c = 0; c < 12; c++) {
+      const cloud = createCloudCluster();
+      cloud.position.set(
+        (Math.random() - 0.5) * 320,
+        38 + Math.random() * 26,
+        (Math.random() - 0.5) * 320
+      );
+      scene.add(cloud);
+      cloudsList.push(cloud);
+    }
+
+    // 4d. 120 Floating Spora Emas & Kunang-kunang Malam (Sunset Fireflies)
+    const sporeCount = 120;
+    const sporeGeo = new THREE.BufferGeometry();
+    const sporePositions = new Float32Array(sporeCount * 3);
+    for (let s = 0; s < sporeCount * 3; s += 3) {
+      sporePositions[s] = (Math.random() - 0.5) * 180;
+      sporePositions[s + 1] = 1 + Math.random() * 14;
+      sporePositions[s + 2] = (Math.random() - 0.5) * 180;
+    }
+    sporeGeo.setAttribute('position', new THREE.BufferAttribute(sporePositions, 3));
+    const sporeMat = new THREE.PointsMaterial({
+      color: '#fef08a',
+      size: 0.55,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending
+    });
+    const sporeParticles = new THREE.Points(sporeGeo, sporeMat);
+    scene.add(sporeParticles);
+
     // 5. 3D Procedural Terrain & Canvas Textures
     const grassTex = createGrassTexture();
     const sheikahRuneTex = createSheikahRuneTexture();
@@ -1370,6 +1547,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       { x: 55, z: 10 }, { x: -45, z: -65 }, { x: 60, z: 50 }
     ];
 
+    treeFoliageRefs.current = [];
     treeLocations.forEach(loc => {
       const ty = getTerrainHeight(loc.x, loc.z);
       const tree = new THREE.Group();
@@ -1384,6 +1562,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       foliage.position.y = 4.2;
       foliage.castShadow = true;
       tree.add(foliage);
+      treeFoliageRefs.current.push(foliage);
 
       const app1 = new THREE.Mesh(appleGeo, appleMat);
       app1.position.set(1.2, 3.8, 1.2);
@@ -1716,6 +1895,49 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     const laserBeamMesh = new THREE.Mesh(laserLineGeo, laserLineMat);
     laserBeamMesh.visible = false;
     scene.add(laserBeamMesh);
+
+    // Red targeting reticle dot on Link's chest
+    const laserDotGeo = new THREE.SphereGeometry(0.14, 8, 8);
+    const laserDotMat = new THREE.MeshBasicMaterial({ color: '#ff0000' });
+    const laserDotMesh = new THREE.Mesh(laserDotGeo, laserDotMat);
+    laserDotMesh.visible = false;
+    scene.add(laserDotMesh);
+
+    // Guardian High-Speed Plasma Cannon Blast
+    const plasmaGroup = new THREE.Group();
+    const plasmaCore = new THREE.Mesh(
+      new THREE.SphereGeometry(0.48, 16, 16),
+      new THREE.MeshBasicMaterial({ color: '#ffffff' })
+    );
+    plasmaGroup.add(plasmaCore);
+    const plasmaAura = new THREE.Mesh(
+      new THREE.SphereGeometry(0.82, 16, 16),
+      new THREE.MeshBasicMaterial({
+        color: '#ef4444',
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending
+      })
+    );
+    plasmaGroup.add(plasmaAura);
+    const plasmaLight = new THREE.PointLight('#ef4444', 3.5, 14);
+    plasmaGroup.add(plasmaLight);
+    plasmaGroup.visible = false;
+    scene.add(plasmaGroup);
+
+    // Parry Shockwave Flash Ring
+    const parryRingGeo = new THREE.RingGeometry(0.3, 2.8, 32);
+    parryRingGeo.rotateX(-Math.PI / 2);
+    const parryRingMat = new THREE.MeshBasicMaterial({
+      color: '#38bdf8',
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending
+    });
+    const parryShockwaveMesh = new THREE.Mesh(parryRingGeo, parryRingMat);
+    parryShockwaveMesh.visible = false;
+    scene.add(parryShockwaveMesh);
 
     const legPoles: THREE.Mesh[] = [];
     const legPoleGeo = new THREE.CylinderGeometry(0.18, 0.25, 4.2, 6);
@@ -2118,7 +2340,56 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         shieldGroup.rotation.y = 0.5;
       }
 
-      // Guardian AI & Laser
+      // Living World Wind & Cloud Physics
+      const nowSec = Date.now() * 0.002;
+      treeFoliageRefs.current.forEach((foliage, idx) => {
+        foliage.rotation.z = Math.sin(nowSec + idx * 0.8) * 0.06;
+        foliage.rotation.x = Math.cos(nowSec * 0.8 + idx) * 0.04;
+      });
+
+      // Drift Clouds across Hyrule
+      cloudsList.forEach(cloud => {
+        cloud.position.x += 0.035 * timeScale;
+        if (cloud.position.x > 180) cloud.position.x = -180;
+      });
+
+      // Floating Ambient Spores & Fireflies
+      const sPos = sporeGeo.attributes.position.array as Float32Array;
+      for (let s = 0; s < sPos.length; s += 3) {
+        sPos[s] += Math.sin(nowSec + s) * 0.02 + 0.015;
+        sPos[s + 1] += Math.sin(nowSec * 1.5 + s) * 0.015;
+        if (sPos[s] > 90) sPos[s] = -90;
+      }
+      sporeGeo.attributes.position.needsUpdate = true;
+
+      // Master Sword Sacred Awakening
+      const distToBoko = Math.hypot(p.x - bokoStatsRef.current.x, p.z - bokoStatsRef.current.z);
+      const distToGuardian = Math.hypot(p.x - guardianGroup.position.x, p.z - guardianGroup.position.z);
+      const isNearMalice = (distToGuardian < 70 || (bokoStatsRef.current.hp > 0 && distToBoko < 38));
+
+      if (isNearMalice) {
+        bladeMat.emissive.set('#00f0ff');
+        bladeMat.emissiveIntensity = 2.4 + Math.sin(Date.now() * 0.009) * 0.8;
+        swordTrailMat.color.set('#00f0ff');
+        setIsSwordAwakened(true);
+      } else {
+        bladeMat.emissive.set('#38bdf8');
+        bladeMat.emissiveIntensity = 0.5;
+        swordTrailMat.color.set('#38bdf8');
+        setIsSwordAwakened(false);
+      }
+
+      // Acoustic noise calculation (BotW sound meter)
+      const pSpeed = Math.hypot(p.vx, p.vz);
+      let noiseLvl = 1;
+      if (p.isAttacking || p.isSpinAttacking) noiseLvl = 4;
+      else if (pSpeed > 0.3) noiseLvl = 3;
+      else if (pSpeed > 0.05) noiseLvl = 2;
+      else if (p.isGliding) noiseLvl = 2;
+      else noiseLvl = 1;
+      if (Math.random() < 0.1) setNoiseDisplay(noiseLvl);
+
+      // Guardian AI & Laser Targeting
       guardianTimer += 0.05 * timeScale;
       legPoles.forEach((leg, idx) => {
         if (leg.visible) {
@@ -2126,10 +2397,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         }
       });
 
-      const distToGuardian = Math.hypot(p.x - guardianGroup.position.x, p.z - guardianGroup.position.z);
       if (distToGuardian < 75) {
         eyeTurret.lookAt(p.x, p.y + 1.2, p.z);
         laserBeamMesh.visible = true;
+        laserDotMesh.visible = true;
+        laserDotMesh.position.set(p.x, p.y + 1.1 + Math.sin(Date.now() * 0.02) * 0.03, p.z);
 
         const gPos = new THREE.Vector3();
         eyeLens.getWorldPosition(gPos);
@@ -2140,14 +2412,112 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         laserBeamMesh.lookAt(pPos);
         laserBeamMesh.scale.set(1, 1, gPos.distanceTo(pPos));
 
-        if (Math.random() < 0.05) {
-          playZeldaSfx('guardian_panic');
+        // Charge up laser
+        guardianChargeTimerRef.current += 1 * timeScale;
+        const charge = guardianChargeTimerRef.current;
+
+        // Audio cues accelerating
+        if (charge < 80) {
+          if (Math.floor(charge) % 25 === 0) playZeldaSfx('guardian_beep');
+        } else if (charge < 115) {
+          if (Math.floor(charge) % 9 === 0) playZeldaSfx('guardian_beep');
         }
-        if (Math.random() < 0.04) {
-          playZeldaSfx('guardian_beep');
+
+        (eyeLens.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.2 + (charge / 115) * 3.5;
+
+        // FIRE PLASMA CANNON
+        if (charge >= 115 && (!guardianPlasmaRef.current || !guardianPlasmaRef.current.active)) {
+          guardianChargeTimerRef.current = 0;
+          playZeldaSfx('guardian_laser');
+
+          const dir = pPos.clone().sub(gPos).normalize();
+          plasmaGroup.position.copy(gPos);
+          plasmaGroup.visible = true;
+          guardianPlasmaRef.current = {
+            active: true,
+            mesh: plasmaGroup,
+            vx: dir.x * 1.65,
+            vy: dir.y * 1.65,
+            vz: dir.z * 1.65,
+            isReflected: false,
+            life: 140
+          };
         }
       } else {
         laserBeamMesh.visible = false;
+        laserDotMesh.visible = false;
+        guardianChargeTimerRef.current = 0;
+      }
+
+      // Update Plasma Cannon & Shield Parry Collision
+      if (guardianPlasmaRef.current && guardianPlasmaRef.current.active) {
+        const plasma = guardianPlasmaRef.current;
+        plasma.mesh.position.x += plasma.vx * timeScale;
+        plasma.mesh.position.y += plasma.vy * timeScale;
+        plasma.mesh.position.z += plasma.vz * timeScale;
+        plasma.life -= timeScale;
+
+        // Check Link Collision
+        const distToLink = Math.hypot(plasma.mesh.position.x - p.x, plasma.mesh.position.z - p.z);
+        if (distToLink < 1.4 && !plasma.isReflected && Math.abs(plasma.mesh.position.y - (p.y + 1.1)) < 1.6) {
+          if (p.isBlocking) {
+            // PERFECT SHIELD PARRY REFLECTION!
+            playZeldaSfx('parry');
+            plasma.vx = -plasma.vx * 1.8;
+            plasma.vy = -plasma.vy * 1.8;
+            plasma.vz = -plasma.vz * 1.8;
+            plasma.isReflected = true;
+            (plasmaAura.material as THREE.MeshBasicMaterial).color.set('#00f0ff');
+            plasmaLight.color.set('#00f0ff');
+
+            parryShockwaveMesh.position.set(p.x, p.y + 1.1, p.z);
+            parryShockwaveMesh.scale.set(1, 1, 1);
+            parryShockwaveMesh.visible = true;
+            parryFlashTimerRef.current = 15;
+            setHudStats(prev => ({ ...prev, message: '🛡️ PARRY SEMPURNA! Laser Dipantulkan Balik!' }));
+          } else {
+            // Direct hit on Link
+            playZeldaSfx('bomb_explode');
+            p.hearts = Math.max(0, p.hearts - 3);
+            p.vy = 5;
+            plasma.active = false;
+            plasma.mesh.visible = false;
+            setHudStats(prev => ({ ...prev, message: '💥 Terkena Tembakan Laser Guardian!' }));
+          }
+        }
+
+        // Check Reflected Hit on Guardian
+        if (plasma.isReflected) {
+          const gDist = Math.hypot(plasma.mesh.position.x - guardianGroup.position.x, plasma.mesh.position.z - guardianGroup.position.z);
+          if (gDist < 4.2) {
+            plasma.active = false;
+            plasma.mesh.visible = false;
+            playZeldaSfx('bomb_explode');
+            playZeldaSfx('guardian_panic');
+
+            const legIdx = guardianLegsHpRef.current.findIndex(hp => hp > 0);
+            if (legIdx !== -1) {
+              guardianLegsHpRef.current[legIdx] = 0;
+              legPoles[legIdx].visible = false;
+            }
+            p.rupees += 50;
+            p.arrows += 5;
+            setHudStats(prev => ({ ...prev, message: '🎯 KENA MATA GUARDIAN! Kaki Rontok & Dapat 50 Rupee!' }));
+          }
+        }
+
+        if (plasma.life <= 0) {
+          plasma.active = false;
+          plasma.mesh.visible = false;
+        }
+      }
+
+      // Parry shockwave animation
+      if (parryFlashTimerRef.current > 0) {
+        parryFlashTimerRef.current--;
+        parryShockwaveMesh.scale.multiplyScalar(1.15);
+        (parryShockwaveMesh.material as THREE.MeshBasicMaterial).opacity = parryFlashTimerRef.current / 15;
+        if (parryFlashTimerRef.current <= 0) parryShockwaveMesh.visible = false;
       }
 
       // Target Lock Reticle Update & Camera Framing
@@ -2241,6 +2611,8 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       sheikahRuneTex.dispose();
       faceTex.dispose();
       shieldTex.dispose();
+      skyTex.dispose();
+      sunBillboardTex.dispose();
       renderer.dispose();
     };
   }, [playZeldaSfx]);
@@ -2384,15 +2756,98 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             className="w-full h-[520px] block cursor-grab active:cursor-grabbing select-none touch-none"
           />
 
-          {/* 3D Mini-Compass / Radar (Top Right) */}
-          <div className="absolute top-4 right-4 w-28 h-28 rounded-2xl bg-slate-950/90 border-2 border-cyan-500/40 shadow-lg p-2 pointer-events-none text-center">
-            <div className="relative w-full h-16 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center">
-              <Compass className="w-8 h-8 text-cyan-400 animate-spin" />
+          {/* SHEIKAH SLATE RADAR & ENVIRONMENTAL SENSOR (Top Right) */}
+          <div className="absolute top-4 right-4 flex flex-col items-end gap-2 pointer-events-none z-20">
+            {/* Circular BotW Radar Minimap */}
+            <div className="relative w-28 h-28 rounded-full bg-slate-950/90 border-2 border-cyan-400/60 shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center overflow-hidden">
+              {/* Radar Grid Rings */}
+              <div className="absolute inset-2 rounded-full border border-cyan-500/20" />
+              <div className="absolute inset-6 rounded-full border border-cyan-500/30" />
+              <div className="absolute inset-x-0 top-1/2 h-[1px] bg-cyan-500/20" />
+              <div className="absolute inset-y-0 left-1/2 w-[1px] bg-cyan-500/20" />
+
+              {/* Rotating Compass Outer Ring */}
+              <div 
+                className="absolute inset-0 flex items-center justify-center transition-transform duration-75"
+                style={{ transform: `rotate(${-playerStatsRef.current.rotY}rad)` }}
+              >
+                <span className="absolute top-1 text-[9px] font-bold text-cyan-300 font-mono-tech">N</span>
+                <span className="absolute right-1 text-[8px] font-bold text-slate-400 font-mono-tech">E</span>
+                <span className="absolute bottom-1 text-[8px] font-bold text-slate-400 font-mono-tech">S</span>
+                <span className="absolute left-1 text-[8px] font-bold text-slate-400 font-mono-tech">W</span>
+
+                {/* Lake Klaten marker */}
+                <div className="absolute top-16 left-3 w-5 h-5 rounded-full bg-sky-500/40 border border-sky-400/60" title="Danau Klaten" />
+                
+                {/* Campfire marker */}
+                <div className="absolute top-12 right-12 w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Api Unggun" />
+
+                {/* Bokoblin radar blip */}
+                {bokoStatsRef.current.hp > 0 && (
+                  <div className="absolute top-6 right-8 w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]" title="Bokoblin" />
+                )}
+
+                {/* Guardian Stalker radar blip (flashing red alert eye) */}
+                <div className="absolute bottom-5 right-5 w-3.5 h-3.5 rounded-full bg-red-600 border border-amber-300 animate-ping" title="Guardian" />
+                <div className="absolute bottom-5 right-5 w-3.5 h-3.5 rounded-full bg-red-600 border border-amber-300 flex items-center justify-center text-[7px] font-black text-white" title="Guardian">👁️</div>
+              </div>
+
+              {/* Center Link Player Marker (Blue Triangle Arrow) */}
+              <div className="relative z-10 w-4 h-4 flex items-center justify-center">
+                <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[9px] border-b-cyan-300 drop-shadow-[0_0_6px_#22d3ee]" />
+              </div>
             </div>
-            <span className="text-[9px] font-mono-tech font-bold text-cyan-300 block mt-1">
-              KOMPAS 3D
-            </span>
+
+            {/* Environmental Sensors: Noise Meter & Thermometer & Quick Time Switcher */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-950/85 border border-cyan-500/30 text-[10px] font-mono-tech text-cyan-300 shadow-md pointer-events-auto">
+              {/* Noise sensor waveform */}
+              <div className="flex items-end gap-0.5 h-3.5 pr-1 border-r border-slate-700" title="Sensor Kebisingan Suara (BotW)">
+                <div className={`w-1 rounded-full bg-cyan-400 transition-all ${noiseDisplay >= 1 ? 'h-1.5' : 'h-0.5'}`} />
+                <div className={`w-1 rounded-full bg-cyan-400 transition-all ${noiseDisplay >= 2 ? 'h-3' : 'h-0.5'}`} />
+                <div className={`w-1 rounded-full bg-cyan-400 transition-all ${noiseDisplay >= 3 ? 'h-3.5' : 'h-0.5'}`} />
+                <div className={`w-1 rounded-full bg-cyan-400 transition-all ${noiseDisplay >= 4 ? 'h-4 bg-amber-400' : 'h-0.5'}`} />
+              </div>
+
+              {/* Thermometer */}
+              <div className="flex items-center gap-1 pr-1 border-r border-slate-700" title="Suhu Udara">
+                <span className="text-xs">🌡️</span>
+                <span className="font-bold text-slate-200">24°C</span>
+              </div>
+
+              {/* Quick Time of Day buttons */}
+              <div className="flex items-center gap-1">
+                <button
+                  onPointerDown={(e) => { e.preventDefault(); setDayPhase('Siang'); }}
+                  className={`px-1.5 py-0.5 rounded cursor-pointer transition-all ${currentTimePhase === 'Siang' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}`}
+                  title="Waktu Siang"
+                >
+                  ☀️
+                </button>
+                <button
+                  onPointerDown={(e) => { e.preventDefault(); setDayPhase('Senja'); }}
+                  className={`px-1.5 py-0.5 rounded cursor-pointer transition-all ${currentTimePhase === 'Senja' ? 'bg-orange-500 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                  title="Waktu Senja"
+                >
+                  🌅
+                </button>
+                <button
+                  onPointerDown={(e) => { e.preventDefault(); setDayPhase('Malam'); }}
+                  className={`px-1.5 py-0.5 rounded cursor-pointer transition-all ${currentTimePhase === 'Malam' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+                  title="Waktu Malam"
+                >
+                  🌙
+                </button>
+              </div>
+            </div>
           </div>
+
+          {/* Master Sword Awakened Sacred Banner */}
+          {isSwordAwakened && (
+            <div className="absolute top-16 left-4 px-3.5 py-1.5 rounded-xl bg-cyan-950/90 border border-cyan-400 text-cyan-300 font-bold text-xs font-mono-tech shadow-[0_0_20px_rgba(6,182,212,0.6)] animate-pulse flex items-center gap-2 pointer-events-none z-20">
+              <Sparkles className="w-4 h-4 text-cyan-300 animate-spin" />
+              <span>🗡️ MASTER SWORD BANGKIT! (+55 Kekuatan Suci)</span>
+            </div>
+          )}
 
           {/* Status Badges: Climbing & Surfing */}
           {hudStats.isClimbing && (
