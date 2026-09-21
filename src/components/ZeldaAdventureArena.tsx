@@ -326,10 +326,87 @@ interface Arrow3D {
   life: number;
 }
 
+export type TraditionalWeapon = 'master_sword' | 'keris_mataram' | 'mandau_dayak' | 'celurit_madura' | 'badik_bugis';
+
+export interface WeaponInfo {
+  id: TraditionalWeapon;
+  name: string;
+  tribe: string;
+  region: string;
+  icon: string;
+  damage: number;
+  description: string;
+  color: string;
+  sparkleColor: string;
+}
+
+export const NUSANTARA_WEAPONS: Record<TraditionalWeapon, WeaponInfo> = {
+  master_sword: {
+    id: 'master_sword',
+    name: 'Master Sword',
+    tribe: 'Wangsa Hyrule',
+    region: 'Kuil Waktu (Central Plains)',
+    icon: '🗡️',
+    damage: 25,
+    description: 'Pedang legendaris penyegel kegelapan. Bersinar saat dekat Malice (Dmg: 55).',
+    color: '#38bdf8',
+    sparkleColor: '#00f0ff'
+  },
+  keris_mataram: {
+    id: 'keris_mataram',
+    name: 'Keris Kyai Surya Luk 7',
+    tribe: 'Wangsa Mataram Kuno',
+    region: 'Lembah Candi Mataram (Jawa)',
+    icon: '⚡',
+    damage: 42,
+    description: 'Keris pusaka pamor emas berlekuk 7 sakral. Menyalurkan percikan petir spiritual.',
+    color: '#fbbf24',
+    sparkleColor: '#f59e0b'
+  },
+  mandau_dayak: {
+    id: 'mandau_dayak',
+    name: 'Mandau Taring Rimba',
+    tribe: 'Suku Dayak Penjaga Rimba',
+    region: 'Tebing Karst & Hutan Rimba (Kalimantan)',
+    icon: '🦅',
+    damage: 48,
+    description: 'Pedang pusaka berukir bulu Enggang & gagang tanduk rusa. Tebasan rimba mematikan.',
+    color: '#22c55e',
+    sparkleColor: '#4ade80'
+  },
+  celurit_madura: {
+    id: 'celurit_madura',
+    name: 'Celurit Sakera Bulan Sabit',
+    tribe: 'Suku Ksatria Savana Madura',
+    region: 'Savana Merah Cadas (Madura)',
+    icon: '🌙',
+    damage: 52,
+    description: 'Bilah lengkung baja tempa legendaris. Sangat efektif memutus kaki Guardian (+15 crit)!',
+    color: '#ef4444',
+    sparkleColor: '#f87171'
+  },
+  badik_bugis: {
+    id: 'badik_bugis',
+    name: 'Badik Gecong Naga Laut',
+    tribe: 'Suku Bahari Bajo-Bugis',
+    region: 'Danau Klaten & Pesisir Phinisi (Sulawesi)',
+    icon: '🌊',
+    damage: 36,
+    description: 'Senjata tikam lincah pelaut ulung Phinisi. Serangan ekstra cepat & gesit!',
+    color: '#a855f7',
+    sparkleColor: '#c084fc'
+  }
+};
+
 export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDarkMode = true, playSound }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [gameState, setGameState] = useState<'intro' | 'playing' | 'gameover' | 'victory'>('intro');
   const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // Traditional Nusantara Weapons State
+  const [activeWeapon, setActiveWeapon] = useState<TraditionalWeapon>('master_sword');
+  const activeWeaponRef = useRef<TraditionalWeapon>('master_sword');
+  const weaponMeshesRef = useRef<{ [key in TraditionalWeapon]?: THREE.Group }>({});
 
   // Time & Weather
   const timeOfDayRef = useRef(0.25);
@@ -451,6 +528,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     hasBombActive: false,
     isTargetLocked: false,
     lockedTargetName: null as string | null,
+    currentZone: 'Dataran Kuil Kuno',
     message: null as string | null
   });
 
@@ -966,21 +1044,48 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     }
   };
 
+  // Equip Traditional Weapon
+  const equipWeapon = (weapon: TraditionalWeapon) => {
+    setActiveWeapon(weapon);
+    activeWeaponRef.current = weapon;
+    
+    // Toggle 3D mesh visibility
+    const meshes = weaponMeshesRef.current;
+    if (meshes) {
+      (Object.keys(meshes) as TraditionalWeapon[]).forEach(k => {
+        if (meshes[k]) {
+          meshes[k]!.visible = (k === weapon);
+        }
+      });
+    }
+
+    const wInfo = NUSANTARA_WEAPONS[weapon];
+    playZeldaSfx('slash');
+    setHudStats(prev => ({
+      ...prev,
+      message: `⚔️ PUSAKA DIPASANG: ${wInfo.name} (${wInfo.tribe}) | Dmg: ${wInfo.damage}`
+    }));
+  };
+
   // Player Actions
   const handleAttack = () => {
     const p = playerStatsRef.current;
     if (p.isAttacking || p.isDashing || p.isGliding || p.isClimbing) return;
+    const weapon = activeWeaponRef.current;
     p.isAttacking = true;
-    p.attackTimer = 16;
+    p.attackTimer = (weapon === 'badik_bugis') ? 11 : 16;
     playZeldaSfx('slash');
 
-    const swordDmg = isSwordAwakened ? 55 : 25;
+    let swordDmg = NUSANTARA_WEAPONS[weapon].damage;
+    if (weapon === 'master_sword' && isSwordAwakened) {
+      swordDmg = 55;
+    }
 
     // Check hit on Bokoblin
     const b = bokoStatsRef.current;
     if (b.hp > 0) {
       const distToBoko = Math.hypot(p.x - b.x, p.z - b.z);
-      if (distToBoko < 3.2) {
+      if (distToBoko < 3.4) {
         b.hp = Math.max(0, b.hp - swordDmg);
         playZeldaSfx('hit');
         // Knockback Bokoblin
@@ -991,7 +1096,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
           p.rupees += 20;
           p.meat += 1;
           playZeldaSfx('rupee_get');
-          setHudStats(prev => ({ ...prev, message: '🎉 BOKOBLIN KALAH! (+20 Rupee & Daging Segar)' }));
+          setHudStats(prev => ({ ...prev, message: `🎉 BOKOBLIN KALAH DITEBAS ${NUSANTARA_WEAPONS[weapon].name.toUpperCase()}! (+20 Rupee)` }));
         }
       }
     }
@@ -1001,12 +1106,13 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     if (distToG < 6.5) {
       const legIdx = guardianLegsHpRef.current.findIndex(hp => hp > 0);
       if (legIdx !== -1) {
-        guardianLegsHpRef.current[legIdx] = Math.max(0, guardianLegsHpRef.current[legIdx] - swordDmg);
+        const guardianDmg = weapon === 'celurit_madura' ? (swordDmg + 15) : swordDmg;
+        guardianLegsHpRef.current[legIdx] = Math.max(0, guardianLegsHpRef.current[legIdx] - guardianDmg);
         playZeldaSfx('hit');
         if (guardianLegsHpRef.current[legIdx] <= 0) {
           playZeldaSfx('bomb_explode');
           p.rupees += 30;
-          setHudStats(prev => ({ ...prev, message: '⚔️ KAKI GUARDIAN PUTUS DITEBAS! (+30 Rupee)' }));
+          setHudStats(prev => ({ ...prev, message: `⚔️ KAKI GUARDIAN PUTUS DITEBAS ${NUSANTARA_WEAPONS[weapon].name.toUpperCase()}! (+30 Rupee)` }));
         }
       }
     }
@@ -1020,14 +1126,18 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     p.spinTimer = 22;
     playZeldaSfx('spin');
 
+    const weapon = activeWeaponRef.current;
+    const spinDmg = NUSANTARA_WEAPONS[weapon].damage + 20;
+
     const b = bokoStatsRef.current;
     if (b.hp > 0 && Math.hypot(p.x - b.x, p.z - b.z) < 4.5) {
-      b.hp = Math.max(0, b.hp - 45);
+      b.hp = Math.max(0, b.hp - spinDmg);
       playZeldaSfx('hit');
       if (b.hp <= 0) {
         p.rupees += 20;
         p.meat += 1;
         playZeldaSfx('rupee_get');
+        setHudStats(prev => ({ ...prev, message: `🌪️ PUTARAN MAUT ${NUSANTARA_WEAPONS[weapon].name.toUpperCase()} MENGALAHKAN BOKOBLIN! (+20 Rupee)` }));
       }
     }
   };
@@ -1726,6 +1836,274 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     scene.add(korokPinwheelGroup);
     let korokFound = false;
 
+    // 11f. INDONESIAN TRIBAL LANDMARKS
+    // A. Dayak Totem Belian & Talawang War Shield (Tebing Karst & Rimba)
+    const dayakTotemGroup = new THREE.Group();
+    const dtX = -45;
+    const dtZ = -55;
+    dayakTotemGroup.position.set(dtX, getTerrainHeight(dtX, dtZ), dtZ);
+
+    const ironwoodMat = new THREE.MeshStandardMaterial({ color: '#3b200b', roughness: 0.85 });
+    const dayakRedMat = new THREE.MeshStandardMaterial({ color: '#b91c1c', roughness: 0.6 });
+    const dayakGoldMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', metalness: 0.7, roughness: 0.3 });
+    const dayakBlackMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.9 });
+
+    // Tall carved Dayak Totem Pole (Kayu Ulin / Belian)
+    const totemPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 7.5, 8), ironwoodMat);
+    totemPillar.position.y = 3.75;
+    totemPillar.castShadow = true;
+    dayakTotemGroup.add(totemPillar);
+
+    // Carved masks / faces on totem pole (3 tiers)
+    for (let f = 0; f < 3; f++) {
+      const faceGroup = new THREE.Group();
+      faceGroup.position.set(0, 2.2 + f * 2.0, 0);
+
+      const faceCarving = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.7, 0.85), dayakRedMat);
+      faceGroup.add(faceCarving);
+
+      const eyes = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.18, 0.5), dayakGoldMat);
+      eyes.position.set(0, 0.1, 0.2);
+      faceGroup.add(eyes);
+
+      const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.92), dayakBlackMat);
+      mouth.position.set(0, -0.18, 0.2);
+      faceGroup.add(mouth);
+
+      dayakTotemGroup.add(faceGroup);
+    }
+
+    // Burung Enggang (Hornbill) Crown Totem at Top
+    const enggangHead = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.2, 5), dayakBlackMat);
+    enggangHead.position.set(0, 7.8, 0.2);
+    enggangHead.rotation.x = Math.PI / 3;
+    dayakTotemGroup.add(enggangHead);
+
+    const enggangBeak = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1.1, 4), dayakGoldMat);
+    enggangBeak.position.set(0, 8.1, 0.9);
+    enggangBeak.rotation.x = Math.PI / 2.2;
+    dayakTotemGroup.add(enggangBeak);
+
+    // Talawang Shield (Perisai Perang Dayak) leaning against the base
+    const talawangGroup = new THREE.Group();
+    talawangGroup.position.set(0.7, 1.3, 0.5);
+    talawangGroup.rotation.set(-0.2, 0.3, -0.15);
+
+    const talawangBody = new THREE.Mesh(new THREE.BoxGeometry(0.85, 2.4, 0.08), ironwoodMat);
+    talawangGroup.add(talawangBody);
+
+    const talTop = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.7, 4), ironwoodMat);
+    talTop.position.y = 1.45;
+    talawangGroup.add(talTop);
+
+    const talBottom = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.7, 4), ironwoodMat);
+    talBottom.position.y = -1.45;
+    talBottom.rotation.z = Math.PI;
+    talawangGroup.add(talBottom);
+
+    const talBoss = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.06, 6, 12), dayakGoldMat);
+    talBoss.position.set(0, 0, 0.06);
+    talawangGroup.add(talBoss);
+
+    const talRedSpur = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.6, 4), dayakRedMat);
+    talRedSpur.position.set(0, 0.5, 0.06);
+    talawangGroup.add(talRedSpur);
+
+    dayakTotemGroup.add(talawangGroup);
+    scene.add(dayakTotemGroup);
+
+    // B. Perahu Sandeq Phinisi Bajo-Bugis (Tepian Danau Klaten)
+    const bugisBoatGroup = new THREE.Group();
+    bugisBoatGroup.position.set(-48, -0.95, 42);
+
+    const teakMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.7 });
+    const bambooMat = new THREE.MeshStandardMaterial({ color: '#fef08a', roughness: 0.5 });
+    const sailMat = new THREE.MeshStandardMaterial({
+      color: '#f8fafc',
+      roughness: 0.9,
+      side: THREE.DoubleSide
+    });
+    const flagMat = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.6 });
+
+    // Sleek canoe hull (Badan Sandeq)
+    const boatHull = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.7, 6.2), teakMat);
+    boatHull.position.y = 0.35;
+    bugisBoatGroup.add(boatHull);
+
+    // Sharp curved bow
+    const boatBow = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.8, 4), teakMat);
+    boatBow.position.set(0, 0.65, 3.8);
+    boatBow.rotation.x = Math.PI / 3.5;
+    bugisBoatGroup.add(boatBow);
+
+    // Sharp stern
+    const boatStern = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.4, 4), teakMat);
+    boatStern.position.set(0, 0.55, -3.6);
+    boatStern.rotation.x = -Math.PI / 3.8;
+    bugisBoatGroup.add(boatStern);
+
+    // Cadik / Outriggers (Bambu Katir kiri & kanan)
+    [-1.9, 1.9].forEach(sideX => {
+      const cadikFloat = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5.2, 8), bambooMat);
+      cadikFloat.rotation.x = Math.PI / 2;
+      cadikFloat.position.set(sideX, 0.15, 0.2);
+      bugisBoatGroup.add(cadikFloat);
+
+      const boomFront = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, Math.abs(sideX), 6), bambooMat);
+      boomFront.position.set(sideX * 0.5, 0.45, 1.5);
+      boomFront.rotation.z = Math.PI / 2;
+      bugisBoatGroup.add(boomFront);
+
+      const boomRear = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, Math.abs(sideX), 6), bambooMat);
+      boomRear.position.set(sideX * 0.5, 0.45, -1.5);
+      boomRear.rotation.z = Math.PI / 2;
+      bugisBoatGroup.add(boomRear);
+    });
+
+    // Mast
+    const boatMast = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 5.5, 6), teakMat);
+    boatMast.position.set(0, 2.9, 0.4);
+    boatMast.rotation.x = -0.08;
+    bugisBoatGroup.add(boatMast);
+
+    // Triangular Somba/Tanja Sail
+    const sailShape = new THREE.Shape();
+    sailShape.moveTo(0, 0);
+    sailShape.lineTo(2.4, 1.6);
+    sailShape.lineTo(0.1, 4.4);
+    sailShape.closePath();
+    const sailGeo = new THREE.ShapeGeometry(sailShape);
+    const sailMesh = new THREE.Mesh(sailGeo, sailMat);
+    sailMesh.position.set(0.02, 1.0, -0.6);
+    sailMesh.rotation.y = Math.PI / 8;
+    bugisBoatGroup.add(sailMesh);
+
+    // Red pennant flag
+    const boatFlag = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.7, 3), flagMat);
+    boatFlag.position.set(0, 5.6, 0.3);
+    boatFlag.rotation.z = Math.PI / 2;
+    bugisBoatGroup.add(boatFlag);
+
+    scene.add(bugisBoatGroup);
+
+    // C. Kemah & Gapura Ksatria Karapan Madura (Savana Merah)
+    const maduraGroup = new THREE.Group();
+    const madX = 45;
+    const madZ = -20;
+    maduraGroup.position.set(madX, getTerrainHeight(madX, madZ), madZ);
+
+    const maduraRedMat = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.6 });
+    const maduraWhiteMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.7 });
+    const darkWoodMat = new THREE.MeshStandardMaterial({ color: '#3f1f0a', roughness: 0.8 });
+    const gongBronzeMat = new THREE.MeshStandardMaterial({ color: '#d97706', metalness: 0.85, roughness: 0.25 });
+
+    // Traditional Gapura Pillars
+    [-2.2, 2.2].forEach(px => {
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.45, 4.2, 0.45), darkWoodMat);
+      pillar.position.set(px, 2.1, 0);
+      pillar.castShadow = true;
+      maduraGroup.add(pillar);
+
+      const bracket = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.6, 4), maduraRedMat);
+      bracket.position.set(px, 4.2, 0);
+      maduraGroup.add(bracket);
+    });
+
+    // Gapura Arch / Crossbeam
+    const archBeam = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.45, 0.45), darkWoodMat);
+    archBeam.position.set(0, 4.3, 0);
+    maduraGroup.add(archBeam);
+
+    const archCrown = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.9, 4), maduraRedMat);
+    archCrown.position.set(0, 4.9, 0);
+    maduraGroup.add(archCrown);
+
+    // Striped Sakera Banners (Merah-Putih)
+    [-3.0, 3.0].forEach(bx => {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 5.5, 6), bambooMat);
+      pole.position.set(bx, 2.75, 0.5);
+      maduraGroup.add(pole);
+
+      for (let s = 0; s < 4; s++) {
+        const stripeMat = (s % 2 === 0) ? maduraRedMat : maduraWhiteMat;
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.4, 0.03), stripeMat);
+        stripe.position.set(bx + 0.45, 4.8 - s * 0.42, 0.5);
+        maduraGroup.add(stripe);
+      }
+    });
+
+    // Ceremonial Gong Karapan Sapi
+    const gongPillarL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 6), darkWoodMat);
+    gongPillarL.position.set(-0.9, 1.1, -1.8);
+    maduraGroup.add(gongPillarL);
+
+    const gongPillarR = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 6), darkWoodMat);
+    gongPillarR.position.set(0.9, 1.1, -1.8);
+    maduraGroup.add(gongPillarR);
+
+    const gongBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.9, 6), darkWoodMat);
+    gongBeam.rotation.z = Math.PI / 2;
+    gongBeam.position.set(0, 2.1, -1.8);
+    maduraGroup.add(gongBeam);
+
+    const gongPlate = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 0.1, 16), gongBronzeMat);
+    gongPlate.rotation.x = Math.PI / 2;
+    gongPlate.position.set(0, 1.2, -1.8);
+    maduraGroup.add(gongPlate);
+
+    const gongBoss = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), gongBronzeMat);
+    gongBoss.position.set(0, 1.2, -1.72);
+    maduraGroup.add(gongBoss);
+
+    scene.add(maduraGroup);
+
+    // D. Monumen Batu Megalitikum Nias (Batu Hombo untuk Lompat Batu)
+    const niasGroup = new THREE.Group();
+    const niasX = 65;
+    const niasZ = -48;
+    niasGroup.position.set(niasX, getTerrainHeight(niasX, niasZ), niasZ);
+
+    const megalithStoneMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.95 });
+    const mossStoneMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.9 });
+    const goldReliefMat = new THREE.MeshStandardMaterial({ color: '#ca8a04', metalness: 0.6, roughness: 0.4 });
+
+    // Base stone foundation
+    const niasBase = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.6, 2.4), megalithStoneMat);
+    niasBase.position.y = 0.3;
+    niasBase.castShadow = true;
+    niasGroup.add(niasBase);
+
+    // Stepped pyramid jumping stone (Batu Hombo)
+    const niasMid = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.2, 1.8), mossStoneMat);
+    niasMid.position.y = 1.2;
+    niasMid.castShadow = true;
+    niasGroup.add(niasMid);
+
+    const niasTop = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.9, 1.3), megalithStoneMat);
+    niasTop.position.y = 2.15;
+    niasTop.castShadow = true;
+    niasGroup.add(niasTop);
+
+    // Front takeoff stone footing
+    const takeoffStep = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.35, 0.8), megalithStoneMat);
+    takeoffStep.position.set(0, 0.2, 1.8);
+    niasGroup.add(takeoffStep);
+
+    // Two Flanking Megalithic Menhirs (Gomo Ancestor Monoliths)
+    [-2.6, 2.6].forEach(mx => {
+      const menhir = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 3.8, 6), mossStoneMat);
+      menhir.position.set(mx, 1.9, 0);
+      menhir.rotation.y = Math.PI / 6;
+      menhir.castShadow = true;
+      niasGroup.add(menhir);
+
+      const menhirFace = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.7, 0.1), goldReliefMat);
+      menhirFace.position.set(mx, 2.7, 0.35);
+      niasGroup.add(menhirFace);
+    });
+
+    scene.add(niasGroup);
+
     // 12. 3D PLAYER MODEL (Link / Mas Bumi)
     const playerGroup = new THREE.Group();
     playerGroup.position.set(0, getTerrainHeight(0, 0), 0);
@@ -1881,10 +2259,12 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     bracerR.position.set(0.45, 1.05, 0.02);
     playerGroup.add(bracerR);
 
-    // MASTER SWORD 3D WITH RUNES & WINGED CROSSGUARD
+    // 3D WEAPONS ARSENAL (HYLIAN & NUSANTARA TRADITIONAL WEAPONS)
     const swordGroup = new THREE.Group();
     swordGroup.position.set(0.45, 1.1, 0.2);
 
+    // 1. MASTER SWORD 3D WITH RUNES & WINGED CROSSGUARD
+    const masterSwordGroup = new THREE.Group();
     const bladeMat = new THREE.MeshStandardMaterial({
       color: '#f8fafc',
       emissive: '#38bdf8',
@@ -1898,37 +2278,316 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     const swordBlade = new THREE.Mesh(new THREE.BoxGeometry(0.11, 1.45, 0.035), bladeMat);
     swordBlade.position.y = 0.82;
     swordBlade.castShadow = true;
-    swordGroup.add(swordBlade);
+    masterSwordGroup.add(swordBlade);
 
     // Golden Triforce ricasso crest
     const ricasso = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.16, 3), guardMat);
     ricasso.position.set(0, 0.18, 0.025);
     ricasso.rotateZ(Math.PI);
-    swordGroup.add(ricasso);
+    masterSwordGroup.add(ricasso);
 
     // Winged crossguard
     const swordGuard = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.09, 0.12), hiltMat);
     swordGuard.position.y = 0.1;
-    swordGroup.add(swordGuard);
+    masterSwordGroup.add(swordGuard);
 
     const wingL = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.15, 3), hiltMat);
     wingL.position.set(-0.22, 0.16, 0);
     wingL.rotation.z = Math.PI / 4;
-    swordGroup.add(wingL);
+    masterSwordGroup.add(wingL);
 
     const wingR = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.15, 3), hiltMat);
     wingR.position.set(0.22, 0.16, 0);
     wingR.rotation.z = -Math.PI / 4;
-    swordGroup.add(wingR);
+    masterSwordGroup.add(wingR);
 
     // Grip & pommel gem
     const swordHilt = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 6), hiltMat);
     swordHilt.position.y = -0.1;
-    swordGroup.add(swordHilt);
+    masterSwordGroup.add(swordHilt);
 
     const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), guardMat);
     pommel.position.y = -0.28;
-    swordGroup.add(pommel);
+    masterSwordGroup.add(pommel);
+
+    swordGroup.add(masterSwordGroup);
+
+    // 2. KERIS PUSAKA MATARAM KUNO (LUK 7 KYAI SURYA)
+    const kerisGroup = new THREE.Group();
+    const kerisBladeMat = new THREE.MeshStandardMaterial({
+      color: '#1e293b',
+      emissive: '#eab308',
+      emissiveIntensity: 0.35,
+      metalness: 0.95,
+      roughness: 0.2
+    });
+    const kerisGoldMat = new THREE.MeshStandardMaterial({
+      color: '#fbbf24',
+      emissive: '#d97706',
+      emissiveIntensity: 0.25,
+      metalness: 0.9,
+      roughness: 0.15
+    });
+    const kerisWoodMat = new THREE.MeshStandardMaterial({
+      color: '#451a03',
+      roughness: 0.7
+    });
+
+    // 7 Waves (Luk 7)
+    const lukCount = 7;
+    const segHeight = 0.16;
+    for (let i = 0; i < lukCount; i++) {
+      const yPos = 0.25 + i * segHeight;
+      const offset = Math.sin((i / lukCount) * Math.PI * 3.5) * 0.07;
+      const width = 0.10 - (i * 0.009);
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(width, segHeight + 0.03, 0.03), kerisBladeMat);
+      seg.position.set(offset, yPos, 0);
+      seg.rotation.z = Math.cos((i / lukCount) * Math.PI * 3.5) * 0.22;
+      seg.castShadow = true;
+      kerisGroup.add(seg);
+
+      const pamor = new THREE.Mesh(new THREE.BoxGeometry(0.02, segHeight, 0.035), kerisGoldMat);
+      pamor.position.set(offset, yPos, 0);
+      pamor.rotation.z = seg.rotation.z;
+      kerisGroup.add(pamor);
+    }
+
+    // Pointed tip
+    const kerisTip = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.18, 4), kerisBladeMat);
+    kerisTip.position.set(Math.sin(Math.PI * 3.5) * 0.07, 0.25 + lukCount * segHeight + 0.06, 0);
+    kerisGroup.add(kerisTip);
+
+    // Gandik & Kembang Kacang
+    const gandik = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.14, 4), kerisGoldMat);
+    gandik.position.set(-0.08, 0.2, 0);
+    gandik.rotation.z = -Math.PI / 4;
+    kerisGroup.add(gandik);
+
+    // Ganja
+    const ganja = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.05, 0.05), kerisGoldMat);
+    ganja.position.set(-0.02, 0.14, 0);
+    ganja.rotation.z = -0.1;
+    kerisGroup.add(ganja);
+
+    // Mendak
+    const mendak = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.04, 8), kerisGoldMat);
+    mendak.position.y = 0.09;
+    kerisGroup.add(mendak);
+
+    // Hulu Keris / Ukiran Deder
+    const dederTop = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.16, 6), kerisWoodMat);
+    dederTop.position.set(0, 0.0, 0);
+    kerisGroup.add(dederTop);
+
+    const dederGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.16, 6), kerisWoodMat);
+    dederGrip.position.set(0.03, -0.14, 0);
+    dederGrip.rotation.z = -0.25;
+    kerisGroup.add(dederGrip);
+
+    const dederHead = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 6), kerisWoodMat);
+    dederHead.position.set(0.06, -0.22, 0);
+    kerisGroup.add(dederHead);
+
+    kerisGroup.visible = false;
+    swordGroup.add(kerisGroup);
+
+    // 3. MANDAU DAYAK PENJAGA RIMBA
+    const mandauGroup = new THREE.Group();
+    const mandauSteelMat = new THREE.MeshStandardMaterial({
+      color: '#e2e8f0',
+      metalness: 0.95,
+      roughness: 0.18
+    });
+    const mandauBrassMat = new THREE.MeshStandardMaterial({
+      color: '#ca8a04',
+      metalness: 0.85,
+      roughness: 0.25
+    });
+    const mandauBoneMat = new THREE.MeshStandardMaterial({
+      color: '#fef3c7',
+      roughness: 0.5
+    });
+    const mandauTuftMat = new THREE.MeshStandardMaterial({
+      color: '#dc2626',
+      roughness: 0.8
+    });
+
+    const bladeLower = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.65, 0.03), mandauSteelMat);
+    bladeLower.position.set(0, 0.45, 0);
+    mandauGroup.add(bladeLower);
+
+    const bladeUpper = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.65, 0.03), mandauSteelMat);
+    bladeUpper.position.set(0.03, 1.0, 0);
+    bladeUpper.rotation.z = -0.06;
+    mandauGroup.add(bladeUpper);
+
+    const bladeTip = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.32, 4), mandauSteelMat);
+    bladeTip.position.set(0.07, 1.4, 0);
+    bladeTip.rotation.z = -0.3;
+    mandauGroup.add(bladeTip);
+
+    // Brass inlays
+    for (let k = 0; k < 5; k++) {
+      const dot = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.035, 6), mandauBrassMat);
+      dot.rotation.x = Math.PI / 2;
+      dot.position.set(-0.03 + k * 0.005, 0.5 + k * 0.15, 0);
+      mandauGroup.add(dot);
+    }
+
+    const simpai = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.08, 8), mandauBrassMat);
+    simpai.position.y = 0.12;
+    mandauGroup.add(simpai);
+
+    const hiltBone = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.3, 6), mandauBoneMat);
+    hiltBone.position.set(0, -0.06, 0);
+    mandauGroup.add(hiltBone);
+
+    const enggangBeakHilt = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 4), mandauBoneMat);
+    enggangBeakHilt.position.set(-0.06, -0.22, 0);
+    enggangBeakHilt.rotation.z = Math.PI / 3;
+    mandauGroup.add(enggangBeakHilt);
+
+    const tuft1 = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.25, 4), mandauTuftMat);
+    tuft1.position.set(-0.14, -0.26, 0);
+    tuft1.rotation.z = Math.PI / 2.2;
+    mandauGroup.add(tuft1);
+
+    const tuft2 = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.2, 4), mandauTuftMat);
+    tuft2.position.set(-0.04, -0.28, 0.03);
+    tuft2.rotation.z = Math.PI / 1.8;
+    mandauGroup.add(tuft2);
+
+    mandauGroup.visible = false;
+    swordGroup.add(mandauGroup);
+
+    // 4. CELURIT SAKERA MADURA
+    const celuritGroup = new THREE.Group();
+    const celuritSteelMat = new THREE.MeshStandardMaterial({
+      color: '#94a3b8',
+      metalness: 0.95,
+      roughness: 0.15
+    });
+    const celuritRingMat = new THREE.MeshStandardMaterial({
+      color: '#eab308',
+      metalness: 0.9,
+      roughness: 0.2
+    });
+    const celuritWoodMat = new THREE.MeshStandardMaterial({
+      color: '#291807',
+      roughness: 0.65
+    });
+
+    const cSegments = 8;
+    const cRadius = 0.55;
+    const cStartAng = 0.2;
+    const cEndAng = Math.PI * 0.9;
+    for (let s = 0; s < cSegments; s++) {
+      const t = s / (cSegments - 1);
+      const ang = cStartAng + t * (cEndAng - cStartAng);
+      const x1 = Math.cos(ang) * cRadius - cRadius * 0.5;
+      const y1 = Math.sin(ang) * cRadius + 0.35;
+      const w = 0.13 - t * 0.07;
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(w, 0.16, 0.03), celuritSteelMat);
+      seg.position.set(x1, y1, 0);
+      seg.rotation.z = -ang + Math.PI / 2;
+      seg.castShadow = true;
+      celuritGroup.add(seg);
+    }
+
+    const hookTip = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.18, 4), celuritSteelMat);
+    const tipAng = cEndAng + 0.15;
+    hookTip.position.set(Math.cos(tipAng) * cRadius - cRadius * 0.5, Math.sin(tipAng) * cRadius + 0.35, 0);
+    hookTip.rotation.z = -tipAng + Math.PI;
+    celuritGroup.add(hookTip);
+
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.09, 8), celuritRingMat);
+    collar.position.set(-cRadius * 0.5 + Math.cos(cStartAng) * cRadius - 0.03, 0.18, 0);
+    celuritGroup.add(collar);
+
+    const celuritHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.038, 0.32, 8), celuritWoodMat);
+    celuritHandle.position.set(-0.35, 0.0, 0);
+    celuritHandle.rotation.z = 0.3;
+    celuritGroup.add(celuritHandle);
+
+    for (let r = 0; r < 3; r++) {
+      const hRing = new THREE.Mesh(new THREE.TorusGeometry(0.043, 0.007, 6, 12), celuritRingMat);
+      hRing.position.set(-0.35 + (r - 1) * 0.07 * Math.sin(0.3), 0.0 - (r - 1) * 0.07 * Math.cos(0.3), 0);
+      hRing.rotation.x = Math.PI / 2;
+      celuritGroup.add(hRing);
+    }
+
+    const pommelHook = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.015, 6, 12, 0, Math.PI * 1.3), celuritSteelMat);
+    pommelHook.position.set(-0.35 - 0.16 * Math.sin(0.3), -0.16 * Math.cos(0.3), 0);
+    celuritGroup.add(pommelHook);
+
+    celuritGroup.visible = false;
+    swordGroup.add(celuritGroup);
+
+    // 5. BADIK GECONG BAJO-BUGIS
+    const badikGroup = new THREE.Group();
+    const badikSteelMat = new THREE.MeshStandardMaterial({
+      color: '#475569',
+      metalness: 0.95,
+      roughness: 0.2,
+      emissive: '#a855f7',
+      emissiveIntensity: 0.25
+    });
+    const badikSilverMat = new THREE.MeshStandardMaterial({
+      color: '#e2e8f0',
+      metalness: 0.9,
+      roughness: 0.25
+    });
+    const badikWoodMat = new THREE.MeshStandardMaterial({
+      color: '#92400e',
+      roughness: 0.5
+    });
+
+    const badikBlade = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.85, 0.025), badikSteelMat);
+    badikBlade.position.set(0, 0.5, 0);
+    badikGroup.add(badikBlade);
+
+    const badikPoint = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.24, 4), badikSteelMat);
+    badikPoint.position.set(0.015, 0.98, 0);
+    badikPoint.rotation.z = -0.1;
+    badikGroup.add(badikPoint);
+
+    const badikPamor = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.75, 0.03), badikSilverMat);
+    badikPamor.position.set(0, 0.5, 0);
+    badikGroup.add(badikPamor);
+
+    const kilin = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.08, 8), badikSilverMat);
+    kilin.position.y = 0.12;
+    badikGroup.add(kilin);
+
+    const pappiBase = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.15, 8), badikWoodMat);
+    pappiBase.position.set(0, 0.01, 0);
+    badikGroup.add(pappiBase);
+
+    const pappiGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.22, 8), badikWoodMat);
+    pappiGrip.position.set(-0.09, -0.12, 0);
+    pappiGrip.rotation.z = Math.PI / 3.2;
+    badikGroup.add(pappiGrip);
+
+    const pappiCap = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), badikSilverMat);
+    pappiCap.position.set(-0.19, -0.18, 0);
+    badikGroup.add(pappiCap);
+
+    badikGroup.visible = false;
+    swordGroup.add(badikGroup);
+
+    // Register weapons in ref for instant switching
+    weaponMeshesRef.current = {
+      master_sword: masterSwordGroup,
+      keris_mataram: kerisGroup,
+      mandau_dayak: mandauGroup,
+      celurit_madura: celuritGroup,
+      badik_bugis: badikGroup,
+    };
+    const initWeapon = activeWeaponRef.current;
+    (Object.keys(weaponMeshesRef.current) as TraditionalWeapon[]).forEach((wKey) => {
+      const g = weaponMeshesRef.current[wKey];
+      if (g) g.visible = (wKey === initWeapon);
+    });
 
     playerGroup.add(swordGroup);
 
@@ -2638,20 +3297,26 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         head.position.y = 1.8;
       }
 
-      // Master Sword Sacred Awakening
+      // Master Sword Sacred Awakening & Nusantara Weapon Trail Colors
       const distToBoko = Math.hypot(p.x - bokoStatsRef.current.x, p.z - bokoStatsRef.current.z);
       const distToGuardian = Math.hypot(p.x - guardianGroup.position.x, p.z - guardianGroup.position.z);
       const isNearMalice = (distToGuardian < 70 || (bokoStatsRef.current.hp > 0 && distToBoko < 38));
 
-      if (isNearMalice) {
-        bladeMat.emissive.set('#00f0ff');
-        bladeMat.emissiveIntensity = 2.4 + Math.sin(Date.now() * 0.009) * 0.8;
-        swordTrailMat.color.set('#00f0ff');
-        setIsSwordAwakened(true);
+      const currW = activeWeaponRef.current;
+      if (currW === 'master_sword') {
+        if (isNearMalice) {
+          bladeMat.emissive.set('#00f0ff');
+          bladeMat.emissiveIntensity = 2.4 + Math.sin(Date.now() * 0.009) * 0.8;
+          swordTrailMat.color.set('#00f0ff');
+          setIsSwordAwakened(true);
+        } else {
+          bladeMat.emissive.set('#38bdf8');
+          bladeMat.emissiveIntensity = 0.5;
+          swordTrailMat.color.set('#38bdf8');
+          setIsSwordAwakened(false);
+        }
       } else {
-        bladeMat.emissive.set('#38bdf8');
-        bladeMat.emissiveIntensity = 0.5;
-        swordTrailMat.color.set('#38bdf8');
+        swordTrailMat.color.set(NUSANTARA_WEAPONS[currW].color);
         setIsSwordAwakened(false);
       }
 
@@ -2848,6 +3513,23 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
       fireLight.intensity = 3.0 + Math.sin(Date.now() * 0.02) * 0.8;
 
+      // Gently bob the Bugis Boat on the lake surface
+      bugisBoatGroup.position.y = -0.95 + Math.sin(Date.now() * 0.002) * 0.06;
+      bugisBoatGroup.rotation.z = Math.sin(Date.now() * 0.0018) * 0.025;
+      bugisBoatGroup.rotation.x = Math.cos(Date.now() * 0.0012) * 0.015;
+
+      // Indonesian Regional Territory Sensor
+      let zoneName = 'Dataran Kuil Mataram Kuno';
+      if (Math.hypot(p.x - (-45), p.z - (-55)) < 18) {
+        zoneName = 'Hutan Rimba Suku Dayak';
+      } else if (Math.hypot(p.x - (-48), p.z - 42) < 22) {
+        zoneName = 'Pesisir Phinisi Suku Bajo-Bugis';
+      } else if (Math.hypot(p.x - 45, p.z - (-20)) < 18) {
+        zoneName = 'Savana Ksatria Sakera Madura';
+      } else if (Math.hypot(p.x - 65, p.z - (-48)) < 18) {
+        zoneName = 'Tinggi Megalitikum Batu Hombo Nias';
+      }
+
       // Update HUD
       const remainingLegs = guardianLegsHpRef.current.filter(hp => hp > 0).length;
       setHudStats(prev => ({
@@ -2864,6 +3546,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         legsRemaining: remainingLegs,
         isClimbing: p.isClimbing,
         isSurfing: p.isSurfing,
+        currentZone: zoneName,
         nearCookingPot: Math.hypot(p.x - 8, p.z - 8) < 4.5
       }));
 
@@ -2925,6 +3608,16 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         } else {
           handleEatMeal();
         }
+      } else if (e.key === '1') {
+        equipWeapon('master_sword');
+      } else if (e.key === '2') {
+        equipWeapon('keris_mataram');
+      } else if (e.key === '3') {
+        equipWeapon('mandau_dayak');
+      } else if (e.key === '4') {
+        equipWeapon('celurit_madura');
+      } else if (e.key === '5') {
+        equipWeapon('badik_bugis');
       }
     };
 
@@ -3005,6 +3698,12 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
             <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-300 font-bold">
               <span>🤖 Kaki: {hudStats.legsRemaining}/6</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-950/80 border border-amber-500/40 text-amber-300 font-bold">
+              <span>{NUSANTARA_WEAPONS[activeWeapon].icon}</span>
+              <span className="hidden sm:inline">{NUSANTARA_WEAPONS[activeWeapon].name}</span>
+              <span className="text-[10px] text-amber-400 font-mono">Dmg {NUSANTARA_WEAPONS[activeWeapon].damage}</span>
             </div>
 
             <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-sky-950/80 border border-sky-500/40 text-sky-300 font-bold">
@@ -3114,6 +3813,12 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                   🌙
                 </button>
               </div>
+            </div>
+
+            {/* Indonesian Regional Territory Sensor Badge */}
+            <div className="px-2.5 py-1 rounded-xl bg-slate-950/90 border border-amber-500/40 text-[10px] font-mono-tech text-amber-300 shadow-md flex items-center gap-1.5 pointer-events-auto">
+              <span>📍</span>
+              <span className="font-bold">{hudStats.currentZone}</span>
             </div>
           </div>
 
@@ -3342,6 +4047,58 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
         {/* MOBILE TOUCH CONTROLS - ZERO LATENCY POINTER DOWN */}
         <div className="pt-2 max-w-xl mx-auto space-y-3 select-none touch-none font-mono-tech">
+          {/* PUSAKA NUSANTARA (SENJATA SUKU ADAT 3D) SELECTOR STRIP */}
+          <div className="p-2 sm:p-2.5 rounded-2xl bg-slate-900/95 border border-amber-500/40 shadow-xl backdrop-blur-md">
+            <div className="flex items-center justify-between mb-1.5 px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm">🇮🇩</span>
+                <span className="text-[11px] font-black text-amber-300 tracking-wider">
+                  PUSAKA NUSANTARA (SENJATA SUKU 3D):
+                </span>
+              </div>
+              <span className="text-[9px] sm:text-[10px] text-amber-200/70 font-mono hidden xs:inline">
+                Pencet 1-5 di Keyboard / Tap Kartu
+              </span>
+            </div>
+
+            <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
+              {(Object.keys(NUSANTARA_WEAPONS) as TraditionalWeapon[]).map((wKey, idx) => {
+                const w = NUSANTARA_WEAPONS[wKey];
+                const isSelected = activeWeapon === wKey;
+                return (
+                  <button
+                    key={wKey}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      equipWeapon(wKey);
+                    }}
+                    className={`p-1.5 sm:p-2 rounded-xl border flex flex-col items-center justify-between text-center transition-all cursor-pointer touch-none select-none active:scale-95 ${
+                      isSelected
+                        ? 'bg-amber-500/25 border-amber-400 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.5)] ring-1 ring-amber-300'
+                        : 'bg-slate-800/80 hover:bg-slate-750 border-slate-700 text-slate-300 hover:border-slate-500'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full text-[9px] font-bold text-slate-400">
+                      <span className={`px-1 rounded ${isSelected ? 'bg-amber-400 text-slate-950 font-black' : 'bg-slate-700 text-slate-300'}`}>
+                        {idx + 1}
+                      </span>
+                      <span className="text-amber-300 text-[9px] sm:text-[10px] font-mono">{w.damage}🗡️</span>
+                    </div>
+                    <div className="text-lg sm:text-2xl my-0.5 filter drop-shadow">
+                      {w.icon}
+                    </div>
+                    <div className="text-[8.5px] sm:text-[10px] font-bold truncate max-w-full leading-tight">
+                      {wKey === 'master_sword' ? 'Master' : wKey.replace(/_.*$/, '').toUpperCase()}
+                    </div>
+                    <div className="text-[7px] sm:text-[8px] text-slate-400 truncate max-w-full hidden sm:block">
+                      {w.tribe.replace(/^(Suku|Wangsa) /, '')}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Action Buttons Row (10 Ergonomic Zero-Latency Buttons in 5-Column Grid) */}
           <div className="grid grid-cols-5 gap-2 text-center text-xs">
             <button
@@ -3456,7 +4213,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               <span className="text-slate-400">: Kanan ▶</span>
             </div>
             <div className="text-[10px] text-amber-300 font-bold hidden sm:block">
-              🎯 [Z] Kunci | 🤸 S+Spasi Salto
+              ⚔️ [1-5] Ganti Pusaka | 🎯 [Z] Kunci | 🤸 S+Spasi Salto
             </div>
           </div>
 
