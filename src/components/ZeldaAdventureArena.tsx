@@ -1879,18 +1879,19 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         shieldGroup.rotation.set(0, 0, 0);
       }
 
-      // Move player relative to camera yaw or locked target
+      // Move player relative to camera yaw or locked target (W: Maju ke depan)
       if ((moveForward !== 0 || moveRight !== 0) && !p.isClimbing && !p.isSurfing) {
         const spd = (p.isGliding ? 0.45 : p.isBlocking ? 0.12 : 0.28) * timeScale;
         const inputAngle = Math.atan2(moveRight, moveForward);
 
         if (targetLockRef.current) {
-          // Strafe orbiting relative to target
-          const strafeAngle = p.rotY + inputAngle;
+          // Strafe orbiting relative to target (W moves towards target)
+          const strafeAngle = p.rotY - inputAngle;
           p.vx = Math.sin(strafeAngle) * spd;
           p.vz = Math.cos(strafeAngle) * spd;
         } else {
-          const moveAngle = camOrbitRef.current.yaw + inputAngle;
+          // W moves forward into the distance away from camera
+          const moveAngle = camOrbitRef.current.yaw + Math.PI - inputAngle;
           p.vx = Math.sin(moveAngle) * spd;
           p.vz = Math.cos(moveAngle) * spd;
           p.rotY = moveAngle;
@@ -2663,19 +2664,41 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             </button>
           </div>
 
+          {/* Quick Guide Indicator */}
+          <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-cyan-500/40 text-[11px] font-mono-tech text-cyan-200 shadow-md">
+            <div className="flex items-center gap-1.5 font-bold">
+              <span className="px-1.5 py-0.5 rounded bg-cyan-500/30 text-cyan-300 border border-cyan-400/50">W</span>
+              <span className="text-slate-100">: MAJU ▲</span>
+              <span className="text-slate-600">|</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">A</span>
+              <span className="text-slate-400">: Kiri</span>
+              <span className="text-slate-600">|</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">S</span>
+              <span className="text-slate-400">: Mundur</span>
+              <span className="text-slate-600">|</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">D</span>
+              <span className="text-slate-400">: Kanan</span>
+            </div>
+            <div className="text-[10px] text-amber-300 font-bold hidden sm:block">
+              🎯 [Z] Kunci Musuh
+            </div>
+          </div>
+
           {/* D-Pad Navigation & Contextual Button */}
           <div className="flex items-center justify-between gap-4 pt-1">
-            {/* D-Pad with Complete Pointer Safety */}
-            <div className="grid grid-cols-3 gap-1.5 w-36 touch-none">
+            {/* D-Pad with Complete Pointer Safety & Clear W, A, S, D Labels */}
+            <div className="grid grid-cols-3 gap-1.5 w-44 touch-none">
               <div />
               <button
                 onPointerDown={(e) => { e.preventDefault(); touchDpadRef.current = { dx: 0, dy: -1 }; }}
                 onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
                 onPointerLeave={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
                 onPointerCancel={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
-                className="p-3.5 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex items-center justify-center shadow-md active:scale-90 transition-all touch-none"
+                className="py-2 px-1 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex flex-col items-center justify-center shadow-md active:scale-90 transition-all touch-none select-none cursor-pointer"
+                title="W : Maju ke Depan"
               >
-                ▲
+                <span className="text-sm font-extrabold text-cyan-300 leading-tight">W</span>
+                <span className="text-[8px] font-bold text-slate-200 tracking-tighter">MAJU ▲</span>
               </button>
               <div />
               <button
@@ -2683,21 +2706,26 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
                 onPointerLeave={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
                 onPointerCancel={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
-                className="p-3.5 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex items-center justify-center shadow-md active:scale-90 transition-all touch-none"
+                className="py-2 px-1 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex flex-col items-center justify-center shadow-md active:scale-90 transition-all touch-none select-none cursor-pointer"
+                title="A : Belok Kiri"
               >
-                ◀
+                <span className="text-sm font-extrabold text-cyan-300 leading-tight">A</span>
+                <span className="text-[8px] font-bold text-slate-200 tracking-tighter">◀ KIRI</span>
               </button>
-              <div className="flex items-center justify-center text-[10px] text-slate-500">
+              <div className="flex flex-col items-center justify-center text-[10px] text-slate-400">
                 <Compass className="w-5 h-5 text-cyan-400" />
+                <span className="text-[8px] font-bold font-mono-tech mt-0.5 text-cyan-300">WASD</span>
               </div>
               <button
                 onPointerDown={(e) => { e.preventDefault(); touchDpadRef.current = { dx: 1, dy: 0 }; }}
                 onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
                 onPointerLeave={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
                 onPointerCancel={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
-                className="p-3.5 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex items-center justify-center shadow-md active:scale-90 transition-all touch-none"
+                className="py-2 px-1 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex flex-col items-center justify-center shadow-md active:scale-90 transition-all touch-none select-none cursor-pointer"
+                title="D : Belok Kanan"
               >
-                ▶
+                <span className="text-sm font-extrabold text-cyan-300 leading-tight">D</span>
+                <span className="text-[8px] font-bold text-slate-200 tracking-tighter">KANAN ▶</span>
               </button>
               <div />
               <button
@@ -2705,9 +2733,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
                 onPointerLeave={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
                 onPointerCancel={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
-                className="p-3.5 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex items-center justify-center shadow-md active:scale-90 transition-all touch-none"
+                className="py-2 px-1 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex flex-col items-center justify-center shadow-md active:scale-90 transition-all touch-none select-none cursor-pointer"
+                title="S : Mundur"
               >
-                ▼
+                <span className="text-sm font-extrabold text-cyan-300 leading-tight">S</span>
+                <span className="text-[8px] font-bold text-slate-200 tracking-tighter">▼ MUNDUR</span>
               </button>
               <div />
             </div>
