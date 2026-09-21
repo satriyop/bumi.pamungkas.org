@@ -1610,6 +1610,122 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     campGroup.add(potMesh);
     scene.add(campGroup);
 
+    // 11b. 3D Campfire Smoke Plume Particle Pool
+    const smokeCount = 10;
+    const smokeGeo = new THREE.DodecahedronGeometry(0.32, 1);
+    const smokeMat = new THREE.MeshStandardMaterial({
+      color: '#cbd5e1',
+      transparent: true,
+      opacity: 0.35,
+      roughness: 0.95
+    });
+    const smokeParticles: { mesh: THREE.Mesh; vy: number; vx: number; vz: number; life: number; maxLife: number }[] = [];
+    for (let sm = 0; sm < smokeCount; sm++) {
+      const sMesh = new THREE.Mesh(smokeGeo, smokeMat.clone());
+      sMesh.position.set(8, 2.0, 8);
+      sMesh.visible = false;
+      scene.add(sMesh);
+      smokeParticles.push({ mesh: sMesh, vy: 0.04, vx: 0, vz: 0, life: 0, maxLife: 70 });
+    }
+    let smokeSpawnTimer = 0;
+
+    // 11c. The Iconic Hylian Cucco (Ayam Hylian Legendaris)
+    const cuccoGroup = new THREE.Group();
+    cuccoGroup.position.set(5.5, getTerrainHeight(5.5, 6), 6);
+
+    const cuccoWhiteMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.6 });
+    const cuccoRedMat = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.4 });
+    const cuccoYellowMat = new THREE.MeshStandardMaterial({ color: '#eab308', roughness: 0.5 });
+
+    const cuccoBody = new THREE.Mesh(new THREE.DodecahedronGeometry(0.34, 1), cuccoWhiteMat);
+    cuccoBody.position.y = 0.36;
+    cuccoBody.castShadow = true;
+    cuccoGroup.add(cuccoBody);
+
+    const cuccoHead = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), cuccoWhiteMat);
+    cuccoHead.position.set(0, 0.56, 0.22);
+    cuccoGroup.add(cuccoHead);
+
+    const cuccoComb = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 3), cuccoRedMat);
+    cuccoComb.position.set(0, 0.72, 0.2);
+    cuccoGroup.add(cuccoComb);
+
+    const cuccoBeak = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.14, 4), cuccoYellowMat);
+    cuccoBeak.position.set(0, 0.54, 0.36);
+    cuccoBeak.rotation.x = Math.PI / 2;
+    cuccoGroup.add(cuccoBeak);
+
+    const cuccoWingGeo = new THREE.BoxGeometry(0.05, 0.22, 0.32);
+    const cuccoWingL = new THREE.Mesh(cuccoWingGeo, cuccoWhiteMat);
+    cuccoWingL.position.set(-0.24, 0.38, 0.02);
+    cuccoGroup.add(cuccoWingL);
+
+    const cuccoWingR = new THREE.Mesh(cuccoWingGeo, cuccoWhiteMat);
+    cuccoWingR.position.set(0.24, 0.38, 0.02);
+    cuccoGroup.add(cuccoWingR);
+
+    const footGeo = new THREE.BoxGeometry(0.08, 0.04, 0.12);
+    const footL = new THREE.Mesh(footGeo, cuccoYellowMat);
+    footL.position.set(-0.12, 0.04, 0.02);
+    cuccoGroup.add(footL);
+    const footR = new THREE.Mesh(footGeo, cuccoYellowMat);
+    footR.position.set(0.12, 0.04, 0.02);
+    cuccoGroup.add(footR);
+    scene.add(cuccoGroup);
+
+    // 11d. Fluttering Hylian Butterflies (Summerwing Butterflies)
+    const butterflyList: { group: THREE.Group; wingL: THREE.Mesh; wingR: THREE.Mesh; ox: number; oz: number; phase: number }[] = [];
+    const bColors = ['#38bdf8', '#f97316', '#a855f7', '#facc15'];
+    for (let b = 0; b < 4; b++) {
+      const bGroup = new THREE.Group();
+      const ox = (b === 0 ? -12 : b === 1 ? 16 : b === 2 ? -40 : 25);
+      const oz = (b === 0 ? -10 : b === 1 ? 14 : b === 2 ? 40 : -20);
+      bGroup.position.set(ox, getTerrainHeight(ox, oz) + 1.2, oz);
+
+      const bWingMat = new THREE.MeshBasicMaterial({ color: bColors[b], side: THREE.DoubleSide });
+      const bWingGeo = new THREE.PlaneGeometry(0.16, 0.14);
+
+      const bWingL = new THREE.Mesh(bWingGeo, bWingMat);
+      bWingL.position.x = -0.08;
+      bGroup.add(bWingL);
+
+      const bWingR = new THREE.Mesh(bWingGeo, bWingMat);
+      bWingR.position.x = 0.08;
+      bGroup.add(bWingR);
+
+      scene.add(bGroup);
+      butterflyList.push({ group: bGroup, wingL: bWingL, wingR: bWingR, ox, oz, phase: b * 1.5 });
+    }
+
+    // 11e. Secret Korok Pinwheel on Mountain Cliff
+    const korokPinwheelGroup = new THREE.Group();
+    const kpX = 66;
+    const kpZ = -66;
+    korokPinwheelGroup.position.set(kpX, getTerrainHeight(kpX, kpZ), kpZ);
+
+    const kPost = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.08, 2.2, 6),
+      new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.9 })
+    );
+    kPost.position.y = 1.1;
+    korokPinwheelGroup.add(kPost);
+
+    const pinwheelCenter = new THREE.Group();
+    pinwheelCenter.position.set(0, 2.2, 0.08);
+
+    const bladeGeo = new THREE.ConeGeometry(0.12, 0.35, 3);
+    const bladeColors = ['#ef4444', '#3b82f6', '#eab308', '#22c55e'];
+    for (let bl = 0; bl < 4; bl++) {
+      const blMat = new THREE.MeshBasicMaterial({ color: bladeColors[bl] });
+      const bMesh = new THREE.Mesh(bladeGeo, blMat);
+      bMesh.rotation.z = (bl / 4) * Math.PI * 2;
+      bMesh.position.set(Math.cos(bMesh.rotation.z) * 0.15, Math.sin(bMesh.rotation.z) * 0.15, 0);
+      pinwheelCenter.add(bMesh);
+    }
+    korokPinwheelGroup.add(pinwheelCenter);
+    scene.add(korokPinwheelGroup);
+    let korokFound = false;
+
     // 12. 3D PLAYER MODEL (Link / Mas Bumi)
     const playerGroup = new THREE.Group();
     playerGroup.position.set(0, getTerrainHeight(0, 0), 0);
@@ -1689,6 +1805,81 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     bootRight.position.set(0.2, 0.12, 0.04);
     bootRight.castShadow = true;
     playerGroup.add(bootRight);
+
+    // Sheikah Slate 3D Tablet on Left Hip
+    const slateGroup = new THREE.Group();
+    slateGroup.position.set(-0.43, 0.98, 0.04);
+    slateGroup.rotation.z = -0.15;
+    const slateCasing = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.22, 0.05),
+      new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.8, metalness: 0.2 })
+    );
+    slateGroup.add(slateCasing);
+    const slateScreen = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.08, 0.16),
+      new THREE.MeshBasicMaterial({ color: '#06b6d4' })
+    );
+    slateScreen.position.set(-0.061, 0, 0);
+    slateScreen.rotation.y = -Math.PI / 2;
+    slateGroup.add(slateScreen);
+    const slateEyeRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.015, 0.03, 12),
+      new THREE.MeshBasicMaterial({ color: '#22d3ee', side: THREE.DoubleSide })
+    );
+    slateEyeRing.position.set(-0.062, 0, 0);
+    slateEyeRing.rotation.y = -Math.PI / 2;
+    slateGroup.add(slateEyeRing);
+    playerGroup.add(slateGroup);
+
+    // Master Sword Back Scabbard (Diagonal sheath across back)
+    const scabbardGroup = new THREE.Group();
+    scabbardGroup.position.set(0.08, 1.25, -0.26);
+    scabbardGroup.rotation.z = Math.PI / 5;
+    const scabbardSheath = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 1.35, 0.06),
+      new THREE.MeshStandardMaterial({ color: '#1e3a8a', roughness: 0.4, metalness: 0.5 })
+    );
+    scabbardGroup.add(scabbardSheath);
+    const scabbardGoldLocket = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.18, 0.08),
+      new THREE.MeshStandardMaterial({ color: '#f59e0b', roughness: 0.2, metalness: 0.85 })
+    );
+    scabbardGoldLocket.position.y = 0.55;
+    scabbardGroup.add(scabbardGoldLocket);
+    playerGroup.add(scabbardGroup);
+
+    // Archer Quiver with Blue Fletched Arrows on Back
+    const quiverGroup = new THREE.Group();
+    quiverGroup.position.set(-0.16, 1.25, -0.25);
+    quiverGroup.rotation.z = -Math.PI / 6;
+    const quiverBody = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.09, 0.07, 0.85, 8),
+      new THREE.MeshStandardMaterial({ color: '#92400e', roughness: 0.8 })
+    );
+    quiverGroup.add(quiverBody);
+
+    const arrowShaftMat = new THREE.MeshStandardMaterial({ color: '#d97706', roughness: 0.6 });
+    const arrowFletchMat = new THREE.MeshBasicMaterial({ color: '#0284c7' });
+    for (let a = 0; a < 4; a++) {
+      const aAng = (a / 4) * Math.PI * 2;
+      const arrowShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.45, 4), arrowShaftMat);
+      arrowShaft.position.set(Math.cos(aAng) * 0.035, 0.48, Math.sin(aAng) * 0.035);
+      quiverGroup.add(arrowShaft);
+
+      const arrowFletch = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.01), arrowFletchMat);
+      arrowFletch.position.set(Math.cos(aAng) * 0.035, 0.62, Math.sin(aAng) * 0.035);
+      quiverGroup.add(arrowFletch);
+    }
+    playerGroup.add(quiverGroup);
+
+    // Leather Forearm Bracers on Link
+    const bracerMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.7 });
+    const bracerL = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.28, 8), bracerMat);
+    bracerL.position.set(-0.45, 1.05, 0.02);
+    playerGroup.add(bracerL);
+    const bracerR = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.28, 8), bracerMat);
+    bracerR.position.set(0.45, 1.05, 0.02);
+    playerGroup.add(bracerR);
 
     // MASTER SWORD 3D WITH RUNES & WINGED CROSSGUARD
     const swordGroup = new THREE.Group();
@@ -2362,6 +2553,91 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       }
       sporeGeo.attributes.position.needsUpdate = true;
 
+      // Billowing Campfire Smoke Plume
+      smokeSpawnTimer++;
+      if (smokeSpawnTimer % 8 === 0) {
+        const inactiveSmoke = smokeParticles.find(sm => sm.life <= 0);
+        if (inactiveSmoke) {
+          inactiveSmoke.mesh.position.set(8 + (Math.random() - 0.5) * 0.35, 1.9, 8 + (Math.random() - 0.5) * 0.35);
+          inactiveSmoke.mesh.scale.set(0.7, 0.7, 0.7);
+          inactiveSmoke.life = inactiveSmoke.maxLife;
+          inactiveSmoke.mesh.visible = true;
+          inactiveSmoke.vx = (Math.random() - 0.5) * 0.012 + 0.01;
+          inactiveSmoke.vz = (Math.random() - 0.5) * 0.012;
+          inactiveSmoke.vy = 0.042 + Math.random() * 0.02;
+        }
+      }
+
+      smokeParticles.forEach(sp => {
+        if (sp.life > 0) {
+          sp.life -= timeScale;
+          sp.mesh.position.x += sp.vx * timeScale;
+          sp.mesh.position.y += sp.vy * timeScale;
+          sp.mesh.position.z += sp.vz * timeScale;
+          sp.mesh.scale.multiplyScalar(1.018);
+          (sp.mesh.material as THREE.MeshStandardMaterial).opacity = (sp.life / sp.maxLife) * 0.35;
+          if (sp.life <= 0) sp.mesh.visible = false;
+        }
+      });
+
+      // The Iconic Hylian Cucco AI (Ayam Hylian)
+      const cuccoDistToPlayer = Math.hypot(p.x - cuccoGroup.position.x, p.z - cuccoGroup.position.z);
+      if (cuccoDistToPlayer < 2.8) {
+        cuccoWingL.rotation.z = Math.sin(Date.now() * 0.03) * 0.7;
+        cuccoWingR.rotation.z = -Math.sin(Date.now() * 0.03) * 0.7;
+        const fleeAng = Math.atan2(cuccoGroup.position.x - p.x, cuccoGroup.position.z - p.z);
+        cuccoGroup.position.x += Math.sin(fleeAng) * 0.12 * timeScale;
+        cuccoGroup.position.z += Math.cos(fleeAng) * 0.12 * timeScale;
+        cuccoGroup.position.y = getTerrainHeight(cuccoGroup.position.x, cuccoGroup.position.z) + Math.abs(Math.sin(Date.now() * 0.02)) * 0.25;
+        cuccoGroup.rotation.y = fleeAng;
+        if (Math.random() < 0.025) {
+          playZeldaSfx('jump');
+          setHudStats(prev => ({ ...prev, message: '🐔 KOK-KOKOK! Ayam Cucco Hylian Terkejut!' }));
+        }
+      } else {
+        cuccoWingL.rotation.z = 0;
+        cuccoWingR.rotation.z = 0;
+        cuccoHead.rotation.x = Math.sin(nowSec * 2.5) * 0.25;
+        cuccoGroup.position.y = getTerrainHeight(cuccoGroup.position.x, cuccoGroup.position.z);
+      }
+
+      // Fluttering Summerwing Butterflies
+      butterflyList.forEach((b, idx) => {
+        const bTime = nowSec * 3.5 + b.phase;
+        b.group.position.x = b.ox + Math.sin(bTime * 0.4) * 3.5;
+        b.group.position.z = b.oz + Math.cos(bTime * 0.4) * 3.5;
+        b.group.position.y = getTerrainHeight(b.group.position.x, b.group.position.z) + 1.1 + Math.sin(bTime) * 0.4;
+        b.group.rotation.y = bTime * 0.4 + Math.PI / 2;
+        const flap = Math.sin(Date.now() * 0.025 + idx) * 0.85;
+        b.wingL.rotation.y = flap;
+        b.wingR.rotation.y = -flap;
+      });
+
+      // Secret Korok Pinwheel Spin & Puzzle
+      pinwheelCenter.rotation.z += 0.08 * timeScale;
+      const distToKorokPinwheel = Math.hypot(p.x - kpX, p.z - kpZ);
+      if (distToKorokPinwheel < 3.2 && !korokFound) {
+        korokFound = true;
+        p.korokSeeds += 1;
+        p.rupees += 25;
+        playZeldaSfx('korok_yahaha');
+        setHudStats(prev => ({
+          ...prev,
+          korokSeeds: p.korokSeeds,
+          rupees: p.rupees,
+          message: '🍃 YAHAHA! Kamu menemukan Korok rahasia! (+1 Korok Seed & 25 Rupee)'
+        }));
+      }
+
+      // Link Idle Breathing Animation
+      if (!p.isAttacking && !p.isSpinAttacking && p.vx === 0 && p.vz === 0) {
+        torso.scale.y = 1.0 + Math.sin(Date.now() * 0.003) * 0.02;
+        head.position.y = 1.8 + Math.sin(Date.now() * 0.003) * 0.015;
+      } else {
+        torso.scale.y = 1.0;
+        head.position.y = 1.8;
+      }
+
       // Master Sword Sacred Awakening
       const distToBoko = Math.hypot(p.x - bokoStatsRef.current.x, p.z - bokoStatsRef.current.z);
       const distToGuardian = Math.hypot(p.x - guardianGroup.position.x, p.z - guardianGroup.position.z);
@@ -2840,6 +3116,40 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               </div>
             </div>
           </div>
+
+          {/* BotW Circular Dynamic Stamina Wheel */}
+          {hudStats.stamina < 100 && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ml-14 pointer-events-none z-30 flex flex-col items-center drop-shadow-[0_0_12px_rgba(0,0,0,0.8)]">
+              <svg className="w-14 h-14 -rotate-90">
+                {/* Background Ring */}
+                <circle
+                  cx="28"
+                  cy="28"
+                  r="21"
+                  className="stroke-slate-900/80 fill-none"
+                  strokeWidth="5"
+                />
+                {/* Progress Ring */}
+                <circle
+                  cx="28"
+                  cy="28"
+                  r="21"
+                  className={`fill-none transition-all duration-75 ${
+                    hudStats.stamina < 25 
+                      ? 'stroke-rose-500 animate-pulse drop-shadow-[0_0_8px_#f43f5e]' 
+                      : 'stroke-emerald-400 drop-shadow-[0_0_8px_#34d399]'
+                  }`}
+                  strokeWidth="5"
+                  strokeDasharray={2 * Math.PI * 21}
+                  strokeDashoffset={(2 * Math.PI * 21) * (1 - hudStats.stamina / 100)}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className={`text-[10px] font-mono-tech font-bold -mt-1 ${hudStats.stamina < 25 ? 'text-rose-400 animate-ping' : 'text-emerald-300'}`}>
+                {hudStats.stamina}%
+              </span>
+            </div>
+          )}
 
           {/* Master Sword Awakened Sacred Banner */}
           {isSwordAwakened && (
