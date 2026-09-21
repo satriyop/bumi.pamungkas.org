@@ -21,7 +21,10 @@ import {
   CloudRain,
   Mountain,
   RotateCw,
-  Target
+  Target,
+  Map as MapIcon,
+  MapPin,
+  X
 } from 'lucide-react';
 
 interface ZeldaAdventureArenaProps {
@@ -547,6 +550,100 @@ function createNameplateSprite(name: string, title: string, color: string): THRE
   return sprite;
 }
 
+export interface TribalCodexData {
+  id: string;
+  regionName: string;
+  island: string;
+  tribe: string;
+  hero: string;
+  weapon: string;
+  traditionalHouse: string;
+  cultureTradition: string;
+  philosophy: string;
+  funFact: string;
+  color: string;
+  icon: string;
+  mapPos: { x: number; z: number };
+}
+
+export const NUSANTARA_CODEX: Record<string, TribalCodexData> = {
+  mataram: {
+    id: 'mataram',
+    regionName: 'Lembah Mataram Kuno',
+    island: 'Pulau Jawa (Jawa Tengah & DI Yogyakarta)',
+    tribe: 'Wangsa Mataram Kuno',
+    hero: 'Empu Supo',
+    weapon: 'Keris Kyai Surya Luk 7 (Pusaka Pamor Emas)',
+    traditionalHouse: 'Rumah Joglo & Candi Batu Bertingkat',
+    cultureTradition: 'Penempaan Pusaka Keris Berdoa & Seni Gamelan Ageng',
+    philosophy: 'Memayu Hayuning Bawana (Menjaga keselarasan dan kedamaian alam semesta)',
+    funFact: 'Keris diakui UNESCO sebagai Warisan Kemanusiaan Non-Bendawi Dunia asli Indonesia sejak 2005.',
+    color: '#fbbf24',
+    icon: '⚡',
+    mapPos: { x: 70, z: -68 }
+  },
+  dayak: {
+    id: 'dayak',
+    regionName: 'Tebing Karst & Hutan Rimba Belian',
+    island: 'Pulau Kalimantan (Borneo)',
+    tribe: 'Suku Dayak Penjaga Rimba',
+    hero: 'Panglima Burung',
+    weapon: 'Mandau Taring Rimba & Sumpit Sipet Beracun',
+    traditionalHouse: 'Rumah Betang (Rumah Panggung Panjang Kayu Ulin)',
+    cultureTradition: 'Upacara Adat Belian & Tari Perang Kancet Papatai',
+    philosophy: 'Adil Ka\' Talino, Bacuramin Ka\' Saruga, Basengat Ka\' Jubata (Adil pada sesama, bercermin ke surga, bernapas pada Tuhan)',
+    funFact: 'Kayu Ulin yang digunakan untuk tiang Totem Belian dan rumah Dayak adalah kayu besi yang semakin keras jika terendam air!',
+    color: '#22c55e',
+    icon: '🦅',
+    mapPos: { x: -42, z: -52 }
+  },
+  madura: {
+    id: 'madura',
+    regionName: 'Savana Merah Karapan Sakera',
+    island: 'Pulau Madura (Jawa Timur)',
+    tribe: 'Suku Ksatria Madura',
+    hero: 'Pak Sakera',
+    weapon: 'Celurit Sakera Bulan Sabit',
+    traditionalHouse: 'Rumah Adat Tanean Lanjhan (Deretan Halaman Bersama)',
+    cultureTradition: 'Karapan Sapi Ksatria & Seni Bela Diri Pencak Silat',
+    philosophy: 'Rampak Naong Bringin Korong (Rukun, damai, dan saling mengayomi)',
+    funFact: 'Celurit memiliki bilah berbentuk lengkung bulan sabit yang didesain aerodinamis untuk tebasan cepat dan tangguh.',
+    color: '#ef4444',
+    icon: '🌙',
+    mapPos: { x: 42, z: -17 }
+  },
+  bugis: {
+    id: 'bugis',
+    regionName: 'Pesisir Phinisi & Danau Klaten',
+    island: 'Pulau Sulawesi (Sulawesi Selatan)',
+    tribe: 'Suku Bahari Bajo-Bugis',
+    hero: 'Daeng Matowa',
+    weapon: 'Badik Gecong Naga Laut (Senjata Tikam Kilat)',
+    traditionalHouse: 'Rumah Adat Bola Saoraja & Perahu Layar Phinisi',
+    cultureTradition: 'Pelayaran Mengarungi Samudra Nusantara dengan Phinisi & Tari Paduppa',
+    philosophy: 'Siri\' Na Pacce (Menjunjung tinggi kehormatan, harga diri, dan solidaritas persaudaraan)',
+    funFact: 'Kapal Phinisi dibuat oleh tangan-tangan ahli Bugis tanpa menggunakan paku besi sebatang pun dan telah mengarungi samudra sampai ke Madagaskar!',
+    color: '#38bdf8',
+    icon: '🌊',
+    mapPos: { x: -44, z: 39 }
+  },
+  nias: {
+    id: 'nias',
+    regionName: 'Perbukitan Megalitikum Nias',
+    island: 'Kepulauan Nias (Sumatera Utara)',
+    tribe: 'Suku Megalitikum Nias (Ono Niha)',
+    hero: 'Tuha Balugu',
+    weapon: 'Pedang Balatu & Zirah Pelindung Baru Oholu',
+    traditionalHouse: 'Omo Sebua (Rumah Panggung Megalitikum Tahan Gempa)',
+    cultureTradition: 'Tradisi Fahombo (Melompati Tugu Batu Hombo setinggi 2 meter)',
+    philosophy: 'Yaa’ahowu (Semoga selalu dalam lindungan dan keberkahan kedamaian)',
+    funFact: 'Tradisi Fahombo melompati batu setinggi 2.2 meter adalah ujian kesiapan para pemuda Nias menjadi ksatria pembela desa.',
+    color: '#eab308',
+    icon: '🗿',
+    mapPos: { x: 62, z: -44 }
+  }
+};
+
 export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDarkMode = true, playSound }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [gameState, setGameState] = useState<'intro' | 'playing' | 'gameover' | 'victory'>('intro');
@@ -561,6 +658,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
   const [tribalDialogNpc, setTribalDialogNpc] = useState<TribalNpc | null>(null);
   const [claimedGifts, setClaimedGifts] = useState<{ [npcId: string]: boolean }>({});
   const nearNpcRef = useRef<TribalNpc | null>(null);
+
+  // Sheikah Slate World Map & Nusantara Codex Modal State
+  const [isMapOpen, setIsMapOpen] = useState(false);
+  const [selectedMapRegionId, setSelectedMapRegionId] = useState<string>('mataram');
 
   // Time & Weather
   const timeOfDayRef = useRef(0.25);
@@ -684,7 +785,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     lockedTargetName: null as string | null,
     currentZone: 'Dataran Kuil Kuno',
     nearNpc: null as TribalNpc | null,
-    message: null as string | null
+    message: null as string | null,
+    playerX: 0,
+    playerZ: 0,
+    playerRotY: 0
   });
 
   // Camera Orbit Controls
@@ -1259,6 +1363,25 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       hearts: p.hearts,
       stamina: Math.round(p.stamina),
       message: `🎁 Menerima ${npc.giftText} dari ${npc.name}!`
+    }));
+  };
+
+  // Sheikah Fast-Travel / Teleportation
+  const handleTeleportTo = (x: number, z: number, regionName: string) => {
+    const p = playerStatsRef.current;
+    p.x = x;
+    p.z = z;
+    p.vx = 0;
+    p.vy = 0;
+    p.vz = 0;
+    p.y = getTerrainHeight(x, z);
+    setIsMapOpen(false);
+    playZeldaSfx('fairy_heal');
+    setHudStats(prev => ({
+      ...prev,
+      playerX: x,
+      playerZ: z,
+      message: `⚡ TELEPORTASI SHEIKAH: Tiba di ${regionName}!`
     }));
   };
 
@@ -3978,7 +4101,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
         isSurfing: p.isSurfing,
         currentZone: zoneName,
         nearNpc: foundNearNpc,
-        nearCookingPot: Math.hypot(p.x - 8, p.z - 8) < 4.5
+        nearCookingPot: Math.hypot(p.x - 8, p.z - 8) < 4.5,
+        playerX: p.x,
+        playerZ: p.z,
+        playerRotY: p.rotY
       }));
 
       renderer.render(scene, camera);
@@ -4013,7 +4139,11 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       keysRef.current[e.key] = true;
       if (e.code) keysRef.current[e.code] = true;
 
-      if (e.key === 'j' || e.key === 'J') {
+      if (e.key === 'm' || e.key === 'M') {
+        setIsMapOpen(prev => !prev);
+      } else if (e.key === 'Escape') {
+        setIsMapOpen(false);
+      } else if (e.key === 'j' || e.key === 'J') {
         handleAttack();
       } else if (e.key === 'k' || e.key === 'K') {
         handleShootArrow();
@@ -4166,8 +4296,12 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
           {/* SHEIKAH SLATE RADAR & ENVIRONMENTAL SENSOR (Top Right) */}
           <div className="absolute top-4 right-4 flex flex-col items-end gap-2 pointer-events-none z-20">
-            {/* Circular BotW Radar Minimap */}
-            <div className="relative w-28 h-28 rounded-full bg-slate-950/90 border-2 border-cyan-400/60 shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center overflow-hidden">
+            {/* Circular BotW Radar Minimap with Sheikah Slate Frame */}
+            <div 
+              onPointerDown={(e) => { e.preventDefault(); setIsMapOpen(true); }}
+              className="group relative w-28 h-28 rounded-full bg-slate-950/90 border-2 border-cyan-400/60 shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center justify-center overflow-hidden pointer-events-auto cursor-pointer hover:border-cyan-300 hover:scale-105 active:scale-95 transition-all"
+              title="Buka Peta Atlas Keberagaman Nusantara [M]"
+            >
               {/* Radar Grid Rings */}
               <div className="absolute inset-2 rounded-full border border-cyan-500/20" />
               <div className="absolute inset-6 rounded-full border border-cyan-500/30" />
@@ -4177,7 +4311,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               {/* Rotating Compass Outer Ring */}
               <div 
                 className="absolute inset-0 flex items-center justify-center transition-transform duration-75"
-                style={{ transform: `rotate(${-playerStatsRef.current.rotY}rad)` }}
+                style={{ transform: `rotate(${-hudStats.playerRotY}rad)` }}
               >
                 <span className="absolute top-1 text-[9px] font-bold text-cyan-300 font-mono-tech">N</span>
                 <span className="absolute right-1 text-[8px] font-bold text-slate-400 font-mono-tech">E</span>
@@ -4204,7 +4338,24 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               <div className="relative z-10 w-4 h-4 flex items-center justify-center">
                 <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[9px] border-b-cyan-300 drop-shadow-[0_0_6px_#22d3ee]" />
               </div>
+
+              {/* Hover / Tap Map overlay pill badge */}
+              <div className="absolute inset-0 bg-cyan-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                <span className="px-1.5 py-0.5 rounded bg-cyan-500 text-[8px] font-mono-tech font-bold text-slate-950 shadow">
+                  [M] BUKA PETA
+                </span>
+              </div>
             </div>
+
+            {/* Quick Map Button pill right under radar */}
+            <button
+              onPointerDown={(e) => { e.preventDefault(); setIsMapOpen(true); }}
+              className="px-2.5 py-1 rounded-xl bg-slate-950/90 border border-cyan-400/60 hover:border-cyan-300 text-cyan-300 hover:text-white text-[10px] font-mono-tech font-bold shadow-lg flex items-center gap-1.5 pointer-events-auto cursor-pointer hover:scale-105 active:scale-95 transition-all"
+              title="Buka Peta Atlas Nusantara [M]"
+            >
+              <MapIcon className="w-3.5 h-3.5 text-cyan-400" />
+              <span>[M] PETA ATLAS 🗺️</span>
+            </button>
 
             {/* Environmental Sensors: Noise Meter & Thermometer & Quick Time Switcher */}
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-950/85 border border-cyan-500/30 text-[10px] font-mono-tech text-cyan-300 shadow-md pointer-events-auto">
@@ -4360,6 +4511,14 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               <span>Putar ▶</span>
               <RotateCw className="w-4 h-4" />
             </button>
+            <button
+              onPointerDown={(e) => { e.preventDefault(); setIsMapOpen(true); }}
+              className="px-3.5 py-3 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 active:from-cyan-500 active:to-blue-500 border border-cyan-300 text-white shadow-[0_0_15px_rgba(6,182,212,0.5)] active:scale-90 transition-all flex items-center gap-1.5 text-xs font-mono-tech font-bold cursor-pointer touch-none"
+              title="Buka Peta Atlas Keberagaman Budaya Nusantara [M]"
+            >
+              <MapIcon className="w-4 h-4 text-cyan-200" />
+              <span>PETA 🗺️</span>
+            </button>
           </div>
 
           {/* COOKING MODAL */}
@@ -4504,6 +4663,436 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
             </div>
           )}
 
+          {/* SHEIKAH SLATE WORLD MAP & TRIBAL DIVERSITY CODEX MODAL [M] */}
+          {isMapOpen && (
+            <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-xl z-50 flex flex-col p-3 sm:p-5 text-slate-100 overflow-y-auto animate-fade-in font-sans">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-cyan-500/40 pb-3 mb-3 shrink-0">
+                <div className="flex items-center gap-2.5 sm:gap-3">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-cyan-950/80 border border-cyan-400 flex items-center justify-center text-xl sm:text-2xl shadow-[0_0_20px_rgba(6,182,212,0.5)]">
+                    👁️
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base sm:text-xl font-black font-fun text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-sky-200 to-amber-300">
+                        PETA ATLAS KEBERAGAMAN SUKU NUSANTARA
+                      </h3>
+                      <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-cyan-900/60 border border-cyan-400/50 text-[10px] font-mono-tech text-cyan-300">
+                        SHEIKAH SLATE CARTOGRAPHY
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] font-mono-tech text-cyan-200/80 mt-0.5">
+                      <span>📍 Koordinat: X: {Math.round(hudStats.playerX)} | Z: {Math.round(hudStats.playerZ)}</span>
+                      <span className="text-slate-600">|</span>
+                      <span className="text-amber-300 font-bold">{hudStats.currentZone}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onPointerDown={() => setIsMapOpen(false)}
+                    className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-600 text-slate-300 hover:text-white text-xs font-mono-tech flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
+                    title="Tutup Peta [Esc / M]"
+                  >
+                    <X className="w-4 h-4" />
+                    <span className="hidden sm:inline">TUTUP [ESC]</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Region Selector Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-none shrink-0">
+                <span className="text-[10px] font-mono-tech text-cyan-400 font-bold uppercase tracking-wider pr-1 flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-cyan-400" /> Suku:
+                </span>
+                {Object.values(NUSANTARA_CODEX).map((codex) => {
+                  const isSelected = selectedMapRegionId === codex.id;
+                  return (
+                    <button
+                      key={codex.id}
+                      onPointerDown={() => setSelectedMapRegionId(codex.id)}
+                      className={`px-3 py-1 rounded-xl text-xs font-mono-tech font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 border shadow-sm ${
+                        isSelected
+                          ? 'border-cyan-300 bg-cyan-950/80 text-cyan-200 shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-105 ring-1 ring-cyan-400'
+                          : 'border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <span>{codex.icon}</span>
+                      <span>{codex.tribe.replace(/^(Suku|Wangsa) /, '')}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Split Body: Map Canvas (Left/Top) + Cultural Codex Card (Right/Bottom) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-1 min-h-0 overflow-y-auto">
+                {/* LEFT: Sheikah Topographic Map Container (7 cols on lg) */}
+                <div className="lg:col-span-7 flex flex-col">
+                  <div className="relative w-full aspect-square max-h-[380px] sm:max-h-[440px] rounded-3xl bg-gradient-to-br from-slate-950 via-cyan-950/30 to-slate-950 border-2 border-cyan-500/50 shadow-[inset_0_0_40px_rgba(6,182,212,0.2)] overflow-hidden select-none">
+                    {/* Topographic Background Grid & Radar Rings */}
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#0891b212_1px,transparent_1px),linear-gradient(to_bottom,#0891b212_1px,transparent_1px)] bg-[size:20px_20px]" />
+                    
+                    {/* Concentric Sheikah Radar Range Rings */}
+                    <div className="absolute inset-10 rounded-full border border-cyan-500/20 pointer-events-none" />
+                    <div className="absolute inset-24 rounded-full border border-cyan-500/25 pointer-events-none" />
+                    <div className="absolute inset-36 rounded-full border border-cyan-500/20 pointer-events-none" />
+
+                    {/* Cardinal Compass Markers */}
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-slate-900/90 border border-cyan-500/40 text-[9px] font-mono-tech text-cyan-300 font-black">
+                      UTARA (N)
+                    </div>
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-slate-900/90 border border-cyan-500/40 text-[9px] font-mono-tech text-slate-400 font-black">
+                      SELATAN (S)
+                    </div>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-slate-900/90 border border-cyan-500/40 text-[9px] font-mono-tech text-slate-400 font-black">
+                      TIMUR (E)
+                    </div>
+                    <div className="absolute left-2 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded bg-slate-900/90 border border-cyan-500/40 text-[9px] font-mono-tech text-slate-400 font-black">
+                      BARAT (W)
+                    </div>
+
+                    {/* Geographic Territorial Zones */}
+                    {/* 1. Lembah Mataram (Amber Aura) */}
+                    <div 
+                      className="absolute rounded-3xl border border-amber-500/30 bg-amber-500/10 transition-all pointer-events-none"
+                      style={{
+                        left: `${((60 + 80) / 160) * 100}%`,
+                        top: `${((-75 + 80) / 160) * 100}%`,
+                        width: '20%',
+                        height: '18%',
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    >
+                      <span className="absolute bottom-1 right-2 text-[8px] font-mono-tech text-amber-300/70 font-bold">Mataram</span>
+                    </div>
+
+                    {/* 2. Dayak Karst Rainforest (Green Aura) */}
+                    <div 
+                      className="absolute rounded-3xl border border-emerald-500/30 bg-emerald-500/10 transition-all pointer-events-none"
+                      style={{
+                        left: `${((-42 + 80) / 160) * 100}%`,
+                        top: `${((-52 + 80) / 160) * 100}%`,
+                        width: '22%',
+                        height: '20%',
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    >
+                      <span className="absolute top-1 left-2 text-[8px] font-mono-tech text-emerald-300/70 font-bold">Rimba Dayak</span>
+                    </div>
+
+                    {/* 3. Madura Savana (Red Aura) */}
+                    <div 
+                      className="absolute rounded-3xl border border-rose-500/30 bg-rose-500/10 transition-all pointer-events-none"
+                      style={{
+                        left: `${((42 + 80) / 160) * 100}%`,
+                        top: `${((-17 + 80) / 160) * 100}%`,
+                        width: '18%',
+                        height: '18%',
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    >
+                      <span className="absolute bottom-1 left-2 text-[8px] font-mono-tech text-rose-300/70 font-bold">Savana Sakera</span>
+                    </div>
+
+                    {/* 4. Bugis Danau Klaten (Blue Water Lake Shape) */}
+                    <div 
+                      className="absolute rounded-full border border-sky-400/50 bg-sky-500/25 shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all pointer-events-none"
+                      style={{
+                        left: `${((-44 + 80) / 160) * 100}%`,
+                        top: `${((39 + 80) / 160) * 100}%`,
+                        width: '26%',
+                        height: '26%',
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    >
+                      <span className="absolute inset-0 flex items-center justify-center text-[8px] font-mono-tech text-sky-200/80 font-bold text-center">
+                        Danau Klaten<br/>(Phinisi Bajo)
+                      </span>
+                    </div>
+
+                    {/* 5. Nias Megalith Highlands (Yellow Aura) */}
+                    <div 
+                      className="absolute rounded-3xl border border-yellow-500/30 bg-yellow-500/10 transition-all pointer-events-none"
+                      style={{
+                        left: `${((62 + 80) / 160) * 100}%`,
+                        top: `${((-44 + 80) / 160) * 100}%`,
+                        width: '18%',
+                        height: '18%',
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    >
+                      <span className="absolute top-1 right-2 text-[8px] font-mono-tech text-yellow-300/70 font-bold">Megalit Nias</span>
+                    </div>
+
+                    {/* Landmark Pins: Cooking Pot, Bokoblin, Guardian */}
+                    {/* Cooking pot & campfire pin */}
+                    <div 
+                      className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10"
+                      style={{
+                        left: `${((8 + 80) / 160) * 100}%`,
+                        top: `${((8 + 80) / 160) * 100}%`
+                      }}
+                      title="Panci Masak Tradisional"
+                    >
+                      <span className="text-xs filter drop-shadow">🍲</span>
+                      <span className="text-[7px] font-mono-tech text-amber-300 bg-slate-950/80 px-1 rounded">Dapur Api</span>
+                    </div>
+
+                    {/* Bokoblin camp pin */}
+                    {hudStats.bokoHp > 0 && (
+                      <div 
+                        className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10"
+                        style={{
+                          left: `${((25 + 80) / 160) * 100}%`,
+                          top: `${((-25 + 80) / 160) * 100}%`
+                        }}
+                        title="Musuh Bokoblin Merah"
+                      >
+                        <span className="text-xs filter drop-shadow">👹</span>
+                        <span className="text-[7px] font-mono-tech text-rose-400 bg-slate-950/80 px-1 rounded">Bokoblin</span>
+                      </div>
+                    )}
+
+                    {/* Guardian Stalker & Kuil Kuno Shrine */}
+                    <div 
+                      className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10"
+                      style={{
+                        left: `${((75 + 80) / 160) * 100}%`,
+                        top: `${((-75 + 80) / 160) * 100}%`
+                      }}
+                      title="Ancient Guardian & Kuil Kuno"
+                    >
+                      <span className="text-xs filter drop-shadow animate-pulse">🏛️</span>
+                      <span className="text-[7px] font-mono-tech text-cyan-300 bg-slate-950/80 px-1 rounded">Kuil Kuno</span>
+                    </div>
+
+                    {/* Korok Pinwheel */}
+                    <div 
+                      className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-10"
+                      style={{
+                        left: `${((-6 + 80) / 160) * 100}%`,
+                        top: `${((16 + 80) / 160) * 100}%`
+                      }}
+                      title="Kincir Angin Korok"
+                    >
+                      <span className="text-xs filter drop-shadow">🍃</span>
+                      <span className="text-[7px] font-mono-tech text-emerald-300 bg-slate-950/80 px-1 rounded">Korok</span>
+                    </div>
+
+                    {/* Interactive 5 Tribal Territory Pins */}
+                    {Object.values(NUSANTARA_CODEX).map((codex) => {
+                      const isSelected = selectedMapRegionId === codex.id;
+                      const pinLeft = ((codex.mapPos.x + 80) / 160) * 100;
+                      const pinTop = ((codex.mapPos.z + 80) / 160) * 100;
+
+                      return (
+                        <button
+                          key={codex.id}
+                          onPointerDown={(e) => {
+                            e.preventDefault();
+                            setSelectedMapRegionId(codex.id);
+                          }}
+                          className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group cursor-pointer z-20 transition-all ${
+                            isSelected ? 'scale-125 z-30' : 'hover:scale-110'
+                          }`}
+                          style={{
+                            left: `${pinLeft}%`,
+                            top: `${pinTop}%`
+                          }}
+                        >
+                          {/* Pulsing Beacon Halo */}
+                          <div
+                            className={`w-8 h-8 rounded-full absolute -top-1 animate-ping opacity-60 pointer-events-none`}
+                            style={{ backgroundColor: codex.color }}
+                          />
+                          {/* Pin Icon Bubble */}
+                          <div
+                            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-2xl flex items-center justify-center text-sm sm:text-base border-2 shadow-lg transition-all ${
+                              isSelected
+                                ? 'ring-2 ring-white scale-110 shadow-[0_0_20px_rgba(255,255,255,0.8)]'
+                                : 'opacity-90 hover:opacity-100'
+                            }`}
+                            style={{
+                              backgroundColor: `${codex.color}35`,
+                              borderColor: codex.color,
+                              color: codex.color
+                            }}
+                          >
+                            {codex.icon}
+                          </div>
+                          {/* Pin Label */}
+                          <span 
+                            className={`text-[8px] sm:text-[9px] font-mono-tech font-black px-1.5 py-0.5 rounded-md mt-0.5 shadow whitespace-nowrap ${
+                              isSelected
+                                ? 'bg-white text-slate-950 ring-1 ring-cyan-400'
+                                : 'bg-slate-950/90 text-slate-200 border border-slate-700'
+                            }`}
+                          >
+                            {codex.hero}
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    {/* LIVE PLAYER MARKER ("Peta Mengikuti" - Realtime Position & Direction Cone) */}
+                    <div
+                      className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none z-40 transition-all duration-75"
+                      style={{
+                        left: `${Math.max(4, Math.min(96, ((hudStats.playerX + 80) / 160) * 100))}%`,
+                        top: `${Math.max(4, Math.min(96, ((hudStats.playerZ + 80) / 160) * 100))}%`
+                      }}
+                    >
+                      {/* Direction Cone pointing along player's yaw */}
+                      <div 
+                        className="w-8 h-8 flex items-center justify-center transition-transform duration-75"
+                        style={{
+                          transform: `rotate(${180 - (hudStats.playerRotY * 180) / Math.PI}deg)`
+                        }}
+                      >
+                        {/* Direction Arrow */}
+                        <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[13px] border-b-cyan-300 drop-shadow-[0_0_10px_#22d3ee] -mt-2" />
+                      </div>
+
+                      {/* Glowing Player Dot with Radar Ping */}
+                      <div className="relative -mt-4 flex items-center justify-center">
+                        <div className="w-4 h-4 rounded-full bg-cyan-400 animate-ping absolute opacity-80" />
+                        <div className="w-3.5 h-3.5 rounded-full bg-cyan-300 border-2 border-white shadow-[0_0_12px_#38bdf8]" />
+                      </div>
+
+                      {/* Floating Link Label */}
+                      <div className="mt-1 px-1.5 py-0.5 rounded bg-cyan-950/90 border border-cyan-400 text-[8px] font-mono-tech font-black text-cyan-200 shadow-md whitespace-nowrap">
+                        🟢 LINK (KAMU)
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between text-[10px] font-mono-tech text-slate-400 px-1">
+                    <span>💡 Tip: Tekan pin suku untuk melihat budaya & teleportasi Sheikah</span>
+                    <span className="text-cyan-400 font-bold">Arena: 160m × 160m</span>
+                  </div>
+                </div>
+
+                {/* RIGHT: Tribal Cultural Codex Card & Sheikah Teleporter (5 cols on lg) */}
+                <div className="lg:col-span-5 flex flex-col justify-between">
+                  {(() => {
+                    const currentCodex = NUSANTARA_CODEX[selectedMapRegionId] || NUSANTARA_CODEX.mataram;
+                    return (
+                      <div 
+                        className="p-4 sm:p-5 rounded-3xl bg-slate-900/90 border-2 shadow-2xl flex flex-col justify-between h-full space-y-3.5 animate-scale-in"
+                        style={{
+                          borderColor: currentCodex.color,
+                          boxShadow: `0 0 30px ${currentCodex.color}30`
+                        }}
+                      >
+                        {/* Card Header */}
+                        <div>
+                          <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+                            <div 
+                              className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-lg border shrink-0"
+                              style={{
+                                backgroundColor: `${currentCodex.color}25`,
+                                borderColor: currentCodex.color
+                              }}
+                            >
+                              {currentCodex.icon}
+                            </div>
+                            <div>
+                              <span 
+                                className="text-[10px] font-mono-tech font-bold uppercase tracking-wider block"
+                                style={{ color: currentCodex.color }}
+                              >
+                                {currentCodex.island}
+                              </span>
+                              <h4 className="text-lg sm:text-xl font-black font-fun text-white leading-tight">
+                                {currentCodex.tribe}
+                              </h4>
+                              <span className="text-[11px] text-amber-300 font-mono-tech font-bold">
+                                Tokoh Ksatria: {currentCodex.hero}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Codex Cultural Details Content */}
+                          <div className="space-y-2.5 mt-3 text-xs">
+                            {/* Weapon info */}
+                            <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-start gap-2">
+                              <span className="text-base">🗡️</span>
+                              <div>
+                                <span className="font-bold text-slate-400 block text-[10px] uppercase font-mono-tech">Senjata Pusaka:</span>
+                                <span className="font-bold" style={{ color: currentCodex.color }}>
+                                  {currentCodex.weapon}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Traditional House */}
+                            <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-start gap-2">
+                              <span className="text-base">🏛️</span>
+                              <div>
+                                <span className="font-bold text-slate-400 block text-[10px] uppercase font-mono-tech">Arsitektur Rumah Adat:</span>
+                                <span className="text-slate-200">
+                                  {currentCodex.traditionalHouse}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Culture & Sacred Traditions */}
+                            <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-start gap-2">
+                              <span className="text-base">🎭</span>
+                              <div>
+                                <span className="font-bold text-slate-400 block text-[10px] uppercase font-mono-tech">Upacara & Tradisi Sakral:</span>
+                                <span className="text-slate-200 leading-relaxed">
+                                  {currentCodex.cultureTradition}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Ancestral Philosophy */}
+                            <div className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 flex items-start gap-2">
+                              <span className="text-base">📜</span>
+                              <div>
+                                <span className="font-bold text-slate-400 block text-[10px] uppercase font-mono-tech">Filosofi Luhur:</span>
+                                <span className="italic font-serif text-amber-200">
+                                  "{currentCodex.philosophy}"
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Fun Fact */}
+                            <div className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-start gap-2">
+                              <span className="text-base">💡</span>
+                              <div>
+                                <span className="font-bold text-cyan-300 block text-[10px] uppercase font-mono-tech">Fakta Menarik Nusantara:</span>
+                                <span className="text-cyan-100 text-[11px] leading-relaxed">
+                                  {currentCodex.funFact}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Sheikah Fast-Travel / Teleportation Action */}
+                        <div className="pt-2">
+                          <button
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              handleTeleportTo(currentCodex.mapPos.x, currentCodex.mapPos.z, currentCodex.regionName);
+                            }}
+                            className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xs font-mono-tech shadow-xl shadow-cyan-500/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <Zap className="w-4 h-4 text-yellow-300 animate-bounce" />
+                            <span>⚡ TELEPORTASI SHEIKAH KE {currentCodex.tribe.toUpperCase()}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* OVERLAYS: INTRO / GAMEOVER / VICTORY */}
           {gameState === 'intro' && (
             <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center">
@@ -4527,7 +5116,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 <div>🏂 <strong>[R]</strong> Shield Surfing</div>
                 <div>🪂 <strong>[G]</strong> Paraglider / Updraft</div>
                 <div>💣 <strong>[Q]</strong> Bom Sheikah 3D</div>
-                <div>🍲 <strong>[E]</strong> Masak / Makan</div>
+                <div>🍲 <strong>[E]</strong> Masak / Bicara</div>
+                <div className="col-span-2 text-cyan-300 font-bold border-t border-cyan-500/30 pt-1.5 mt-0.5">
+                  🗺️ <strong>[M]</strong> Peta Atlas Nusantara & Teleportasi Suku 🇮🇩
+                </div>
               </div>
 
               <button
@@ -4751,7 +5343,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
               <span className="text-slate-400">: Kanan ▶</span>
             </div>
             <div className="text-[10px] text-amber-300 font-bold hidden sm:block">
-              ⚔️ [1-5] Ganti Pusaka | 🎯 [Z] Kunci | 🤸 S+Spasi Salto
+              ⚔️ [1-5] Ganti Pusaka | 🎯 [Z] Kunci | 🗺️ [M] Peta Atlas | 🤸 S+Spasi Salto
             </div>
           </div>
 
