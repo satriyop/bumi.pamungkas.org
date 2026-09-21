@@ -814,9 +814,18 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
     } else {
       const groundY = getTerrainHeight(p.x, p.z);
       if (Math.abs(p.y - groundY) < 0.45) {
-        p.vy = 10;
-        playZeldaSfx('jump');
-        setHudStats(prev => ({ ...prev, message: '🦘 Melompat!' }));
+        // Authentic Zelda Backflip if target locked and moving backward
+        if (targetLockRef.current && (keysRef.current['s'] || keysRef.current['S'] || keysRef.current['KeyS'] || keysRef.current['ArrowDown'] || touchDpadRef.current.dy > 0)) {
+          p.vy = 11;
+          p.vx = -Math.sin(p.rotY) * 0.65;
+          p.vz = -Math.cos(p.rotY) * 0.65;
+          playZeldaSfx('jump');
+          setHudStats(prev => ({ ...prev, message: '🤸 Salto Mundur (Backflip)!' }));
+        } else {
+          p.vy = 10;
+          playZeldaSfx('jump');
+          setHudStats(prev => ({ ...prev, message: '🦘 Melompat!' }));
+        }
       } else if (p.y - groundY > 1.2 && !p.isGliding) {
         toggleParaglider();
       }
@@ -1838,10 +1847,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
       let moveForward = 0;
       let moveRight = 0;
 
-      if (keysRef.current['w'] || keysRef.current['W'] || keysRef.current['ArrowUp']) moveForward += 1;
-      if (keysRef.current['s'] || keysRef.current['S'] || keysRef.current['ArrowDown']) moveForward -= 1;
-      if (keysRef.current['d'] || keysRef.current['D'] || keysRef.current['ArrowRight']) moveRight += 1;
-      if (keysRef.current['a'] || keysRef.current['A'] || keysRef.current['ArrowLeft']) moveRight -= 1;
+      if (keysRef.current['w'] || keysRef.current['W'] || keysRef.current['KeyW'] || keysRef.current['ArrowUp']) moveForward += 1;
+      if (keysRef.current['s'] || keysRef.current['S'] || keysRef.current['KeyS'] || keysRef.current['ArrowDown']) moveForward -= 1;
+      if (keysRef.current['d'] || keysRef.current['D'] || keysRef.current['KeyD'] || keysRef.current['ArrowRight']) moveRight += 1;
+      if (keysRef.current['a'] || keysRef.current['A'] || keysRef.current['KeyA'] || keysRef.current['ArrowLeft']) moveRight -= 1;
 
       if (touchDpadRef.current.dx !== 0 || touchDpadRef.current.dy !== 0) {
         moveRight = touchDpadRef.current.dx;
@@ -2240,6 +2249,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current[e.key] = true;
+      if (e.code) keysRef.current[e.code] = true;
 
       if (e.key === 'j' || e.key === 'J') {
         handleAttack();
@@ -2272,6 +2282,7 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
     const handleKeyUp = (e: KeyboardEvent) => {
       keysRef.current[e.key] = false;
+      if (e.code) keysRef.current[e.code] = false;
       if (e.key === 'l' || e.key === 'L') {
         handleShieldUp();
       }
@@ -2666,21 +2677,21 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
 
           {/* Quick Guide Indicator */}
           <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-cyan-500/40 text-[11px] font-mono-tech text-cyan-200 shadow-md">
-            <div className="flex items-center gap-1.5 font-bold">
+            <div className="flex items-center gap-1.5 font-bold flex-wrap">
               <span className="px-1.5 py-0.5 rounded bg-cyan-500/30 text-cyan-300 border border-cyan-400/50">W</span>
               <span className="text-slate-100">: MAJU ▲</span>
               <span className="text-slate-600">|</span>
-              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">A</span>
-              <span className="text-slate-400">: Kiri</span>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/50">S</span>
+              <span className="text-slate-100">: MUNDUR ▼</span>
               <span className="text-slate-600">|</span>
-              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">S</span>
-              <span className="text-slate-400">: Mundur</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">A</span>
+              <span className="text-slate-400">: Kiri ◀</span>
               <span className="text-slate-600">|</span>
               <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">D</span>
-              <span className="text-slate-400">: Kanan</span>
+              <span className="text-slate-400">: Kanan ▶</span>
             </div>
             <div className="text-[10px] text-amber-300 font-bold hidden sm:block">
-              🎯 [Z] Kunci Musuh
+              🎯 [Z] Kunci | 🤸 S+Spasi Salto
             </div>
           </div>
 
@@ -2733,10 +2744,10 @@ export const ZeldaAdventureArena: React.FC<ZeldaAdventureArenaProps> = ({ isDark
                 onPointerUp={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
                 onPointerLeave={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
                 onPointerCancel={() => { touchDpadRef.current = { dx: 0, dy: 0 }; }}
-                className="py-2 px-1 rounded-xl bg-slate-800 active:bg-cyan-600 border border-slate-600 active:border-cyan-400 text-white font-black flex flex-col items-center justify-center shadow-md active:scale-90 transition-all touch-none select-none cursor-pointer"
+                className="py-2 px-1 rounded-xl bg-slate-800 active:bg-emerald-600 border border-slate-600 active:border-emerald-400 text-white font-black flex flex-col items-center justify-center shadow-md active:scale-90 transition-all touch-none select-none cursor-pointer"
                 title="S : Mundur"
               >
-                <span className="text-sm font-extrabold text-cyan-300 leading-tight">S</span>
+                <span className="text-sm font-extrabold text-emerald-300 leading-tight">S</span>
                 <span className="text-[8px] font-bold text-slate-200 tracking-tighter">▼ MUNDUR</span>
               </button>
               <div />
